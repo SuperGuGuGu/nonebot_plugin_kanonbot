@@ -18,7 +18,7 @@ KanonBot - nb2插件版
 
     nb plugin install nonebot-plugin-kanonbot
     
-~~二.pip安装：~~（未上传，无法使用此命令） 
+二.pip安装：（目前处于测试版本，pip也许不是最新的） 
 
 1.执行此命令
 
@@ -43,13 +43,15 @@ KanonBot - nb2插件版
 
     SUPERUSERS=["12345678"] # 配置 NoneBot 超级用户
     
-2.插件数据存放位置，默认为 “./”。
+2.插件数据存放位置，默认为 “./KanonBot/”。
 
-    bilipush_basepath="./"
+    bilipush_basepath="./KanonBot/"
 
 ## To-Do
 🔵接下来：
  - [ ] 新建更多文件夹
+ - [ ] q头像加缓存
+ - [ ] 自动删除缓存
  
  🟢已完成：
  - [x] 新建文件夹
