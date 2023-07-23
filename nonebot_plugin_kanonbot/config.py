@@ -36,34 +36,56 @@ def kn_config(config_name):
         config = {
             "Kanon_Config": {
                 "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
-            "kanon_api": {
+            "knapi": {
                 "url": "http://cdn.kanon.ink"}}
         save_config()
         nonebot.logger.info("未存在KanonBot配置文件，正在创建")
     config = toml.load(path)
 
-    if config_name == "kanon_api-url":
-        if "kanon_api" in list(config):
-            if "url" in list(config["kanon_api"]):
-                return config["kanon_api"]["url"]
+    if config_name == "knapi-url":
+        if "knapi" in list(config):
+            if "url" in list(config["knapi"]):
+                return config["knapi"]["url"]
             else:
-                config["kanon_api"] = {"url": "http://cdn.kanon.ink"}
+                config["knapi"]["url"] = "http://cdn.kanon.ink"
                 save_config()
         else:
-            config["kanon_api"]["url"] = "http://cdn.kanon.ink"
+            config["knapi"] = {"url": "http://cdn.kanon.ink"}
             save_config()
-        return config["kanon_api"]["url"]
-    elif config_name == "kanon_api-state":
-        if "kanon_api" in list(config):
+        return config["knapi"]["url"]
+    elif config_name == "knapi-state":
+        if "knapi" in list(config):
             if "url" in list(config["kanon_api"]):
-                return config["kanon_api"]["state"]
+                return config["knapi"]["state"]
             else:
-                config["kanon_api"] = {"state": True}
+                config["knapi"]["state"] = True
                 save_config()
         else:
-            config["kanon_api"]["state"] = True
+            config["knapi"] = {"state": True}
             save_config()
-        return config["kanon_api"]["state"]
+        return config["knapi"]["state"]
+    elif config_name == "emoji-state":
+        if "emoji" in list(config):
+            if "state" in list(config["emoji"]):
+                return config["emoji"]["state"]
+            else:
+                config["emoji"]["state"] = True
+                save_config()
+        else:
+            config["emoji"] = {"state": True}
+            save_config()
+        return config["emoji"]["state"]
+    elif config_name == "emoji-mode":
+        if "emoji" in list(config):
+            if "mode" in list(config["kanon_api"]):
+                return config["emoji"]["mode"]
+            else:
+                config["emoji"]["mode"] = "file"
+                save_config()
+        else:
+            config["emoji"] = {"mode": "file"}
+            save_config()
+        return config["emoji"]["mode"]
     elif config_name == "":
         return
     elif config_name == "":
@@ -76,9 +98,7 @@ def kn_config(config_name):
         return
     elif config_name == "":
         return
-    elif config_name == "":
-        return
-    return True
+    return False
 
 
 def command_list():

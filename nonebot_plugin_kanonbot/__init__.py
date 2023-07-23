@@ -22,6 +22,7 @@ from nonebot.adapters.onebot.v11 import (
 import time
 from .config import kn_config, command_list
 from .bot_run import botrun
+from .tools import get_file_path
 
 
 
@@ -122,6 +123,7 @@ async def kanon(event: Event, bot: Bot):
     qq = event.get_user_id()
     timelong = str(time.strftime("%Y%m%d%H%M%S", time.localtime()))
     msg = re.sub(u"\\[.*?]", "", msg)
+    msg = msg.replace('"', "'")
     commands = []
     if ' ' in msg:
         messages = msg.split(' ', 1)
@@ -142,16 +144,8 @@ async def kanon(event: Event, bot: Bot):
         commands.append(msg)
     command = commands[0]
 
-    # 创建变量内容
-    code = 0
-    run = "off"
-    commandname = ""
-    dbpath = basepath + "db/"
-    configdb = dbpath + 'config.db'
-    emojidbname = dbpath + 'emoji/emoji.db'
-    autoreplydb = dbpath + 'autoreply/autoreply.db'
-
     # 判断是否响应
+    commandname = ""
     commandlist = command_list()
     run = False
     if not run:
@@ -178,5 +172,128 @@ async def kanon(event: Event, bot: Bot):
         if command in cache_commandlist:
             run = True
 
-    return_data = botrun()
+    if not run and kn_config(""):
+        conn = sqlite3.connect(get_file_path("emoji_1.db"))
+        cursor = conn.cursor()
+        cursor.execute(f'select * from emoji where emoji = "{command}"')
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if data is not None:
+            commandname = "emoji"
+            run = True
+
+    # 排除部分相应词
+    if run:
+        if commandname == 'caicaikan':
+            if len(command) >= 7:
+                run = False
+        if commandname == 'blowplane':
+            if len(command) >= 7:
+                run = False
+        if commandname == "亲亲" or \
+                commandname == "可爱" or \
+                commandname == "咬咬" or \
+                commandname == "摸摸" or \
+                commandname == "贴贴" or \
+                commandname == "逮捕":
+            if len(command) >= 7:
+                run = False
+    # 开始处理消息
+    if run:
+        # 创建变量内容
+        code = 0
+        dbpath = basepath + "db/"
+        configdb = dbpath + 'config.db'
+        autoreplydb = dbpath + 'autoreply.db'
+        userdatas_db = dbpath + "userdatas.db"
+
+        # 获取消息内容
+        allfriendlist = []
+        allgroupmember_data = []
+        if isinstance(event, GroupMessageEvent):
+            # 群消息
+            groupcode = str(event.group_id)
+            commandname_list = ["jinrilaopo", "jiehun", "keai", "welcome"]
+            if commandname in commandname_list:
+                allgroupmember_data = await bot.get_group_member_list(group_id=int(groupcode))
+            # 获取用户权限
+            if await GROUP_ADMIN(bot, event):
+                info_premission = '5'  # 管理员
+            elif await GROUP_OWNER(bot, event):
+                info_premission = '10'  # 群主
+            else:
+                info_premission = '0'  # 群员
+        else:
+            # 私聊
+            groupcode = 'p' + str(event.get_user_id())
+            info_premission = '10'
+        groupcode = 'g' + groupcode
+
+        # 组装信息，进行后续响应
+        msg_info = {
+            "atmsgs": atmsgs,
+            "info_premission": info_premission,
+            "commandname": commandname,
+            "groupcode": info_premission
+        }
+        data = botrun(event, bot, allfriendlist, allgroupmember_data, msg_info)
+
+        # 获取返回信息，进行回复
+        code = int(data["code"])
+        if code == 0:
+            pass
+        elif code == 1:
+            message = data["message"]
+            msg = MessageSegment.text(message)
+            at = data["at"]
+            if at != 'off':
+                msgat = MessageSegment.at(at)
+                msgn = MessageSegment.text('\n')
+                msg = msgat + msgn + msg
+            await run_kanon.finish(msg)
+        elif code == 2:
+            imgpath = data["returnpath"]
+            msg = MessageSegment.image(r"file:///" + imgpath)
+            at = data["at"]
+            if at != 'off':
+                msgat = MessageSegment.at(at)
+                msg = msgat + msg
+            print(imgpath)
+            await run_kanon.finish(msg)
+        elif code == 3:
+            at = data["at"]
+            message = data["message"]
+            imgpath = data["returnpath"]
+            msg1 = MessageSegment.text(message)
+            msg2 = MessageSegment.image(r"file:///" + imgpath)
+            if at != 'off':
+                msgat = MessageSegment.at(at)
+                msgn = MessageSegment.text('\n')
+                msg = msgat + msgn + msg1 + msg2
+            else:
+                msg = msg1 + msg2
+            await run_kanon.finish(msg)
+        elif code == 4:
+            imgpath = data["returnpath"]
+            imgpath2 = data["returnpath2"]
+            msg1 = MessageSegment.image(r"file:///" + imgpath)
+            msg2 = MessageSegment.image(r"file:///" + imgpath2)
+            message = data["message"]
+            msg0 = MessageSegment.text(message)
+            msg = msg0 + msg1 + msg2
+            await run_kanon.finish(msg)
+        elif code == 5:
+            imgpath = data["returnpath"]
+            imgpath2 = data["returnpath2"]
+            imgpath3 = data["returnpath3"]
+            msg1 = MessageSegment.image(r"file:///" + imgpath)
+            msg2 = MessageSegment.image(r"file:///" + imgpath2)
+            msg3 = MessageSegment.image(r"file:///" + imgpath3)
+            message = data["message"]
+            msg0 = MessageSegment.text(message)
+            msg = msg0 + msg1 + msg2 + msg3
+            await run_kanon.finish(msg)
+        else:
+            pass
     await run_kanon.finish()

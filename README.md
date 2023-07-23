@@ -47,9 +47,27 @@ KanonBot - nb2插件版
 
     bilipush_basepath="./KanonBot/"
 
+在 KanonBot文件夹 的 kanon_config.toml 文件中选填配置
+
+	[kanon_api]
+	# KanonAPI的url，非必要无需修改。
+	url = "http://cdn.kanon.ink"
+	# 是否开启API，默认开启。目前部署kanon必须开启。
+	state = True
+	
+	[emoji]
+	# 是否开启emoji的功能。默认开启。
+	state = True
+	# emoji的加载方式。
+	# "file"：下载emoji的数据库文件。
+	mode = "file"
+
+
+
 ## To-Do
 🔵接下来：
  - [ ] 新建更多文件夹
+ - [ ] 新建更多更多更多更多文件夹
  - [ ] q头像加缓存
  - [ ] 自动删除缓存
  
