@@ -1,15 +1,9 @@
-#coding=utf-8
-from nonebot import require, logger
+# coding=utf-8
 from nonebot.plugin import PluginMetadata
 import nonebot
 import os
-import httpx
 import re
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-import json
 import sqlite3
-import random
 from nonebot import on_message
 from nonebot.adapters.onebot.v11 import (
     Bot,
@@ -23,8 +17,6 @@ import time
 from .config import kn_config, command_list
 from .bot_run import botrun
 from .tools import get_file_path
-
-
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -229,15 +221,28 @@ async def kanon(event: Event, bot: Bot):
             groupcode = 'p' + str(event.get_user_id())
             info_premission = '10'
         groupcode = 'g' + groupcode
+        # 获取消息包含的图片
+        imgmsgmsg = event.get_message()["image"]
+        imgmsgs = []
+        if len(imgmsgmsg) >= 1:
+            for i in imgmsgmsg:
+                imgmsgg = str(i.data["url"])
+                imgmsgs.append(imgmsgg)
+        else:
+            imgmsgs = []
 
         # 组装信息，进行后续响应
         msg_info = {
             "atmsgs": atmsgs,
             "info_premission": info_premission,
             "commandname": commandname,
-            "groupcode": info_premission
+            "groupcode": groupcode,
+            "commands": commands,
+            "msg": msg,
+            "qq": qq,
+            "imgmsgs": imgmsgs
         }
-        data = botrun(event, bot, allfriendlist, allgroupmember_data, msg_info)
+        data = botrun(bot, allfriendlist, allgroupmember_data, msg_info)
 
         # 获取返回信息，进行回复
         code = int(data["code"])

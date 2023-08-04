@@ -98,3 +98,68 @@ def get_file_path(file_name):
         url = kn_config("kanon_api-url") + "/file/" + file_name
         await connect_api(type="file", url=url, file_path=file_path)
     return file_path
+
+
+def lockst(lockdb):
+    import time
+    sleeptime = random.randint(1, 200)
+    sleeptime = float(sleeptime) / 100
+    time.sleep(sleeptime)
+    # 读取锁定
+    try:
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        conn = sqlite3.connect(lockdb)
+        cursor = conn.cursor()
+        cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
+        cursor.close()
+        conn.close()
+    except:
+        print('已存在锁定数据库，开始读取数据')
+    # 查询数据
+    conn = sqlite3.connect(lockdb)
+    cursor = conn.cursor()
+    cursor.execute('select * from lock where name = "lock"')
+    locking = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    # 判断锁定
+    if locking == 'on':
+        num = 100
+        while num >= 1:
+            num -= 1
+            conn = sqlite3.connect(lockdb)
+            cursor = conn.cursor()
+            cursor.execute('select * from lock where name = "lock"')
+            locking = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if locking == 'on':
+                time.sleep(0.1)
+                if num == 0:
+                    print('超时')
+            else:
+                num = 0
+
+    else:
+        # 锁定
+        conn = sqlite3.connect(lockdb)
+        cursor = conn.cursor()
+        cursor.execute('replace into lock(name,lock) values("lock","on")')
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+    return locking
+
+
+def locked(lockdb):
+    # 解锁
+    conn = sqlite3.connect(lockdb)
+    cursor = conn.cursor()
+    cursor.execute('replace into lock(name,lock) values("lock","off")')
+    cursor.close()
+    conn.commit()
+    conn.close()
+    locking = 'off'
+    return locking

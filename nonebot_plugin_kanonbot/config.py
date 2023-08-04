@@ -42,33 +42,38 @@ def kn_config(config_name):
         nonebot.logger.info("未存在KanonBot配置文件，正在创建")
     config = toml.load(path)
 
-    if config_name == "knapi-url":
-        if "knapi" in list(config):
-            if "url" in list(config["knapi"]):
-                return config["knapi"]["url"]
-            else:
-                config["knapi"]["url"] = "http://cdn.kanon.ink"
+    # 下面这堆代码我都快看不懂了，有空重构一下
+    # 用“-”来分段。
+    if config_name == "kanon_api-url":
+        if "kanon_api" in list(config):
+            if "url" not in list(config["kanon_api"]):
+                config["kanon_api"]["url"] = "http://cdn.kanon.ink"
                 save_config()
         else:
-            config["knapi"] = {"url": "http://cdn.kanon.ink"}
+            config["kanon_api"] = {"url": "http://cdn.kanon.ink"}
             save_config()
-        return config["knapi"]["url"]
-    elif config_name == "knapi-state":
-        if "knapi" in list(config):
-            if "url" in list(config["kanon_api"]):
-                return config["knapi"]["state"]
-            else:
-                config["knapi"]["state"] = True
+        return config["kanon_api"]["url"]
+    elif config_name == "kanon_api-state":
+        if "kanon_api" in list(config):
+            if "url" not in list(config["kanon_api"]):
+                config["kanon_api"]["state"] = True
                 save_config()
         else:
-            config["knapi"] = {"state": True}
+            config["kanon_api"] = {"state": True}
             save_config()
-        return config["knapi"]["state"]
+        return config["kanon_api"]["state"]
+    elif config_name == "kanon_api-unity_key":
+        if "kanon_api" in list(config):
+            if "unity_key" not in list(config["kanon_api"]):
+                config["kanon_api"]["unity_key"] = "none"
+                save_config()
+        else:
+            config["kanon_api"] = {"unity_key": "none"}
+            save_config()
+        return config["kanon_api"]["unity_key"]
     elif config_name == "emoji-state":
         if "emoji" in list(config):
-            if "state" in list(config["emoji"]):
-                return config["emoji"]["state"]
-            else:
+            if "state" not in list(config["emoji"]):
                 config["emoji"]["state"] = True
                 save_config()
         else:
@@ -77,15 +82,31 @@ def kn_config(config_name):
         return config["emoji"]["state"]
     elif config_name == "emoji-mode":
         if "emoji" in list(config):
-            if "mode" in list(config["kanon_api"]):
-                return config["emoji"]["mode"]
-            else:
+            if "mode" not in list(config["emoji"]):
                 config["emoji"]["mode"] = "file"
                 save_config()
         else:
             config["emoji"] = {"mode": "file"}
             save_config()
         return config["emoji"]["mode"]
+    elif config_name == "botswift-state":
+        if "botswift" in list(config):
+            if "state" not in list(config["botswift"]):
+                config["botswift"]["state"] = False
+                save_config()
+        else:
+            config["botswift"] = {"state": False}
+            save_config()
+        return config["botswift"]["state"]
+    elif config_name == "botswift-ignore_list":
+        if "botswift" in list(config):
+            if "ignore_list" not in list(config["botswift"]):
+                config["botswift"]["ignore_list"] = []
+                save_config()
+        else:
+            config["botswift"] = {"ignore_list": []}
+            save_config()
+        return config["botswift"]["ignore_list"]
     elif config_name == "":
         return
     elif config_name == "":
@@ -99,6 +120,36 @@ def kn_config(config_name):
     elif config_name == "":
         return
     return False
+
+
+def _config_list():
+    configs = {
+        "welcome": {"state": True, "message": "入群欢迎（正在维护）", "group": "群聊功能", "name": "入群欢迎"},
+        "chickin": {"state": True, "message": "", "group": "", "name": ""},
+        "jiehun": {"state": True, "message": "", "group": "", "name": ""},
+        "qinqin": {"state": True, "message": "", "group": "", "name": ""},
+        "tietie": {"state": True, "message": "", "group": "", "name": ""},
+        "daibu": {"state": True, "message": "", "group": "", "name": ""},
+        "ti": {"state": True, "message": "", "group": "", "name": ""},
+        "yaoyao": {"state": True, "message": "", "group": "", "name": ""},
+        "wlp": {"state": True, "message": "", "group": "", "name": ""},
+        "ji": {"state": True, "message": "", "group": "", "name": ""},
+        "pa": {"state": True, "message": "", "group": "", "name": ""},
+        "yizhi": {"state": True, "message": "", "group": "", "name": ""},
+        "zhanbu": {"state": True, "message": "", "group": "", "name": ""},
+        "keai": {"state": True, "message": "", "group": "", "name": ""},
+        "wolaopo": {"state": True, "message": "", "group": "", "name": ""},
+        "zhi": {"state": True, "message": "", "group": "", "name": ""},
+        "quanquan": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""},
+        "": {"state": True, "message": "", "group": "", "name": ""}
+    }
+    return configs
 
 
 def command_list():
