@@ -1,7 +1,9 @@
 # coding=utf-8
 from .config import kn_config, _config_list
 from .tools import lockst, locked, command_cd
-import plugins
+from .plugins import (
+    plugins_zhanbu
+)
 import time
 import nonebot
 from nonebot import logger
@@ -28,12 +30,17 @@ try:
         basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
+if not os.path.exists(basepath):
+    os.makedirs(basepath)
 
 
-def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
+async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     # ## 初始化 ##
-    lockdb = './lock.db'
-    lockst(lockdb)
+    lockdb = f"{basepath}db/"
+    if not os.path.exists(lockdb):
+        os.makedirs(lockdb)
+    lockdb += "lock.db"
+    await lockst(lockdb)
     global image, addimage
     msg = msg_info["msg"]
     commands = msg_info["commands"]
@@ -48,7 +55,7 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     groupcode = msg_info["groupcode"]
     qq = msg_info["qq"]
     imgmsgs = msg_info["imgmsgs"]
-    botid = bot.self_id()
+    botid = bot.self_id
 
     if len(atmsg) >= 1:
         qq2 = atmsgs[0]
@@ -134,6 +141,14 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         if not os.path.exists(db_path):
             # 数据库文件 如果文件不存在，会自动在当前目录中创建
             cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if groupcode not in tables:
+            cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
         cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{commandname}"')
         data = cursor.fetchone()
         if data is not None:
@@ -147,8 +162,8 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                 if data[1] != "sqlite_sequence":
                     tables.append(data[1])
             if "list" not in tables:
-                cursor.execute(f"create table list(command VARCHAR(10) primary key, state BOOLEAN(20), "
-                               f"message VARCHAR(20), group VARCHAR(20), name VARCHAR(20))")
+                cursor.execute("create table list(command VARCHAR(10) primary key, state BOOLEAN(20), "
+                               "message VARCHAR(20), 'group' VARCHAR(20), name VARCHAR(20))")
             cursor.execute(f'SELECT * FROM list WHERE command="{commandname}"')
             data = cursor.fetchone()
             if data is not None:
@@ -158,8 +173,10 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
             else:
                 config_list = _config_list()
                 if commandname in list(config_list):
+                    print(1)
                     state = config_list[commandname]["state"]
                 else:
+                    print(2)
                     state = False
         cursor.close()
         conn.close()
@@ -184,16 +201,17 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         # 处理消息
         if "zhanbu" == commandname:
             if getconfig("zhanbu"):
-                if getconfig("commandcd") and info_premission != "10" and qq not in adminqq:
+                if getconfig("commandcd"):
                     coolingdb = dbpath + "cooling.db"
                     cooling = command_cd(qq, groupcode, timeshort, coolingdb)
-                    if cooling != "off":
+                    if cooling != "off" and info_premission != "10" and qq not in adminqq:
                         code = 1
-                        coolingmessage = f"指令冷却中（{cooling}s)"
+                        message = f"指令冷却中（{cooling}s)"
                         logger.info("指令冷却中")
                     else:
                         at = 'on'
-                        message, returnpath = plugins.plugins_zhanbu(qq, cachepath)
+                        logger.info(f"run-{commandname}")
+                        message, returnpath = plugins_zhanbu(qq, cachepath)
                         if returnpath is not None:
                             code = 3
                         else:

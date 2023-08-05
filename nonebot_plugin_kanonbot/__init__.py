@@ -142,26 +142,34 @@ async def kanon(event: Event, bot: Bot):
     run = False
     if not run:
         cache_commandlist = commandlist["精准"]
-        if command in cache_commandlist:
+        if command in list(cache_commandlist):
+            commandname = cache_commandlist[command]
             run = True
     if not run:
         cache_commandlist = commandlist["模糊"]
-        for cache_command in cache_commandlist:
+        for cache_command in list(cache_commandlist):
             if cache_command in command:
+                commandname = cache_commandlist[command]
                 run = True
+                break
     if not run:
         cache_commandlist = commandlist["开头"]
-        for cache_command in cache_commandlist:
+        for cache_command in list(cache_commandlist):
             if command.startswith(cache_command):
+                commandname = cache_commandlist[cache_command]
                 run = True
+                break
     if not run:
         cache_commandlist = commandlist["结尾"]
-        for cache_command in cache_commandlist:
+        for cache_command in list(cache_commandlist):
             if command.endswith(cache_command):
+                commandname = cache_commandlist[cache_command]
                 run = True
+                break
     if not run:
         cache_commandlist = commandlist["精准2"]
-        if command in cache_commandlist:
+        if command in list(cache_commandlist):
+            commandname = cache_commandlist[command]
             run = True
 
     if not run and kn_config(""):
@@ -242,8 +250,9 @@ async def kanon(event: Event, bot: Bot):
             "qq": qq,
             "imgmsgs": imgmsgs
         }
-        data = botrun(bot, allfriendlist, allgroupmember_data, msg_info)
-
+        print(msg_info)
+        data = await botrun(bot, allfriendlist, allgroupmember_data, msg_info)
+        print(data)
         # 获取返回信息，进行回复
         code = int(data["code"])
         if code == 0:

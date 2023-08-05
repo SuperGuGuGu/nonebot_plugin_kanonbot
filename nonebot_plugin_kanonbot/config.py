@@ -1,4 +1,4 @@
-#coding=utf-8
+# coding=utf-8
 import toml
 import nonebot
 import os
@@ -55,7 +55,7 @@ def kn_config(config_name):
         return config["kanon_api"]["url"]
     elif config_name == "kanon_api-state":
         if "kanon_api" in list(config):
-            if "url" not in list(config["kanon_api"]):
+            if "state" not in list(config["kanon_api"]):
                 config["kanon_api"]["state"] = True
                 save_config()
         else:
@@ -125,23 +125,32 @@ def kn_config(config_name):
 def _config_list():
     configs = {
         "welcome": {"state": True, "message": "入群欢迎（正在维护）", "group": "群聊功能", "name": "入群欢迎"},
-        "chickin": {"state": True, "message": "", "group": "", "name": ""},
-        "jiehun": {"state": True, "message": "", "group": "", "name": ""},
-        "qinqin": {"state": True, "message": "", "group": "", "name": ""},
-        "tietie": {"state": True, "message": "", "group": "", "name": ""},
-        "daibu": {"state": True, "message": "", "group": "", "name": ""},
-        "ti": {"state": True, "message": "", "group": "", "name": ""},
-        "yaoyao": {"state": True, "message": "", "group": "", "name": ""},
-        "wlp": {"state": True, "message": "", "group": "", "name": ""},
-        "ji": {"state": True, "message": "", "group": "", "name": ""},
-        "pa": {"state": True, "message": "", "group": "", "name": ""},
-        "yizhi": {"state": True, "message": "", "group": "", "name": ""},
-        "zhanbu": {"state": True, "message": "", "group": "", "name": ""},
-        "keai": {"state": True, "message": "", "group": "", "name": ""},
-        "wolaopo": {"state": True, "message": "", "group": "", "name": ""},
-        "zhi": {"state": True, "message": "", "group": "", "name": ""},
-        "quanquan": {"state": True, "message": "", "group": "", "name": ""},
-        "?": {"state": True, "message": "", "group": "", "name": ""}
+        "chickin": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
+        "jiehun": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        "qinqin": {"state": True, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
+        "tietie": {"state": True, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
+        "daibu": {"state": True, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
+        "ti": {"state": True, "message": "啊打 (啊打@群友)", "group": "表情功能", "name": "啊打"},
+        "yaoyao": {"state": True, "message": "咬咬 (咬咬@群友)", "group": "表情功能", "name": "咬咬"},
+        "wlp": {"state": True, "message": "来点wlp", "group": "图库功能", "name": "图库"},
+        "ji": {"state": True, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄图"},
+        "pa": {"state": True, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬图"},
+        "yizhi": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
+        "zhanbu": {"state": True, "message": "占卜 (发送：占卜)", "group": "群聊功能", "name": "占卜"},
+        "keai": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
+        "wolaopo": {"state": True, "message": "我老婆 (我老婆@群友)", "group": "表情功能", "name": "我老婆"},
+        "zhi": {"state": True, "message": "指", "group": "表情功能", "name": "指"},
+        "quanquan": {"state": True, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
+        "jiehunzheng": {"state": True, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
+        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
+        "ji2": {"state": True, "message": "急", "group": "表情功能", "name": "急"},
+        "momo": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
+        "commandcd": {"state": True, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"},
+        "xibao": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
+        "autorply": {"state": True, "message": "词条回复", "group": "群聊功能", "name": "词条回复"},
+        "jinrilaopo": {"state": True, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"},
+        "caicaikan": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "blowplane": {"state": False, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"}
     }
     return configs
 

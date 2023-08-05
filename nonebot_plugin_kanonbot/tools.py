@@ -1,4 +1,4 @@
-#coding=utf-8
+# coding=utf-8
 import httpx
 from PIL import Image
 from io import BytesIO
@@ -62,6 +62,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     :param post_json: post获取时的内容。例：{"data": "data_here"}
     :param file_path: 文件保存位置。例："C:/file.zip"
     """
+    logger.info(f"connect-{url}")
     # 把api调用的代码放在一起，也许未来改为异步调取
     if type == "json":
         if post_json is None:
@@ -112,18 +113,18 @@ async def lockst(lockdb):
     sleeptime = float(sleeptime) / 100
     time.sleep(sleeptime)
     # 读取锁定
-    try:
-        # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        conn = sqlite3.connect(lockdb)
-        cursor = conn.cursor()
-        cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
-        cursor.close()
-        conn.close()
-    except:
-        print('已存在锁定数据库，开始读取数据')
-    # 查询数据
+
     conn = sqlite3.connect(lockdb)
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if "lock" not in tables:
+        cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
+    # 查询数据
     cursor.execute('select * from lock where name = "lock"')
     locking = cursor.fetchone()
     cursor.close()

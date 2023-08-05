@@ -1,4 +1,4 @@
-import random
+# coding=utf-8
 import random
 from nonebot import logger
 import nonebot
@@ -8,7 +8,7 @@ from .config import kn_config, _zhanbu_datas
 from .tools import get_file_path, connect_api
 
 config = nonebot.get_driver().config
-# ÅäÖÃ2£º
+# é…ç½®2ï¼š
 try:
     basepath = config.kanon_basepath
     if "\\" in basepath:
@@ -21,6 +21,7 @@ try:
         basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
+
 
 def plugins_zhanbu(qq, cachepath):
     message = ""
@@ -35,7 +36,7 @@ def plugins_zhanbu(qq, cachepath):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
-    # Êı¾İ¿âÁĞ±í×ªÎªĞòÁĞ
+    # æ•°æ®åº“åˆ—è¡¨è½¬ä¸ºåºåˆ—
     tables = []
     for data in datas:
         if data[1] != "sqlite_sequence":
@@ -50,23 +51,25 @@ def plugins_zhanbu(qq, cachepath):
         zhanbu_id = str(random.randint(0, 116))
         # zhanbu_data = zhanbu_datas[zhanbu_id]
         if kn_config("kanon_api-state"):
-            # Èç¹û¿ªÆôÁËapi£¬Ôò´Ó·şÎñÆ÷ÏÂÔØÕ¼²·Êı¾İ
-            returnpath = f"{basepath}image/Õ¼²·1/"
+            # å¦‚æœå¼€å¯äº†apiï¼Œåˆ™ä»æœåŠ¡å™¨ä¸‹è½½å åœæ•°æ®
+            returnpath = f"{basepath}image/å åœ1/"
             if not os.path.exists(returnpath):
                 os.makedirs(returnpath)
             returnpath += f"{zhanbu_id}.png"
             if not os.path.exists(returnpath):
-                # Èç¹ûÎÄ¼şÎ´»º´æ£¬Ôò»º´æÏÂÀ´
-                url = kn_config("kanon_api-url") + f"api/image?imageid=knapi-zhanbu1-{zhanbu_id}"
+                # å¦‚æœæ–‡ä»¶æœªç¼“å­˜ï¼Œåˆ™ç¼“å­˜ä¸‹æ¥
+                url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu1-{zhanbu_id}"
                 image = connect_api("image", url)
-                image.save(f"{cachepath}Õ¼²·1/{zhanbu_id}.png")
+                returnpath = f"{basepath}image/å åœ1/{zhanbu_id}.png"
+                image.save(returnpath)
+                message = "ä»Šæ—¥å åœç»“æœæ˜¯ï¼š"
         else:
-            # Ê¹ÓÃ±¾µØÊı¾İ
-            # message = f"½ñÈÕÕ¼²·½á¹û£º{zhanbu_data['title']}\n{zhanbu_data['message']}"
-            message = f"½ñÈÕÕ¼²·½á¹û£º{zhanbu_id}"
+            # ä½¿ç”¨æœ¬åœ°æ•°æ®
+            # message = f"ä»Šæ—¥å åœç»“æœï¼š{zhanbu_data['title']}\n{zhanbu_data['message']}"
+            message = f"ä»Šæ—¥å åœç»“æœï¼š{zhanbu_id}"
         pass
     else:
-        message = "½ñÈÕÕ¼²·½á¹ûÊÇ£º"
+        message = "ä»Šæ—¥å åœç»“æœæ˜¯ï¼š"
     cursor.close()
     conn.close()
 
