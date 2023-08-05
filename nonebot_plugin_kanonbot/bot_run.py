@@ -1,8 +1,10 @@
 # coding=utf-8
 from .config import kn_config, _config_list
-from .tools import lockst, locked
+from .tools import lockst, locked, command_cd
+import plugins
 import time
 import nonebot
+from nonebot import logger
 import os
 import sqlite3
 
@@ -40,12 +42,13 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         command2 = commands[1]
     else:
         command2 = ''
-    qq = msg_info["qq"]
-    groupcode = msg_info["groupcode"]
-    botid = bot.self_id()
     atmsg = atmsgs = msg_info["atmsgs"]
-    imgmsgs = msg_info["imgmsgs"]
     info_premission = msg_info["info_premission"]
+    commandname = msg_info["commandname"]
+    groupcode = msg_info["groupcode"]
+    qq = msg_info["qq"]
+    imgmsgs = msg_info["imgmsgs"]
+    botid = bot.self_id()
 
     if len(atmsg) >= 1:
         qq2 = atmsgs[0]
@@ -114,8 +117,11 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     at = False
     code = 0
     cut = 'off'
+    run = True
+    coolingmessage = "指令冷却中"
 
     # 添加函数
+    # 查询功能开关
     def getconfig(commandname: str) -> bool:
         """
         查询指令是否开启
@@ -159,37 +165,60 @@ def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         conn.close()
         return state
 
+    # 查询冷却
+    def command_cooling() -> bool:
+        # 查询冷却代码位置
+        return False
+
     # ## 心跳服务相关 ##
     # 判断心跳服务是否开启。
     if kn_config("botswift-state"):
         # 如所在的群关闭心跳功能，则全部响应
         ignore_list = kn_config("botswift-ignore_list")
         if groupcode[3:] in kn_config("botswift-ignore_list"):
-            send = True
-    # 如果需要发送则True
-    send = True
+            run = True
+    # 如果需要继续运行则True
+    run = True
 
-    # ## 指令冷却 ##
-    # 读取该群是否开启指令冷却
-    if getconfig("commandcd"):
-        # 群主无冷却
-        if info_premission == "10":
-            send = True
-        # bot管理员无冷却
-        elif qq in adminqq:
-            send = True
-        else:
-            # 判断冷却代码位置（待更新）
-            send = True
+    if run is True:
+        # 处理消息
+        if "zhanbu" == commandname:
+            if getconfig("zhanbu"):
+                if getconfig("commandcd") and info_premission != "10" and qq not in adminqq:
+                    coolingdb = dbpath + "cooling.db"
+                    cooling = command_cd(qq, groupcode, timeshort, coolingdb)
+                    if cooling != "off":
+                        code = 1
+                        coolingmessage = f"指令冷却中（{cooling}s)"
+                        logger.info("指令冷却中")
+                    else:
+                        at = 'on'
+                        message, returnpath = plugins.plugins_zhanbu(qq, cachepath)
+                        if returnpath is not None:
+                            code = 3
+                        else:
+                            code = 1
+        elif "###" == commandname:
+            pass
 
+    # 这两位置是放心跳服务相关代码，待后续完善
+    # 本bot存入mainbot数据库
+    # 保活
 
+    # log记录
+    # 目前还不需要这个功能吧，先放着先
 
-
-
-
-
-
-
-
+    # 返回消息处理
+    code = str(code)
+    if 'p' in groupcode:
+        at = 'off'
+    if at == 'on':
+        at = qq
     locked(lockdb)
-    return
+    return {"code": code,
+            "message": message,
+            "returnpath": returnpath,
+            "at": at,
+            "returnpath2": returnpath2,
+            "returnpath3": returnpath3
+            }

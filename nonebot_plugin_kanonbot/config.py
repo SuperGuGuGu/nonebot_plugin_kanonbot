@@ -141,13 +141,7 @@ def _config_list():
         "wolaopo": {"state": True, "message": "", "group": "", "name": ""},
         "zhi": {"state": True, "message": "", "group": "", "name": ""},
         "quanquan": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""},
-        "": {"state": True, "message": "", "group": "", "name": ""}
+        "?": {"state": True, "message": "", "group": "", "name": ""}
     }
     return configs
 
@@ -236,3 +230,13 @@ def command_list():
         },
     }
     return commands
+
+
+def _zhanbu_datas():
+    datas = {
+        "1": {"title": "", "message": ""}
+    }
+    return datas
+
+
+

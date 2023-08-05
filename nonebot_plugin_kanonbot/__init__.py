@@ -165,7 +165,7 @@ async def kanon(event: Event, bot: Bot):
             run = True
 
     if not run and kn_config(""):
-        conn = sqlite3.connect(get_file_path("emoji_1.db"))
+        conn = sqlite3.connect(await get_file_path("emoji_1.db"))
         cursor = conn.cursor()
         cursor.execute(f'select * from emoji where emoji = "{command}"')
         data = cursor.fetchone()
@@ -233,12 +233,12 @@ async def kanon(event: Event, bot: Bot):
 
         # 组装信息，进行后续响应
         msg_info = {
+            "msg": msg,
+            "commands": commands,
             "atmsgs": atmsgs,
             "info_premission": info_premission,
             "commandname": commandname,
             "groupcode": groupcode,
-            "commands": commands,
-            "msg": msg,
             "qq": qq,
             "imgmsgs": imgmsgs
         }
