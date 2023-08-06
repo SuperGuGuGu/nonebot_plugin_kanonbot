@@ -18,7 +18,7 @@ KanonBot - nb2插件版
 
     nb plugin install nonebot-plugin-kanonbot
     
-二.pip安装：（目前处于测试版本，pip也许不是最新的） 
+二.pip安装：
 
 1.执行此命令
 
@@ -28,8 +28,7 @@ KanonBot - nb2插件版
 
     plugins = [”nonebot-plugin-kanonbot“]
     
- 三.使用插件文件安装：
- （目前唯一可用方案，但推荐等待正式版后再使用此插件。）
+ 三.使用插件文件安装：（不推荐）
  
  1.下载插件文件，放到plugins文件夹。
 
@@ -54,6 +53,9 @@ KanonBot - nb2插件版
 	url = "http://cdn.kanon.ink"
 	# 是否开启API，默认开启。目前部署kanon必须开启。
 	state = True
+	# 是否连接为unity_bot
+	# 对接到kanon主服务器的密钥，填”none“为不对接
+	unity_bot = "none"
 	
 	[emoji]
 	# 是否开启emoji的功能。默认开启。
@@ -61,7 +63,13 @@ KanonBot - nb2插件版
 	# emoji的加载方式。
 	# "file"：下载emoji的数据库文件。
 	mode = "file"
-
+	
+	[botswift]
+	# 是否开启bot心跳的功能。默认关闭。
+	state = False
+	# 忽略该功能的群
+	ignore_list = ["123456"]
+	
 
 
 ## To-Do
@@ -70,6 +78,9 @@ KanonBot - nb2插件版
  - [ ] 新建更多更多更多更多文件夹
  - [ ] q头像加缓存
  - [ ] 自动删除缓存
+ - [ ] botswift功能代码
+ - [ ] 指令冷却功能代码
+ - [ ] 优化锁定
  
  🟢已完成：
  - [x] 新建文件夹
