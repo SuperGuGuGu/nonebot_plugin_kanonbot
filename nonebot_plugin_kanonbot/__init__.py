@@ -70,7 +70,7 @@ __plugin_meta__ = PluginMetadata(
     usage="/help",
     type="application",
     # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
-    homepage="https://github.com/SuperGuGuGu/nonebot_plugin_bili_push",
+    homepage="https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot",
     # 发布必填。
     supported_adapters={"~onebot.v11"},
     # 支持的适配器集合，其中 `~` 在此处代表前缀 `nonebot.adapters.`，其余适配器亦按此格式填写。
