@@ -35,6 +35,7 @@ if not os.path.exists(basepath):
 
 
 async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
+    logger.info("KanonBot-0.0.1Beta3")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
