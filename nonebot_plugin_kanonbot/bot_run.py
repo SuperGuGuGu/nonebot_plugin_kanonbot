@@ -173,10 +173,8 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
             else:
                 config_list = _config_list()
                 if commandname in list(config_list):
-                    print(1)
                     state = config_list[commandname]["state"]
                 else:
-                    print(2)
                     state = False
         cursor.close()
         conn.close()

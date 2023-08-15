@@ -62,7 +62,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     :param post_json: post获取时的内容。例：{"data": "data_here"}
     :param file_path: 文件保存位置。例："C:/file.zip"
     """
-    logger.info(f"connect-{url}")
+    # logger.info(f"connect-{url}")
     # 把api调用的代码放在一起，也许未来改为异步调取
     if type == "json":
         if post_json is None:
@@ -144,7 +144,7 @@ async def lockst(lockdb):
             if locking == 'on':
                 await asyncio.sleep(0.2)
                 if num == 0:
-                    print('超时')
+                    logger.info("等待超时")
             else:
                 num = 0
 
@@ -182,118 +182,86 @@ def command_cd(qq, groupcode, timeshort, coolingdb):
     # 冷却长度，单位S
     coolinglong = 200
 
-    print('开始计算CD')
     # 尝试创建数据库
     coolingnumber = str('0')
-    try:
-        # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        conn = sqlite3.connect(coolingdb)
-        cursor = conn.cursor()
-        cursor.execute(
-            'create table ' + groupcode + ' (userid VARCHAR(10) primary key, number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
-        cursor.close()
-        conn.close()
-    except:
-        print('已存在数据库，开始读取数据')
-    # 读取数据库内容：日期文件，群号表，用户数据
-    # 查询数据
+
     conn = sqlite3.connect(coolingdb)
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    # 数据库列表转为序列
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if groupcode not in tables:
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        cursor.execute(
+            f'create table {groupcode} (userid VARCHAR(10) primary key,'
+            f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
+    # 读取数据库内容：日期文件，群号表，用户数据
+    # 查询数据
     cursor.execute('select * from ' + groupcode + ' where userid = ' + qq)
     data = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    print('# 判断有无数据')
-    datanone = None
-    if data == datanone:
-        print('#  无数据，写入数据')
+    if data is None:
         coolingnumber = '1'
         cooling = 'off'
-        conn = sqlite3.connect(coolingdb)
-        cursor = conn.cursor()
         cursor.execute(
-            'replace into ' + groupcode + '(userid,number,time,cooling) values("' + qq + '","' + coolingnumber + '","' + timeshort + '","' + cooling + '")')
-        cursor.close()
-        conn.commit()
-        conn.close()
+            f'replace into {groupcode}(userid,number,time,cooling) '
+            f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
     else:
-        print('判断是否正在冷却')
         # 判断是否正在冷却
         cooling = data[3]
         if cooling == 'off':
-            print('判断时间，time-冷却时间再判断')
             #  判断时间，time-冷却时间再判断
             timeshortdata = int(data[2]) + int(coolingtime)
             timeshort = int(timeshort)
             if timeshortdata >= timeshort:
-                print('小于冷却时间，冷却次数+1')
                 # 小于冷却时间，冷却次数+1
                 coolingnumber = int(data[1]) + 1
-                print('判断冷却次数，次数>=冷却数量')
                 #    判断冷却次数，次数>=冷却数量
                 if coolingnumber >= coolingnum:
                     cooling = 'on'
-                    print('大于次数，开启冷却,写入')
                     # 大于次数，开启冷却,写入
                     coolingnumber = str(coolingnumber)
                     timeshort = str(timeshort)
-                    conn = sqlite3.connect(coolingdb)
-                    cursor = conn.cursor()
                     cursor.execute(
-                        'replace into ' + groupcode + '(userid,number,time,cooling) values("' + qq + '","' + coolingnumber + '","' + timeshort + '","' + cooling + '")')
-                    cursor.close()
-                    conn.commit()
-                    conn.close()
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
                     timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
                     coolingtime = str(timeshortdata - int(timeshort))
                 else:
-                    print('小于写入')
                     # 小于写入
 
                     cooling = 'off'
                     coolingnumber = str(coolingnumber)
                     timeshort = str(timeshort)
-                    conn = sqlite3.connect(coolingdb)
-                    cursor = conn.cursor()
                     cursor.execute(
-                        'replace into ' + groupcode + '(userid,number,time,cooling) values("' + qq + '","' + coolingnumber + '","' + timeshort + '","' + cooling + '")')
-                    cursor.close()
-                    conn.commit()
-                    conn.close()
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
             else:
-                print('大于冷却时间，重新写入')
                 # 大于冷却时间，重新写入
                 coolingnumber = '1'
                 cooling = 'off'
                 timeshort = str(timeshort)
-                conn = sqlite3.connect(coolingdb)
-                cursor = conn.cursor()
                 cursor.execute(
-                    'replace into ' + groupcode + '(userid,number,time,cooling) values("' + qq + '","' + coolingnumber + '","' + timeshort + '","' + cooling + '")')
-                cursor.close()
-                conn.commit()
-                conn.close()
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
         else:
-            print('正在冷却，计算取消冷却时间')
             timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
             timeshort = int(timeshort)
             if timeshortdata >= timeshort:
-                print('仍在冷却中')
                 coolingtime = str(timeshortdata - timeshort)
             else:
-                print('冷却结束')
                 coolingnumber = '1'
                 cooling = 'off'
                 timeshort = str(timeshort)
-                conn = sqlite3.connect(coolingdb)
-                cursor = conn.cursor()
                 cursor.execute(
-                    'replace into ' + groupcode + '(userid,number,time,cooling) values("' + qq + '","' + coolingnumber + '","' + timeshort + '","' + cooling + '")')
-                cursor.close()
-                conn.commit()
-                conn.close()
-
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
     if cooling != 'off':
         cooling = str(coolingtime)
+
+    cursor.close()
+    conn.close()
     return cooling

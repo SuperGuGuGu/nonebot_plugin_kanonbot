@@ -34,44 +34,86 @@ def plugins_zhanbu(qq, cachepath):
 
     conn = sqlite3.connect(zhanbudb)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-    datas = cursor.fetchall()
-    # 数据库列表转为序列
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
-    if "zhanbu" not in tables:
-        cursor.execute('create table zhanbu (userid varchar(10) primary key, id varchar(20))')
-    cursor.execute(f'select * from zhanbu where userid = "{qq}"')
-    data = cursor.fetchone()
-    if data is None:
-        # zhanbu_datas = _zhanbu_datas()
-        # zhanbu_id = random.choice(list(zhanbu_datas))
-        zhanbu_id = str(random.randint(0, 116))
-        # zhanbu_data = zhanbu_datas[zhanbu_id]
-        if kn_config("kanon_api-state"):
-            # 如果开启了api，则从服务器下载占卜数据
-            returnpath = f"{basepath}image/占卜1/"
-            if not os.path.exists(returnpath):
-                os.makedirs(returnpath)
-            returnpath += f"{zhanbu_id}.png"
-            if not os.path.exists(returnpath):
-                # 如果文件未缓存，则缓存下来
-                url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu1-{zhanbu_id}"
-                image = connect_api("image", url)
-                returnpath = f"{basepath}image/占卜1/{zhanbu_id}.png"
-                image.save(returnpath)
-                message = "今日占卜结果是："
+    try:
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        # 数据库列表转为序列
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "zhanbu" not in tables:
+            cursor.execute('create table zhanbu (userid varchar(10) primary key, id varchar(20))')
+        cursor.execute(f'select * from zhanbu where userid = "{qq}"')
+        data = cursor.fetchone()
+        if data is None:
+            # 随机卡牌的好坏。1/3是坏，2/3是好
+            # 但是貌似有些是混在一起的，有空再去琢磨一下概率（下次一定，咕咕咕
+            zhanbu_type = random.randint(0, 2)
+            if zhanbu_type == 0:
+                zhanbu_type = "bad"
+            else:
+                zhanbu_type = "good"
+            zhanbu_id = random.choice(list(_zhanbu_datas()[zhanbu_type]))
+            zhanbu_data = _zhanbu_datas()[zhanbu_type][zhanbu_id]
+            zhanbu_name = zhanbu_data["name"]
+            zhanbu_message = zhanbu_data["message"]
+            # 写入占卜结果
+            cursor.execute(f'replace into zhanbu("userid","id") values("{qq}", "{zhanbu_id}")')
+
+            if kn_config("kanon_api-state"):
+                # 如果开启了api，则从服务器下载占卜数据
+                returnpath = f"{basepath}image/占卜2/"
+                if not os.path.exists(returnpath):
+                    os.makedirs(returnpath)
+                returnpath += f"{zhanbu_name}.jpg"
+                if not os.path.exists(returnpath):
+                    # 如果文件未缓存，则缓存下来
+                    url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
+                    image = connect_api("image", url)
+                    image.save(returnpath)
+                    message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+            else:
+                # 使用本地数据
+                # message = f"今日占卜结果：{zhanbu_data['title']}\n{zhanbu_data['message']}"
+                message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+            pass
         else:
-            # 使用本地数据
-            # message = f"今日占卜结果：{zhanbu_data['title']}\n{zhanbu_data['message']}"
-            message = f"今日占卜结果：{zhanbu_id}"
-        pass
-    else:
-        message = "今日占卜结果是："
-    cursor.close()
-    conn.close()
+            zhanbu_name = ""
+            zhanbu_message = ""
+            zhanbu_id = str(data[1])
+            zhanbu_datas = _zhanbu_datas()
+            for ids in zhanbu_datas["good"]:
+                if ids == zhanbu_id:
+                    zhanbu_data = zhanbu_datas["good"]
+                    zhanbu_name = zhanbu_data[ids]["name"]
+                    zhanbu_message = zhanbu_data[ids]["messages"]
+                    break
+            for ids in zhanbu_datas["bad"]:
+                if ids == zhanbu_id:
+                    zhanbu_data = zhanbu_datas["bad"]
+                    zhanbu_name = zhanbu_data[ids]["name"]
+                    zhanbu_message = zhanbu_data[ids]["message"]
+                    break
+
+            message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+            if kn_config("kanon_api-state"):
+                # 如果开启了api，则从服务器下载占卜数据
+                returnpath = f"{basepath}image/占卜2/"
+                if not os.path.exists(returnpath):
+                    os.makedirs(returnpath)
+                returnpath += f"{zhanbu_name}.jpg"
+                if not os.path.exists(returnpath):
+                    # 如果文件未缓存，则缓存下来
+                    url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
+                    image = connect_api("image", url)
+                    image.save(returnpath)
+    except:
+        logger.error("KanonBot插件出错-plugin-zhanbu")
+    finally:
+        conn.commit()
+        cursor.close()
+        conn.close()
 
     return message, returnpath
 

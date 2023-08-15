@@ -117,23 +117,36 @@ async def kanon(event: Event, bot: Bot):
     msg = re.sub(u"\\[.*?]", "", msg)
     msg = msg.replace('"', "'")
     commands = []
-    if ' ' in msg:
+    if ' ' in msg or '\n' in msg:
         messages = msg.split(' ', 1)
         for command in messages:
-            if not commands:
-                for command_start in command_starts:
-                    if command_start != "" and command.startswith(command_start):
-                        command = command.removeprefix(command_start)
-                        break
-                commands.append(command)
+            if "\n" in command:
+                command2 = command.split('\n', 1)
+                for command in command2:
+                    if not commands:
+                        for command_start in command_starts:
+                            if command_start != "" and command.startswith(command_start):
+                                command = command.removeprefix(command_start)
+                                break
+                        commands.append(command)
+                    else:
+                        commands.append(command)
             else:
-                commands.append(command)
+                if not commands:
+                    for command_start in command_starts:
+                        if command_start != "" and command.startswith(command_start):
+                            command = command.removeprefix(command_start)
+                            break
+                    commands.append(command)
+                else:
+                    commands.append(command)
     else:
+        command = msg
         for command_start in command_starts:
             if command_start != "" and msg.startswith(command_start):
                 command = msg.removeprefix(command_start)
                 break
-        commands.append(msg)
+        commands.append(command)
     command = commands[0]
 
     # 判断是否响应
