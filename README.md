@@ -14,7 +14,7 @@ KanonBot - nb2插件版
 ## 安装
 （以下方法三选一）
 
-~~一.命令行安装：~~（未上架，无法使用此命令） 
+一.命令行安装：
 
     nb plugin install nonebot-plugin-kanonbot
     
@@ -80,6 +80,7 @@ KanonBot - nb2插件版
  - [ ] 自动删除缓存
  - [ ] botswift功能代码
  - [ ] 指令冷却功能代码
+ - [ ] 增加接入Kanon功能
  - [ ] 优化锁定
  
  🟢已完成：
