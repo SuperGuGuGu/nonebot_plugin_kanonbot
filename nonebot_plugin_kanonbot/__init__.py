@@ -4,7 +4,7 @@ import nonebot
 import os
 import re
 import sqlite3
-from nonebot import on_message
+from nonebot import on_message, logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
     MessageSegment,
@@ -16,7 +16,7 @@ from nonebot.adapters.onebot.v11 import (
 import time
 from .config import kn_config, command_list
 from .bot_run import botrun
-from .tools import get_file_path
+from .tools import get_file_path, get_command
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -103,50 +103,17 @@ async def kanon(event: Event, bot: Bot):
     atmsg = event.get_message()["at"]
     atmsgs = []
     if len(atmsg) >= 1:
-        print(str(len(atmsg)))
         for i in atmsg:
             atmsgg = str(i.data["qq"])
             atmsgg.removeprefix('[CQ:at,qq=')
             atmsgg.removesuffix(']')
             atmsgs.append(atmsgg)
-    if event.is_tome():
-        atmsgs.append(botid)
     msg = str(event.get_message())
     qq = event.get_user_id()
     timelong = str(time.strftime("%Y%m%d%H%M%S", time.localtime()))
     msg = re.sub(u"\\[.*?]", "", msg)
     msg = msg.replace('"', "'")
-    commands = []
-    if ' ' in msg or '\n' in msg:
-        messages = msg.split(' ', 1)
-        for command in messages:
-            if "\n" in command:
-                command2 = command.split('\n', 1)
-                for command in command2:
-                    if not commands:
-                        for command_start in command_starts:
-                            if command_start != "" and command.startswith(command_start):
-                                command = command.removeprefix(command_start)
-                                break
-                        commands.append(command)
-                    else:
-                        commands.append(command)
-            else:
-                if not commands:
-                    for command_start in command_starts:
-                        if command_start != "" and command.startswith(command_start):
-                            command = command.removeprefix(command_start)
-                            break
-                    commands.append(command)
-                else:
-                    commands.append(command)
-    else:
-        command = msg
-        for command_start in command_starts:
-            if command_start != "" and msg.startswith(command_start):
-                command = msg.removeprefix(command_start)
-                break
-        commands.append(command)
+    commands = get_command(msg)
     command = commands[0]
 
     # 判断是否响应
@@ -237,6 +204,9 @@ async def kanon(event: Event, bot: Bot):
                 info_premission = '10'  # 群主
             else:
                 info_premission = '0'  # 群员
+            # 如果群聊内at机器人，则添加at信息。
+            if event.is_tome():
+                atmsgs.append(botid)
         else:
             # 私聊
             groupcode = 'p' + str(event.get_user_id())
@@ -263,9 +233,9 @@ async def kanon(event: Event, bot: Bot):
             "qq": qq,
             "imgmsgs": imgmsgs
         }
-        print(msg_info)
+        logger.info(msg_info)
         data = await botrun(bot, allfriendlist, allgroupmember_data, msg_info)
-        print(data)
+        logger.info(data)
         # 获取返回信息，进行回复
         code = int(data["code"])
         if code == 0:
@@ -274,7 +244,7 @@ async def kanon(event: Event, bot: Bot):
             message = data["message"]
             msg = MessageSegment.text(message)
             at = data["at"]
-            if at != 'off':
+            if at is not False:
                 msgat = MessageSegment.at(at)
                 msgn = MessageSegment.text('\n')
                 msg = msgat + msgn + msg
@@ -283,7 +253,7 @@ async def kanon(event: Event, bot: Bot):
             imgpath = data["returnpath"]
             msg = MessageSegment.image(r"file:///" + imgpath)
             at = data["at"]
-            if at != 'off':
+            if at is not False:
                 msgat = MessageSegment.at(at)
                 msg = msgat + msg
             print(imgpath)
@@ -294,7 +264,7 @@ async def kanon(event: Event, bot: Bot):
             imgpath = data["returnpath"]
             msg1 = MessageSegment.text(message)
             msg2 = MessageSegment.image(r"file:///" + imgpath)
-            if at != 'off':
+            if at is not False:
                 msgat = MessageSegment.at(at)
                 msgn = MessageSegment.text('\n')
                 msg = msgat + msgn + msg1 + msg2

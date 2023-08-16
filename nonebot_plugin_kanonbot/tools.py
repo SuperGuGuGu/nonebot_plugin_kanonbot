@@ -27,6 +27,51 @@ try:
         basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
+# 配置3：
+try:
+    command_starts = config.COMMAND_START
+except Exception as e:
+    command_starts = ["/"]
+
+
+def get_command(msg) -> list:
+    """
+    使用空格和换行进行切分1次
+    :param msg: 原始字符串。"hello world"
+    :return: 切分后的内容["hello", "world"]
+    """
+    commands = []
+    if ' ' in msg or '\n' in msg:
+        messages = msg.split(' ', 1)
+        for command in messages:
+            if "\n" in command:
+                command2 = command.split('\n', 1)
+                for command in command2:
+                    if not commands:
+                        for command_start in command_starts:
+                            if command_start != "" and command.startswith(command_start):
+                                command = command.removeprefix(command_start)
+                                break
+                        commands.append(command)
+                    else:
+                        commands.append(command)
+            else:
+                if not commands:
+                    for command_start in command_starts:
+                        if command_start != "" and command.startswith(command_start):
+                            command = command.removeprefix(command_start)
+                            break
+                    commands.append(command)
+                else:
+                    commands.append(command)
+    else:
+        command = msg
+        for command_start in command_starts:
+            if command_start != "" and msg.startswith(command_start):
+                command = msg.removeprefix(command_start)
+                break
+        commands.append(command)
+    return commands
 
 
 def get_face(qq, size: int = 640):
@@ -172,7 +217,6 @@ def locked(lockdb):
     return locking
 
 
-
 def command_cd(qq, groupcode, timeshort, coolingdb):
     cooling = 'off'
     # 冷却时间，单位S
@@ -245,8 +289,8 @@ def command_cd(qq, groupcode, timeshort, coolingdb):
                 cooling = 'off'
                 timeshort = str(timeshort)
                 cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
+                    f'replace into {groupcode}(userid,number,time,cooling) '
+                    f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
         else:
             timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
             timeshort = int(timeshort)
@@ -257,8 +301,8 @@ def command_cd(qq, groupcode, timeshort, coolingdb):
                 cooling = 'off'
                 timeshort = str(timeshort)
                 cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
+                    f'replace into {groupcode}(userid,number,time,cooling) '
+                    f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
     if cooling != 'off':
         cooling = str(coolingtime)
 

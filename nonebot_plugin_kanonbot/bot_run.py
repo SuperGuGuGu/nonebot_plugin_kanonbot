@@ -1,8 +1,8 @@
 # coding=utf-8
 from .config import kn_config, _config_list
-from .tools import lockst, locked, command_cd
+from .tools import lockst, locked, command_cd, get_command
 from .plugins import (
-    plugins_zhanbu
+    plugins_zhanbu, plugins_config
 )
 import time
 import nonebot
@@ -33,7 +33,6 @@ except Exception as e:
 if not os.path.exists(basepath):
     os.makedirs(basepath)
 
-
 async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     logger.info("KanonBot-0.0.1Beta5")
     # ## 初始化 ##
@@ -50,10 +49,14 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         command2 = commands[1]
     else:
         command2 = ''
-    atmsg = atmsgs = msg_info["atmsgs"]
-    info_premission = msg_info["info_premission"]
-    commandname = msg_info["commandname"]
-    groupcode = msg_info["groupcode"]
+    atmsgs = msg_info["atmsgs"]
+    if len(atmsgs) > 1:
+        atmsg = atmsgs[0]
+    else:
+        atmsg = atmsgs
+    info_premission: str = msg_info["info_premission"]
+    commandname: str = msg_info["commandname"]
+    groupcode: str = msg_info["groupcode"]
     qq = msg_info["qq"]
     imgmsgs = msg_info["imgmsgs"]
     botid = bot.self_id
@@ -126,7 +129,6 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     code = 0
     cut = 'off'
     run = True
-    coolingmessage = "指令冷却中"
 
     # 添加函数
     # 查询功能开关
@@ -189,10 +191,14 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     # ## 心跳服务相关 ##
     # 判断心跳服务是否开启。
     if kn_config("botswift-state"):
-        # 如所在的群关闭心跳功能，则全部响应
+        # 读取忽略该功能的群聊
         ignore_list = kn_config("botswift-ignore_list")
-        if groupcode[3:] in kn_config("botswift-ignore_list"):
+        if groupcode.startswith("gp"):
+            # 私聊默认回复
             run = True
+        else:
+            if groupcode[2:] in kn_config("botswift-ignore_list"):
+                run = True
     # 如果需要继续运行则True
     run = True
 
@@ -215,6 +221,27 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                             code = 3
                         else:
                             code = 1
+                else:
+                    at = 'on'
+                    logger.info(f"run-{commandname}")
+                    message, returnpath = plugins_zhanbu(qq, cachepath)
+                    if returnpath is not None:
+                        code = 3
+                    else:
+                        code = 1
+        elif commandname.startswith("config"):
+            if info_premission == "10" or info_premission == "5" or qq in adminqq:
+                logger.info(f"run-{commandname}")
+                config_name = get_command(command2)[0]
+                message, returnpath = plugins_config(commandname, config_name, groupcode)
+                if message is not None:
+                    code = 1
+                else:
+                    code = 2
+            else:
+                logger.info(f"run-{commandname}, 用户权限不足")
+                # code = 1
+                # message = "权限不足"
         elif "###" == commandname:
             pass
 
@@ -229,7 +256,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     code = str(code)
     if 'p' in groupcode:
         at = 'off'
-    if at == 'on':
+    if at is True:
         at = qq
     locked(lockdb)
     return {"code": code,

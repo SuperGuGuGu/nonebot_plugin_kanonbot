@@ -4,7 +4,7 @@ from nonebot import logger
 import nonebot
 import os
 import sqlite3
-from .config import kn_config, _zhanbu_datas
+from .config import kn_config, _zhanbu_datas, _config_list
 from .tools import get_file_path, connect_api
 
 config = nonebot.get_driver().config
@@ -118,3 +118,63 @@ def plugins_zhanbu(qq, cachepath):
     return message, returnpath
 
 
+def plugins_config(command_name: str, config_name: str, groupcode: str):
+    message = ""
+    returnpath = None
+    command_name = command_name.removeprefix("config")
+    if command_name == "开启":
+        command_state = True
+    elif command_name == "关闭":
+        command_state = False
+    else:
+        command_state = "查询"
+    config_list = _config_list()
+    config_real_name = ""
+    for name in config_list:
+        config = config_list[name]
+        if config_name == config["name"]:
+            config_real_name = name
+            break
+
+    dbpath = basepath + "db/"
+    if not os.path.exists(dbpath):
+        os.makedirs(dbpath)
+    db_path = dbpath + "comfig.db"
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    if not os.path.exists(db_path):
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if groupcode not in tables:
+        cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+
+    if command_state is True or command_state is False:
+        # 开启或关闭功能
+        cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{config_real_name}"')
+        data = cursor.fetchone()
+        if data is not None:
+            state = data[1]
+            if state == command_state:
+                message = f"{config_name}已{command_name}"
+            else:
+                cursor.execute(f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
+                conn.commit()
+            message = f"{config_name}已{command_name}"
+        else:
+            cursor.execute(f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
+            conn.commit()
+            message = f"{config_name}已{command_name}"
+    else:
+        # 查询开启的功能
+        code = 1
+        message = "查询功能"
+        pass
+    cursor.close()
+    conn.close()
+    return message, returnpath
