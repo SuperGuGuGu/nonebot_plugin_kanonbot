@@ -33,8 +33,9 @@ except Exception as e:
 if not os.path.exists(basepath):
     os.makedirs(basepath)
 
+
 async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
-    logger.info("KanonBot-0.0.1Beta5")
+    logger.info("KanonBot-0.0.1Beta6")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -199,6 +200,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         else:
             if groupcode[2:] in kn_config("botswift-ignore_list"):
                 run = True
+
     # 如果需要继续运行则True
     run = True
 

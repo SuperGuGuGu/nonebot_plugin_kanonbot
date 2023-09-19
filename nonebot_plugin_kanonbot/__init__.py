@@ -126,13 +126,6 @@ async def kanon(event: Event, bot: Bot):
             commandname = cache_commandlist[command]
             run = True
     if not run:
-        cache_commandlist = commandlist["模糊"]
-        for cache_command in list(cache_commandlist):
-            if cache_command in command:
-                commandname = cache_commandlist[command]
-                run = True
-                break
-    if not run:
         cache_commandlist = commandlist["开头"]
         for cache_command in list(cache_commandlist):
             if command.startswith(cache_command):
@@ -144,6 +137,13 @@ async def kanon(event: Event, bot: Bot):
         for cache_command in list(cache_commandlist):
             if command.endswith(cache_command):
                 commandname = cache_commandlist[cache_command]
+                run = True
+                break
+    if not run:
+        cache_commandlist = commandlist["模糊"]
+        for cache_command in list(cache_commandlist):
+            if cache_command in command:
+                commandname = cache_commandlist[command]
                 run = True
                 break
     if not run:
