@@ -206,7 +206,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
 
     if run is True:
         # 处理消息
-        if "zhanbu" == commandname:
+        if "群聊功能-zhanbu" == commandname:
             if getconfig("zhanbu"):
                 if getconfig("commandcd"):
                     coolingdb = dbpath + "cooling.db"
@@ -216,7 +216,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                         message = f"指令冷却中（{cooling}s)"
                         logger.info("指令冷却中")
                     else:
-                        at = 'on'
+                        at = qq
                         logger.info(f"run-{commandname}")
                         message, returnpath = plugins_zhanbu(qq, cachepath)
                         if returnpath is not None:
@@ -224,7 +224,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                         else:
                             code = 1
                 else:
-                    at = 'on'
+                    at = qq
                     logger.info(f"run-{commandname}")
                     message, returnpath = plugins_zhanbu(qq, cachepath)
                     if returnpath is not None:
@@ -244,6 +244,39 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                 logger.info(f"run-{commandname}, 用户权限不足")
                 # code = 1
                 # message = "权限不足"
+
+
+        elif commandname.startswith("群聊功能-"):
+            commandname = commandname.removeprefix("群聊功能-")
+            if "zhanbu" == commandname:
+                if getconfig("zhanbu"):
+                    if getconfig("commandcd"):
+                        coolingdb = dbpath + "cooling.db"
+                        cooling = command_cd(qq, groupcode, timeshort, coolingdb)
+                        if cooling != "off" and info_premission != "10" and qq not in adminqq:
+                            code = 1
+                            message = f"指令冷却中（{cooling}s)"
+                            logger.info("指令冷却中")
+                        else:
+                            at = qq
+                            logger.info(f"run-{commandname}")
+                            message, returnpath = plugins_zhanbu(qq, cachepath)
+                            if returnpath is not None:
+                                code = 3
+                            else:
+                                code = 1
+                    else:
+                        at = qq
+                        logger.info(f"run-{commandname}")
+                        message, returnpath = plugins_zhanbu(qq, cachepath)
+                        if returnpath is not None:
+                            code = 3
+                        else:
+                            code = 1
+
+            pass
+        elif "###" == commandname:
+            pass
         elif "###" == commandname:
             pass
 

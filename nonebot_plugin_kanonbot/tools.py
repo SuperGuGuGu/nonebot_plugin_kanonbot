@@ -1,5 +1,6 @@
 # coding=utf-8
 import httpx
+import requests
 from PIL import Image
 from io import BytesIO
 import sqlite3
@@ -100,26 +101,25 @@ def list_in_list(list_1: list, list_2: list):
 
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
-    """
-    连接api以获取内容
-    :param type: 下载类型。例：“json”, "image", "file"
-    :param url: url。例："http://cdn.kanon.ink/json/config?name=ping"
-    :param post_json: post获取时的内容。例：{"data": "data_here"}
-    :param file_path: 文件保存位置。例："C:/file.zip"
-    """
-    # logger.info(f"connect-{url}")
-    # 把api调用的代码放在一起，也许未来改为异步调取
+    # 把api调用的代码放在一起，方便下一步进行异步开发
     if type == "json":
         if post_json is None:
             return json.loads(httpx.get(url).text)
         else:
             return json.loads(httpx.post(url, json=post_json).text)
     elif type == "image":
-        return Image.open(BytesIO(httpx.get(url).content))
+        try:
+            image = Image.open(BytesIO(httpx.get(url).content))
+        except Exception as e:
+            logger.error("图片获取出错")
+            logger.error(url)
+            image = Image.open(BytesIO(httpx.get(url).content))
+        return image
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
-            with open(cache_file_path, "wb") as f, httpx.get(url) as res:
+            # 这里不能用httpx。用就报错。
+            with open(cache_file_path, "wb") as f, requests.get(url) as res:
                 f.write(res.content)
             logger.info("下载完成")
             shutil.copyfile(cache_file_path, file_path)

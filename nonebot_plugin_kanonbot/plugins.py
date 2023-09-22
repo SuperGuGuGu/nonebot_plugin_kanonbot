@@ -87,7 +87,7 @@ def plugins_zhanbu(qq, cachepath):
                 if ids == zhanbu_id:
                     zhanbu_data = zhanbu_datas["good"]
                     zhanbu_name = zhanbu_data[ids]["name"]
-                    zhanbu_message = zhanbu_data[ids]["messages"]
+                    zhanbu_message = zhanbu_data[ids]["message"]
                     break
             for ids in zhanbu_datas["bad"]:
                 if ids == zhanbu_id:

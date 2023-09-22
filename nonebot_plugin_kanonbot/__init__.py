@@ -256,7 +256,6 @@ async def kanon(event: Event, bot: Bot):
             if at is not False:
                 msgat = MessageSegment.at(at)
                 msg = msgat + msg
-            print(imgpath)
             await run_kanon.finish(msg)
         elif code == 3:
             at = data["at"]
