@@ -45,7 +45,8 @@ KanonBot - nb2 插件版
     [kanon_api]
     # KanonAPI的url，非必要无需修改。
     url = "http://cdn.kanon.ink"
-    # 是否开启API，默认开启。（理论上，目前部署kanon必须开启）
+    # 是否开启API来获得完整功能，默认开启。
+    # （理论上，目前部署kanon必须开启）
     state = True
 
     [emoji]

@@ -6,7 +6,7 @@ import os
 config = nonebot.get_driver().config
 # 配置2：
 try:
-    basepath = config.kanon_basepath
+    basepath = config.kanonbot_basepath
     if "\\" in basepath:
         basepath = basepath.replace("\\", "/")
     if basepath.startswith("./"):
@@ -167,10 +167,22 @@ def command_list():
         "精准": {
             "help": "config查询",
             "使用说明": "config查询",
+            "帮助": "config查询",
             "查询功能": "config查询",
             "菜单": "config查询",
             "关闭": "config关闭",
             "开启": "config开启",
+            "占卜": "群聊功能-zhanbu",
+            "合成": "群聊功能-emoji",
+            "买薯条": "群聊功能-chickin",
+            "吃薯条": "群聊功能-chickin",
+            "签到": "群聊功能-chickin",
+            "今日老婆": "群聊功能-jinrilaopo",
+            "jrlp": "群聊功能-jinrilaopo",
+            "wlp是谁": "图库功能-wlp",
+            "来点wlp": "图库功能-wlp",
+            "多来点wlp": "图库功能-wlp",
+            "成员名单": "图库功能-wlp",
             "一直": "表情功能-yizhi",
             "啊打": "表情功能-ti",
             "喜报": "表情功能-xibao",
@@ -191,17 +203,6 @@ def command_list():
             "悲报": "表情功能-beibao",
             "wlp": "表情功能-wolaopo",
             "😡👊": "表情功能-quanquan",
-            "买薯条": "群聊功能-chickin",
-            "吃薯条": "群聊功能-chickin",
-            "占卜": "群聊功能-zhanbu",
-            "合成": "群聊功能-emoji",
-            "签到": "群聊功能-chickin",
-            "今日老婆": "群聊功能-jinrilaopo",
-            "jrlp": "群聊功能-jinrilaopo",
-            "wlp是谁": "图库功能-wlp",
-            "来点wlp": "图库功能-wlp",
-            "多来点wlp": "图库功能-wlp",
-            "成员名单": "图库功能-wlp",
             "cck": "小游戏-caicaikan",
             "bzd": "小游戏-caicaikan",
             "猜猜看": "小游戏-caicaikan",

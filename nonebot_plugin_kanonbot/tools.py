@@ -1,7 +1,7 @@
 # coding=utf-8
 import httpx
 import requests
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import sqlite3
 import random
@@ -17,7 +17,7 @@ import asyncio
 config = nonebot.get_driver().config
 # 配置2：
 try:
-    basepath = config.kanon_basepath
+    basepath = config.kanonbot_basepath
     if "\\" in basepath:
         basepath = basepath.replace("\\", "/")
     if basepath.startswith("./"):
@@ -143,7 +143,7 @@ async def get_file_path(file_name) -> str:
         # 如果文件未缓存，则缓存下来
         logger.info("正在下载" + file_name)
         url = kn_config("kanon_api-url") + "/file/" + file_name
-        await connect_api(type="file", url=url, file_path=file_path)
+        connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
 
@@ -309,3 +309,86 @@ def command_cd(qq, groupcode, timeshort, coolingdb):
     cursor.close()
     conn.close()
     return cooling
+
+
+
+def circle_corner(img, radii):
+    """
+    圆角处理
+    :param img: 源图象。
+    :param radii: 半径，如：30。
+    :return: 返回一个圆角处理后的图象。
+    """
+
+    # 画圆（用于分离4个角）
+    circle = Image.new('L', (radii * 2, radii * 2), 0)  # 创建一个黑色背景的画布
+    draw = ImageDraw.Draw(circle)
+    draw.ellipse((0, 0, radii * 2, radii * 2), fill=255)  # 画白色圆形
+
+    # 原图
+    img = img.convert("RGBA")
+    w, h = img.size
+
+    # 画4个角（将整圆分离为4个部分）
+    alpha = Image.new('L', img.size, 255)
+    alpha.paste(circle.crop((0, 0, radii, radii)), (0, 0))  # 左上角
+    alpha.paste(circle.crop((radii, 0, radii * 2, radii)), (w - radii, 0))  # 右上角
+    alpha.paste(circle.crop((radii, radii, radii * 2, radii * 2)), (w - radii, h - radii))  # 右下角
+    alpha.paste(circle.crop((0, radii, radii, radii * 2)), (0, h - radii))  # 左下角
+    # alpha.show()
+
+    img.putalpha(alpha)  # 白色区域透明可见，黑色区域不可见
+    return img
+
+
+
+
+async def new_background2(image_x, image_y, draw_name, draw_title):
+    # 创建背景
+    draw_image = Image.new("RGB", (image_x, image_y), "#c4e6fe")
+    mask_image = Image.new("RGB", (190, 975))
+    mask_image = circle_corner(mask_image, 34)
+    if kn_config("kanon_api-state"):
+        # 如果开启了api，则从服务器下载图片数据
+        filepath = await get_file_path("kanonbot-draw-蓝色渐变.png")
+        paste_image = Image.open(filepath, "r")
+        paste_image = paste_image.resize((190, 975))
+    else:
+        paste_image = Image.new("RGB", (190, 975), "#")
+    draw_image.paste(paste_image, (37, 68), mask=mask_image)
+
+    # 添加卡片名称
+    paste_image = Image.new("RGBA", (975, 975) ,(0, 0, 0, 0))
+    draw2 = ImageDraw.Draw(paste_image)
+    fortlen = 142
+    if kn_config("kanon_api-state"):
+        # 如果开启了api，则从服务器下载字体数据
+        fontfile = await get_file_path("SourceHanSansK-ExtraLight.ttf")
+    else:
+        fontfile = None
+    font = ImageFont.truetype(font=fontfile, size=fortlen)
+    draw2.text((487-fortlen, 97), text=draw_name, font=font, fill=(193, 211, 255))
+    paste_image = paste_image.rotate(90)
+    draw_image.paste(paste_image, (0, 332), mask=paste_image)
+
+    # 添加卡片标题
+    draw = ImageDraw.Draw(draw_image)
+    if kn_config("kanon_api-state"):
+        # 如果开启了api，则从服务器下载字体数据
+        fontfile = await get_file_path("SourceHanSansK-Normal.ttf")
+    else:
+        fontfile = None
+    font = ImageFont.truetype(font=fontfile, size=56)
+    draw.text((270, 68), text=draw_title, font=font, fill=(24, 148, 227))
+
+    # 添加主体框
+    w, h = draw_image.size
+    paste_image = Image.new("RGB", (w-308, h-216), color="#e7f6ff")
+    paste_image = circle_corner(paste_image, 34)
+    draw_image.paste(paste_image, (268, 156), mask=paste_image)
+    return draw_image
+
+
+
+
+
