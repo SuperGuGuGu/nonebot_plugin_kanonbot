@@ -38,7 +38,7 @@ KanonBot - nb2 插件版
 
 2.插件数据存放位置，默认为 “./KanonBot/”。
 
-    bilipush_basepath="./KanonBot/"
+    kanonbot_basepath="./KanonBot/"
 
 在 KanonBot 文件夹 的 kanon_config.toml 文件中选填配置
 

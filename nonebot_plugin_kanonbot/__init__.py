@@ -46,7 +46,7 @@ except Exception as e:
     adminqq = []
 # 配置2：
 try:
-    basepath = config.kanon_basepath
+    basepath = config.kanonbot_basepath
     if "\\" in basepath:
         basepath = basepath.replace("\\", "/")
     if basepath.startswith("./"):

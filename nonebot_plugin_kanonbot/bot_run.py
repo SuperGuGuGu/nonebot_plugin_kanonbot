@@ -35,7 +35,7 @@ if not os.path.exists(basepath):
 
 
 async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
-    logger.info("KanonBot-0.0.1Beta6")
+    logger.info("KanonBot-0.0.1Beta8")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -139,12 +139,9 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         :param commandname: 查询的命令名
         :return: True or False
         """
-        db_path = dbpath + "comfig.db"
+        db_path = dbpath + "config.db"
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        if not os.path.exists(db_path):
-            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-            cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
         cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
         datas = cursor.fetchall()
         tables = []
@@ -158,28 +155,14 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         if data is not None:
             state = data[1]
         else:
-            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-            datas = cursor.fetchall()
-            # 数据库列表转为序列
-            tables = []
-            for data in datas:
-                if data[1] != "sqlite_sequence":
-                    tables.append(data[1])
-            if "list" not in tables:
-                cursor.execute("create table list(command VARCHAR(10) primary key, state BOOLEAN(20), "
-                               "message VARCHAR(20), 'group' VARCHAR(20), name VARCHAR(20))")
-            cursor.execute(f'SELECT * FROM list WHERE command="{commandname}"')
-            data = cursor.fetchone()
-            if data is not None:
-                state = data[1]
-                cursor.execute(f"replace into {groupcode} ('command','state') values('{commandname}',{state})")
-                conn.commit()
-            else:
-                config_list = _config_list()
-                if commandname in list(config_list):
-                    state = config_list[commandname]["state"]
-                else:
-                    state = False
+            config_list = _config_list()
+            state = False
+            for config_name in list(config_list):
+                if config_name == commandname:
+                    state = config_list[config_name]["state"]
+                    cursor.execute(f"replace into {groupcode} ('command','state') values('{commandname}',{state})")
+                    conn.commit()
+                    break
         cursor.close()
         conn.close()
         return state
