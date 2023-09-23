@@ -57,7 +57,9 @@ KanonBot - nb2 插件版
     mode = "file"
 
     [botswift]
-    # 是否开启bot心跳的功能。默认关闭。
+    # 是否开启仅1个bot响应功能。默认关闭。
+    # 开启后，同一个群内仅1个bot会响应。只有在第一个bot在10次没回应的时候，第二个bot才会开始响应。
+    # 注：10次为所有群总计
     state = False
     # 忽略该功能的群
     ignore_list = ["123456"]

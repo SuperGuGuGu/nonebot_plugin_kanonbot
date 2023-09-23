@@ -115,6 +115,40 @@ async def kanon(event: Event, bot: Bot):
     msg = msg.replace('"', "'")
     commands = get_command(msg)
     command = commands[0]
+    now = int(time.time())
+
+    # ## 心跳服务相关 ##
+    if kn_config("botswift-state"):
+        botswift_db = f"{basepath}db/botswift.db"
+        conn = sqlite3.connect(botswift_db)
+        cursor = conn.cursor()
+        # 检查表格是否存在，未存在则创建
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "heart" not in tables:
+            cursor.execute(f'create table "heart"'
+                           f'("botid" VARCHAR(10) primary key, times VARCHAR(10), hearttime VARCHAR(10))')
+        # 读取bot名单
+        cursor.execute(f'select * from heart')
+        datas = cursor.fetchall()
+        bots_list = []
+        for data in datas:
+            bots_list.append(data[0])
+        # 如果发消息的用户为bot，则刷新心跳
+        if qq in bots_list:
+            cursor.execute(f'SELECT * FROM heart WHERE "botid" = "{qq}"')
+            data = cursor.fetchone()
+            cache_times = int(data[1])
+            cache_hearttime = int(data[2])
+            cursor.execute(f'replace into heart("botid", "times", "hearttime") '
+                           f'values("{qq}", "0", "{now}")')
+            conn.commit()
+        cursor.close()
+        conn.close()
 
     # 判断是否响应
     commandname = ""
@@ -264,7 +298,7 @@ async def kanon(event: Event, bot: Bot):
             if (
                     message is None or
                     message == "" or
-                    not os.path.exists(imgpath)or
+                    not os.path.exists(imgpath) or
                     not os.path.exists(imgpath2)
             ):
                 code = 0

@@ -281,9 +281,11 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                         at = qq
                         logger.info(f"run-{commandname}")
                         message, returnpath = plugins_zhanbu(qq, cachepath)
-                        if returnpath is not None:
+                        if message is not None and returnpath is not None:
                             code = 3
-                        else:
+                        elif returnpath is not None:
+                            code = 2
+                        elif message is not None:
                             code = 1
             elif "" == commandname:
                 pass
