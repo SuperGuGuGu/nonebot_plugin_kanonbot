@@ -341,8 +341,6 @@ def circle_corner(img, radii):
     return img
 
 
-
-
 async def new_background2(image_x, image_y, draw_name, draw_title):
     # 创建背景
     draw_image = Image.new("RGB", (image_x, image_y), "#c4e6fe")

@@ -37,8 +37,7 @@ def plugins_zhanbu(qq, cachepath):
 
     conn = sqlite3.connect(zhanbudb)
     cursor = conn.cursor()
-    run = True
-    if run:
+    try:
         cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
         datas = cursor.fetchall()
         # 数据库列表转为序列
@@ -112,6 +111,9 @@ def plugins_zhanbu(qq, cachepath):
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
                     image = connect_api("image", url)
                     image.save(returnpath)
+    except:
+        logger.error("KanonBot插件出错-plugin-zhanbu")
+    finally:
         conn.commit()
         cursor.close()
         conn.close()
