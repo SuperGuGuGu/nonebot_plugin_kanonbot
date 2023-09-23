@@ -173,8 +173,8 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         return False
 
     # ## 心跳服务相关 ##
-    # 判断心跳服务是否开启。
     if kn_config("botswift-state"):
+        run = False  # 默认不发消息
         # 读取忽略该功能的群聊
         ignore_list = kn_config("botswift-ignore_list")
         if groupcode.startswith("gp"):
@@ -183,9 +183,63 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         else:
             if groupcode[2:] in kn_config("botswift-ignore_list"):
                 run = True
+            else:
+                botswift_db = f"{basepath}db/botswift.db"
+                conn = sqlite3.connect(botswift_db)
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                datas = cursor.fetchall()
+                tables = []
+                for data in datas:
+                    if data[1] != "sqlite_sequence":
+                        tables.append(data[1])
+                if "heart" not in tables:
+                    cursor.execute(f'create table "heart"'
+                                   f'("botid" VARCHAR(10) primary key, times VARCHAR(10), hearttime VARCHAR(10))')
+                if groupcode not in tables:
+                    cursor.execute(f'create table "{groupcode}"'
+                                   f'("id" INTEGER primary key AUTOINCREMENT, "botid" VARCHAR(10))')
+                cursor.execute(f'SELECT * FROM "{groupcode}"')
+                datas = cursor.fetchall()
+                if not datas:
+                    # 无数据，存入并继续运行
+                    cursor.execute(f'replace into "{groupcode}" ("botid") values("{botid}")')
+                    conn.commit()
+                else:
+                    # datas != []
+                    num = 0
+                    for data in datas:
+                        num += 1
+                        cursor.execute(f'SELECT * FROM "{groupcode}" WHERE "id" = "{num}"')
+                        group_datas = cursor.fetchone()
+                        cache_botid = group_datas[1]
+                        if cache_botid == botid:
+                            run = True
+                            break
+                        else:
+                            cursor.execute(f'SELECT * FROM heart WHERE "botid" = "{cache_botid}"')
+                            heary_data = cursor.fetchone()
+                            now = int(time.time())
+                            if heary_data is None:
+                                cursor.execute(f'replace into heart("botid", "times", "hearttime") '
+                                               f'values("{cache_botid}", "0", "{now}")')
+                                conn.commit()
+                            else:
+                                cache_times = int(heary_data[1])
+                                cache_hearttime = int(heary_data[2])
+                                # 10分钟以后无刷新10次则响应其他bot
+                                # 正式版本删除+1000并删除这段注释
+                                now += 10000
+                                cache_times += 1
+                                if (cache_hearttime + 600) < now:
+                                    cursor.execute(f'replace into heart("botid", "times", "hearttime") '
+                                                   f'values("{cache_botid}", "{cache_times}", "{cache_hearttime}")')
+                                    conn.commit()
+                                if cache_times < 10:
+                                    break
+                cursor.close()
+                conn.close()
 
-    # 如果需要继续运行则True
-    run = True
 
     if run is True:
         # 处理消息
@@ -218,9 +272,11 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                             at = qq
                             logger.info(f"run-{commandname}")
                             message, returnpath = plugins_zhanbu(qq, cachepath)
-                            if returnpath is not None:
+                            if message is not None and returnpath is not None:
+                                code = 3
+                            elif returnpath is not None:
                                 code = 2
-                            else:
+                            elif message is not None:
                                 code = 1
                     else:
                         at = qq
@@ -237,10 +293,6 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
             pass
         elif "###" == commandname:
             pass
-
-    # 这两位置是放心跳服务相关代码，待后续完善
-    # 本bot存入mainbot数据库
-    # 保活
 
     # log记录
     # 目前还不需要这个功能吧，先放着先

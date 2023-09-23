@@ -27,7 +27,7 @@ except Exception as e:
 
 
 def plugins_zhanbu(qq, cachepath):
-    message = ""
+    message = None
     returnpath = None
 
     zhanbudb = cachepath + 'zhanbu/'

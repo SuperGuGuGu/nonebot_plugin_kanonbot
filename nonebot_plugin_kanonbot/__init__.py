@@ -238,29 +238,67 @@ async def kanon(event: Event, bot: Bot):
         logger.info(data)
         # 获取返回信息，进行回复
         code = int(data["code"])
+        message = data["message"]
+        imgpath = data["returnpath"]
+        imgpath2 = data["returnpath2"]
+        imgpath3 = data["returnpath3"]
+        at = data["at"]
+
+        # 排除部分无效内容
+        if code == 1:
+            if message is None or message == "":
+                code = 0
+                logger.error("空消息")
+                logger.error(data)
+        elif code == 2:
+            if not os.path.exists(imgpath):
+                code = 0
+                logger.error("空图片")
+                logger.error(data)
+        elif code == 3:
+            if message is None or message == "" or not os.path.exists(imgpath):
+                code = 0
+                logger.error("空消息或图片")
+                logger.error(data)
+        elif code == 4:
+            if (
+                    message is None or
+                    message == "" or
+                    not os.path.exists(imgpath)or
+                    not os.path.exists(imgpath2)
+            ):
+                code = 0
+                logger.error("空消息或图片")
+                logger.error(data)
+        elif code == 5:
+            if (
+                    message is None or
+                    message == "" or
+                    not os.path.exists(imgpath) or
+                    not os.path.exists(imgpath2) or
+                    not os.path.exists(imgpath3)
+            ):
+                code = 0
+                logger.error("空消息或图片")
+                logger.error(data)
+
+        # 开始返回消息
         if code == 0:
             pass
         elif code == 1:
-            message = data["message"]
             msg = MessageSegment.text(message)
-            at = data["at"]
             if at is not False:
                 msgat = MessageSegment.at(at)
                 msgn = MessageSegment.text('\n')
                 msg = msgat + msgn + msg
             await run_kanon.finish(msg)
         elif code == 2:
-            imgpath = data["returnpath"]
             msg = MessageSegment.image(r"file:///" + imgpath)
-            at = data["at"]
             if at is not False:
                 msgat = MessageSegment.at(at)
                 msg = msgat + msg
             await run_kanon.finish(msg)
         elif code == 3:
-            at = data["at"]
-            message = data["message"]
-            imgpath = data["returnpath"]
             msg1 = MessageSegment.text(message)
             msg2 = MessageSegment.image(r"file:///" + imgpath)
             if at is not False:
@@ -271,23 +309,16 @@ async def kanon(event: Event, bot: Bot):
                 msg = msg1 + msg2
             await run_kanon.finish(msg)
         elif code == 4:
-            imgpath = data["returnpath"]
-            imgpath2 = data["returnpath2"]
+            msg0 = MessageSegment.text(message)
             msg1 = MessageSegment.image(r"file:///" + imgpath)
             msg2 = MessageSegment.image(r"file:///" + imgpath2)
-            message = data["message"]
-            msg0 = MessageSegment.text(message)
             msg = msg0 + msg1 + msg2
             await run_kanon.finish(msg)
         elif code == 5:
-            imgpath = data["returnpath"]
-            imgpath2 = data["returnpath2"]
-            imgpath3 = data["returnpath3"]
+            msg0 = MessageSegment.text(message)
             msg1 = MessageSegment.image(r"file:///" + imgpath)
             msg2 = MessageSegment.image(r"file:///" + imgpath2)
             msg3 = MessageSegment.image(r"file:///" + imgpath3)
-            message = data["message"]
-            msg0 = MessageSegment.text(message)
             msg = msg0 + msg1 + msg2 + msg3
             await run_kanon.finish(msg)
         else:
