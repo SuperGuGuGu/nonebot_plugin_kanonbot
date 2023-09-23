@@ -205,6 +205,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                     # 无数据，存入并继续运行
                     cursor.execute(f'replace into "{groupcode}" ("botid") values("{botid}")')
                     conn.commit()
+                    run = True
                 else:
                     # datas != []
                     num = 0
@@ -228,8 +229,6 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                                 cache_times = int(heary_data[1])
                                 cache_hearttime = int(heary_data[2])
                                 # 10分钟以后无刷新10次则响应其他bot
-                                # 正式版本删除+1000并删除这段注释
-                                now += 10000
                                 cache_times += 1
                                 if (cache_hearttime + 600) < now:
                                     cursor.execute(f'replace into heart("botid", "times", "hearttime") '
