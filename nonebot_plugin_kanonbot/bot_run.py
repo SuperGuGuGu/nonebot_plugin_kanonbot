@@ -36,7 +36,7 @@ if not os.path.exists(basepath):
 
 
 async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
-    logger.info("KanonBot-0.1.0")
+    logger.info("KanonBot-0.1.2")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -288,7 +288,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                         elif message is not None:
                             code = 1
             elif "emoji" == commandname:
-                if getconfig("zhanbu"):
+                if getconfig("emoji"):
                     if getconfig("commandcd"):
                         coolingdb = dbpath + "cooling.db"
                         cooling = command_cd(qq, groupcode)

@@ -313,13 +313,13 @@ def plugins_emoji(emoji):
                 url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={emoji}"
                 json = connect_api("json", url)
                 if json["code"] == 0:
-                    url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={emoji}"
+                    url = f"{kn_config('kanon_api-url')}/api/emoji?imageid={emoji}"
                     image = connect_api("image", url)
-                    path = f"{basepath}cache/emoji/"
-                    if not os.path.exists(path):
-                        os.makedirs(path)
-                    path += f"{emoji}.png"
-                    image.save(path)
+                    returnpath = f"{basepath}cache/emoji/"
+                    if not os.path.exists(returnpath):
+                        os.makedirs(returnpath)
+                    returnpath += f"{emoji}.png"
+                    image.save(returnpath)
             except Exception as e:
                 returnpath = None
     return returnpath

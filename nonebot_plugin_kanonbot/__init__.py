@@ -173,6 +173,7 @@ async def kanon(event: Event, bot: Bot):
             conn.close()
             if data is not None:
                 run = True
+                commandname = "群聊功能-emoji"
     # 识别开头
     if not run:
         cache_commandlist = commandlist["开头"]
