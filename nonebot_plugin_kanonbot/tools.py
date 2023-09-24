@@ -10,6 +10,7 @@ from nonebot import logger
 import nonebot
 import os
 import shutil
+import time
 from .config import kn_config
 import asyncio
 
@@ -25,7 +26,8 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        basepath += "/"
+        if not basepath.endswith("/"):
+            basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 # 配置3：
@@ -147,65 +149,85 @@ async def get_file_path(file_name) -> str:
     return file_path
 
 
-async def lockst(lockdb):
+async def lockst():
     """
     如有其他指令在运行，则暂停该函数
     :param lockdb:
     :return:
     """
-    import time
+    lockdb = f"{basepath}db/"
+    if not os.path.exists(lockdb):
+        os.makedirs(lockdb)
+    lockdb += "lock.db"
     sleeptime = random.randint(1, 200)
     sleeptime = float(sleeptime) / 100
-    time.sleep(sleeptime)
+    # 随机随眠0.01-2秒，避免同时收到消息进行处理
+    await asyncio.sleep(sleeptime)
     # 读取锁定
-
     conn = sqlite3.connect(lockdb)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-    datas = cursor.fetchall()
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
-    if "lock" not in tables:
-        cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
-    # 查询数据
-    cursor.execute('select * from lock where name = "lock"')
-    locking = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "lock" not in tables:
+            cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
+        cursor.execute('select * from lock where name = "lock"')
+        locking = cursor.fetchone()
+    except Exception as e:
+        logger.error("")
+        locking = ["lock", "off"]
+    finally:
+        cursor.close()
+        conn.close()
 
     # 判断锁定
-    if locking == 'on':
-        num = 100
-        while num >= 1:
-            num -= 1
-            conn = sqlite3.connect(lockdb)
-            cursor = conn.cursor()
-            cursor.execute('select * from lock where name = "lock"')
-            locking = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            if locking == 'on':
-                await asyncio.sleep(0.2)
-                if num == 0:
-                    logger.info("等待超时")
-            else:
-                num = 0
+    if locking is not None:
+        if locking[1] == 'on':
+            num = 50
+            while num >= 1:
+                num -= 1
+                conn = sqlite3.connect(lockdb)
+                cursor = conn.cursor()
+                try:
+                    cursor.execute('select * from lock where name = "lock"')
+                    locking = cursor.fetchone()
+                except Exception as e:
+                    logger.error("线程锁读取错误")
+                    num = 0
+                cursor.close()
+                conn.close()
+                if locking == 'on':
+                    await asyncio.sleep(0.2)
+                    if num == 0:
+                        logger.error("等待超时")
+                else:
+                    num = 0
 
-    else:
-        # 锁定
-        conn = sqlite3.connect(lockdb)
-        cursor = conn.cursor()
-        cursor.execute('replace into lock(name,lock) values("lock","on")')
-        cursor.close()
-        conn.commit()
-        conn.close()
+    # 锁定
+    conn = sqlite3.connect(lockdb)
+    cursor = conn.cursor()
+    cursor.execute('replace into lock(name,lock) values("lock","on")')
+    cursor.close()
+    conn.commit()
+    conn.close()
 
     return locking
 
 
-def locked(lockdb):
+def locked():
+    """
+    解除锁
+    :param lockdb:
+    :return:
+    """
+    lockdb = f"{basepath}db/"
+    if not os.path.exists(lockdb):
+        os.makedirs(lockdb)
+    lockdb += "lock.db"
     # 解锁
     conn = sqlite3.connect(lockdb)
     cursor = conn.cursor()
@@ -217,99 +239,99 @@ def locked(lockdb):
     return locking
 
 
-def command_cd(qq, groupcode, timeshort, coolingdb):
-    cooling = 'off'
-    # 冷却时间，单位S
-    coolingtime = '60'
-    # 冷却数量，单位条
-    coolingnum = 7
-    # 冷却长度，单位S
-    coolinglong = 200
+def command_cd(qq, groupcode, coolingtime: int = 60, coolingnum: int = 7, coolinglong: int = 200):
+    """
+    指令冷却时间
+    :param qq: 成员id
+    :param groupcode: 群号码
+    :param coolinglong: 触发冷却后，需要冷却的时间
+    :param coolingnum: coolingtime分钟内发送超过coolingnum条消息就触发冷却
+    :param coolingtime: coolingtime分钟内发送超过coolingnum条消息就触发冷却
+    :return: "off" 或者 ”100“。off为不进行冷却，数字为冷却剩余时间。
+    """
+    cooling = "off"
+    # coolingtime：冷却时间，单位S
+    # coolingnum：冷却数量，单位条
+    # coolinglong：冷却长度，单位S
 
+    now = int(time.time())
     # 尝试创建数据库
     coolingnumber = str('0')
 
-    conn = sqlite3.connect(coolingdb)
+    db_path = f"{basepath}db/cooling.db"
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
-    # 数据库列表转为序列
     tables = []
     for data in datas:
         if data[1] != "sqlite_sequence":
             tables.append(data[1])
     if groupcode not in tables:
         # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        cursor.execute(
-            f'create table {groupcode} (userid VARCHAR(10) primary key,'
-            f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
+        cursor.execute(f'create table {groupcode} (userid VARCHAR(10) primary key,'
+                       f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
     # 读取数据库内容：日期文件，群号表，用户数据
     # 查询数据
-    cursor.execute('select * from ' + groupcode + ' where userid = ' + qq)
+    cursor.execute(f"select * from {groupcode} where userid = {qq}")
     data = cursor.fetchone()
-    if data is None:
-        coolingnumber = '1'
-        cooling = 'off'
-        cursor.execute(
-            f'replace into {groupcode}(userid,number,time,cooling) '
-            f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
-    else:
-        # 判断是否正在冷却
-        cooling = data[3]
-        if cooling == 'off':
-            #  判断时间，time-冷却时间再判断
-            timeshortdata = int(data[2]) + int(coolingtime)
-            timeshort = int(timeshort)
-            if timeshortdata >= timeshort:
-                # 小于冷却时间，冷却次数+1
-                coolingnumber = int(data[1]) + 1
-                #    判断冷却次数，次数>=冷却数量
-                if coolingnumber >= coolingnum:
-                    cooling = 'on'
-                    # 大于次数，开启冷却,写入
-                    coolingnumber = str(coolingnumber)
-                    timeshort = str(timeshort)
-                    cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
-                    timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                    coolingtime = str(timeshortdata - int(timeshort))
-                else:
-                    # 小于写入
-
-                    cooling = 'off'
-                    coolingnumber = str(coolingnumber)
-                    timeshort = str(timeshort)
-                    cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
-            else:
-                # 大于冷却时间，重新写入
-                coolingnumber = '1'
-                cooling = 'off'
-                timeshort = str(timeshort)
-                cursor.execute(
-                    f'replace into {groupcode}(userid,number,time,cooling) '
-                    f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
+    try:
+        if data is None:
+            coolingnumber = '1'
+            cooling = 'off'
+            cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
+                           f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
         else:
-            timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-            timeshort = int(timeshort)
-            if timeshortdata >= timeshort:
-                coolingtime = str(timeshortdata - timeshort)
+            # 判断是否正在冷却
+            cooling = data[3]
+            if cooling == 'off':
+                #  判断时间，time-冷却时间再判断
+                timeshortdata = int(data[2]) + int(coolingtime)
+                if timeshortdata >= now:
+                    # 小于冷却时间，冷却次数+1
+                    coolingnumber = int(data[1]) + 1
+                    #    判断冷却次数，次数>=冷却数量
+                    if coolingnumber >= coolingnum:
+                        cooling = 'on'
+                        # 大于次数，开启冷却,写入
+                        coolingnumber = str(coolingnumber)
+
+                        cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
+                                       f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                        timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
+                        coolingtime = str(timeshortdata - now)
+                    else:
+                        # 小于写入
+                        cooling = 'off'
+                        coolingnumber = str(coolingnumber)
+                        cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
+                                       f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                else:
+                    # 大于冷却时间，重新写入
+                    coolingnumber = '1'
+                    cooling = 'off'
+                    cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
+                                   f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
             else:
-                coolingnumber = '1'
-                cooling = 'off'
-                timeshort = str(timeshort)
-                cursor.execute(
-                    f'replace into {groupcode}(userid,number,time,cooling) '
-                    f'values("{qq}","{coolingnumber}","{timeshort}","{cooling}")')
-    if cooling != 'off':
-        cooling = str(coolingtime)
-
-    cursor.close()
-    conn.close()
+                timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
+                if timeshortdata >= now:
+                    coolingtime = str(timeshortdata - now)
+                else:
+                    coolingnumber = '1'
+                    cooling = 'off'
+                    cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
+                                   f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+        if cooling != 'off':
+            cooling = str(coolingtime)
+    except Exception as e:
+        logger.error("冷却数据库操作出错")
+        logger.error(db_path)
+        cooling = "off"
+    finally:
+        conn.commit()
+        cursor.close()
+        conn.close()
     return cooling
-
 
 
 def circle_corner(img, radii):
@@ -342,6 +364,14 @@ def circle_corner(img, radii):
 
 
 async def new_background2(image_x, image_y, draw_name, draw_title):
+    """
+    创建背景图v2
+    :param image_x: 背景图宽
+    :param image_y: 背景图长
+    :param draw_name:  图片名称（左）
+    :param draw_title:  图片标题（上）
+    :return:  image
+    """
     # 创建背景
     draw_image = Image.new("RGB", (image_x, image_y), "#c4e6fe")
     mask_image = Image.new("RGB", (190, 975))
@@ -385,8 +415,3 @@ async def new_background2(image_x, image_y, draw_name, draw_title):
     paste_image = circle_corner(paste_image, 34)
     draw_image.paste(paste_image, (268, 156), mask=paste_image)
     return draw_image
-
-
-
-
-

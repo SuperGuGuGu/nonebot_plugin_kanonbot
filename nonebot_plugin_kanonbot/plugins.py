@@ -21,7 +21,8 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        basepath += "/"
+        if not basepath.endswith("/"):
+            basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 

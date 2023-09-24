@@ -27,7 +27,8 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        basepath += "/"
+        if not basepath.endswith("/"):
+            basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 if not os.path.exists(basepath):
@@ -41,7 +42,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     if not os.path.exists(lockdb):
         os.makedirs(lockdb)
     lockdb += "lock.db"
-    await lockst(lockdb)
+    await lockst()
     global image, addimage
     msg = msg_info["msg"]
     commands = msg_info["commands"]
@@ -98,6 +99,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
+    now = int(time.time())
 
     cachepath = basepath + "cache/" + date_year + '/' + date_month + '/' + date_day + '/'
     if not os.path.exists(cachepath):
@@ -176,7 +178,6 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
     if kn_config("botswift-state"):
         run = False  # 默认不发消息
         # 读取忽略该功能的群聊
-        ignore_list = kn_config("botswift-ignore_list")
         if groupcode.startswith("gp"):
             # 私聊默认回复
             run = True
@@ -220,7 +221,6 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                         else:
                             cursor.execute(f'SELECT * FROM heart WHERE "botid" = "{cache_botid}"')
                             heary_data = cursor.fetchone()
-                            now = int(time.time())
                             if heary_data is None:
                                 cursor.execute(f'replace into heart("botid", "times", "hearttime") '
                                                f'values("{cache_botid}", "0", "{now}")')
@@ -262,7 +262,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                 if getconfig("zhanbu"):
                     if getconfig("commandcd"):
                         coolingdb = dbpath + "cooling.db"
-                        cooling = command_cd(qq, groupcode, timeshort, coolingdb)
+                        cooling = command_cd(qq, groupcode)
                         if cooling != "off" and info_premission != "10" and qq not in adminqq:
                             code = 1
                             message = f"指令冷却中（{cooling}s)"
@@ -304,7 +304,7 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
         at = 'off'
     if at is True:
         at = qq
-    locked(lockdb)
+    locked()
     return {"code": code,
             "message": message,
             "returnpath": returnpath,

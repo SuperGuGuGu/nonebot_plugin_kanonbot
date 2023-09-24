@@ -14,7 +14,8 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        basepath += "/"
+        if not basepath.endswith("/"):
+            basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 
@@ -210,37 +211,25 @@ def command_list():
             "结束炸飞机": "小游戏-blowplane",
         },
         "开头": {
-            "来点": "wlp",
-            "多来点": "wlp",
-            "wlp是": "wlp",
-            "新lp是": "wlp",
-            "是": "caicaikan",
-            "炸": "blowplane",
-            "☝️": "shangzhi",
-            "☝🏻": "shangzhi",
-            "☝🏼": "shangzhi",
-            "☝🏽": "shangzhi",
-            "☝🏾": "shangzhi",
-            "👆🏻": "shangzhi",
-            "👆🏼": "shangzhi",
-            "👆🏽": "shangzhi",
-            "👆🏾": "shangzhi",
-            "👆🏿": "shangzhi",
-            "☝🏿": "shangzhi",
-            "👆": "shangzhi"
+            "来点": "图库功能-wlp",
+            "多来点": "图库功能-wlp",
+            "wlp是": "图库功能-wlp",
+            "新lp是": "图库功能-wlp",
+            "是": "小游戏-caicaikan",
+            "炸": "小游戏-blowplane",
         },
         "结尾": {
         },
         "模糊": {
-            "亲亲": "qinqin",
-            "可爱": "keai",
-            "咬咬": "yaoyao",
-            "摸摸": "momo",
-            "贴贴": "tietie",
-            "逮捕": "daibu"
+            "亲亲": "表情功能-qinqin",
+            "可爱": "表情功能-keai",
+            "咬咬": "表情功能-yaoyao",
+            "摸摸": "表情功能-momo",
+            "贴贴": "表情功能-tietie",
+            "逮捕": "表情功能-daibu"
         },
         "精准2": {
-            "不知道": "caicaikan"
+            "不知道": "小游戏-caicaikan"
         },
     }
     return commands
