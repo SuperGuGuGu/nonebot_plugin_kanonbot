@@ -2,7 +2,7 @@
 from .config import kn_config, _config_list
 from .tools import lockst, locked, command_cd, get_command
 from .plugins import (
-    plugins_zhanbu, plugins_config
+    plugins_zhanbu, plugins_config, plugins_emoji
 )
 import time
 import nonebot
@@ -287,6 +287,30 @@ async def botrun(bot, allfriendlist, allgroupmemberlist, msg_info):
                             code = 2
                         elif message is not None:
                             code = 1
+            elif "emoji" == commandname:
+                if getconfig("zhanbu"):
+                    if getconfig("commandcd"):
+                        coolingdb = dbpath + "cooling.db"
+                        cooling = command_cd(qq, groupcode)
+                        if cooling != "off" and info_premission != "10" and qq not in adminqq:
+                            code = 1
+                            message = f"指令冷却中（{cooling}s)"
+                            logger.info("指令冷却中")
+                        else:
+                            logger.info(f"run-{commandname}")
+                            returnpath = plugins_emoji(command)
+                            if returnpath is not None:
+                                code = 2
+                    else:
+                        logger.info(f"run-{commandname}")
+                        returnpath = plugins_emoji(command)
+                        if returnpath is not None:
+                            code = 2
+                pass
+            elif "" == commandname:
+                pass
+            elif "" == commandname:
+                pass
             elif "" == commandname:
                 pass
             pass

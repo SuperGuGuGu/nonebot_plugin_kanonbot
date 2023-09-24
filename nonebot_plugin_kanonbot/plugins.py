@@ -293,3 +293,33 @@ async def plugins_config(command_name: str, config_name: str, groupcode: str):
     cursor.close()
     conn.close()
     return message, returnpath
+
+
+def plugins_emoji(emoji):
+    returnpath = None
+    if kn_config("kanon_api-state"):
+        # 只有在开启api的时候才会开启此功能
+        path = f"{basepath}file/emoji.db"
+        if os.path.exists(path):
+            # 在init中已经读取过，这里不用再读一遍
+            # conn = sqlite3.connect(path)
+            # cursor = conn.cursor()
+            # cursor.execute(f'select * from emoji where emoji = "{emoji}"')
+            # data = cursor.fetchone()
+            # cursor.close()
+            # conn.close()
+            # if data is not None:
+            try:
+                url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={emoji}"
+                json = connect_api("json", url)
+                if json["code"] == 0:
+                    url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={emoji}"
+                    image = connect_api("image", url)
+                    path = f"{basepath}cache/emoji/"
+                    if not os.path.exists(path):
+                        os.makedirs(path)
+                    path += f"{emoji}.png"
+                    image.save(path)
+            except Exception as e:
+                returnpath = None
+    return returnpath

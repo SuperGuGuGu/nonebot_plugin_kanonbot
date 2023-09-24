@@ -155,11 +155,25 @@ async def kanon(event: Event, bot: Bot):
     commandname = ""
     commandlist = command_list()
     run = False
+    # 识别精准
     if not run:
         cache_commandlist = commandlist["精准"]
         if command in list(cache_commandlist):
             commandname = cache_commandlist[command]
             run = True
+    # 识别emoji
+    if not run:
+        path = f"{basepath}file/emoji.db"
+        if os.path.exists(path):
+            conn = sqlite3.connect(path)
+            cursor = conn.cursor()
+            cursor.execute(f'select * from emoji where emoji = "{command}"')
+            data = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if data is not None:
+                run = True
+    # 识别开头
     if not run:
         cache_commandlist = commandlist["开头"]
         for cache_command in list(cache_commandlist):
@@ -167,6 +181,7 @@ async def kanon(event: Event, bot: Bot):
                 commandname = cache_commandlist[cache_command]
                 run = True
                 break
+    # 识别结尾
     if not run:
         cache_commandlist = commandlist["结尾"]
         for cache_command in list(cache_commandlist):
@@ -174,6 +189,7 @@ async def kanon(event: Event, bot: Bot):
                 commandname = cache_commandlist[cache_command]
                 run = True
                 break
+    # 识别模糊
     if not run:
         cache_commandlist = commandlist["模糊"]
         for cache_command in list(cache_commandlist):
@@ -181,12 +197,12 @@ async def kanon(event: Event, bot: Bot):
                 commandname = cache_commandlist[command]
                 run = True
                 break
+    # 识别精准2
     if not run:
         cache_commandlist = commandlist["精准2"]
         if command in list(cache_commandlist):
             commandname = cache_commandlist[command]
             run = True
-
     if not run and kn_config(""):
         conn = sqlite3.connect(await get_file_path("emoji_1.db"))
         cursor = conn.cursor()

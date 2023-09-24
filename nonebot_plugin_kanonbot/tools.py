@@ -83,9 +83,23 @@ def get_face(qq, size: int = 640):
     :param qq: int。例："123456", 123456
     :param size: int。例如: 100, 200, 300
     """
-    faceapi = f"https://q1.qlogo.cn/g?b=qq&nk={qq}&s=640"
-    response = httpx.get(faceapi)
-    image_face = Image.open(BytesIO(response.content))
+    cache_path = f"{basepath}cache/头像/"
+    if not os.path.exists(cache_path):
+        os.makedirs(cache_path)
+    cache_path += str(qq)
+    try:
+        faceapi = f"https://q1.qlogo.cn/g?b=qq&nk={qq}&s=640"
+        response = httpx.get(faceapi)
+        image_face = Image.open(BytesIO(response.content))
+        image_face.save(cache_path)
+    except:
+        logger.error("获取头像失败")
+        # 获取失败，尝试读取缓存头像
+        if os.path.exists(cache_path):
+            image_face = Image.open(cache_path)
+        else:
+            # 没有缓存，返回空白图片
+            image_face = Image.new("RGB", (size, size))
     image_face = image_face.resize((size, size))
     return image_face
 
@@ -103,6 +117,14 @@ def list_in_list(list_1: list, list_2: list):
 
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
+    """
+    api请求
+    :param type: 类型，有"json", "image", "file"三种
+    :param url: 连接的url
+    :param post_json: post请求的数据
+    :param file_path: file类型保存的路径
+    :return:
+    """
     # 把api调用的代码放在一起，方便下一步进行异步开发
     if type == "json":
         if post_json is None:
@@ -123,7 +145,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
             # 这里不能用httpx。用就报错。
             with open(cache_file_path, "wb") as f, requests.get(url) as res:
                 f.write(res.content)
-            logger.info("下载完成")
+            logger.success("下载完成")
             shutil.copyfile(cache_file_path, file_path)
             os.remove(cache_file_path)
         except Exception as e:
