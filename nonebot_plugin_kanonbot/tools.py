@@ -166,7 +166,13 @@ async def get_file_path(file_name) -> str:
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.info("正在下载" + file_name)
-        url = kn_config("kanon_api-url") + "/file/" + file_name
+        if kn_config("kanon_api-state"):
+            url = kn_config("kanon_api-url") + "/file/" + file_name
+        else:
+            if file_name == "NotoSansSC[wght].ttf":
+                url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+            else:
+                url = ""
         connect_api(type="file", url=url, file_path=file_path)
     return file_path
 

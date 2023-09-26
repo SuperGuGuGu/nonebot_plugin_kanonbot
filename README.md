@@ -51,9 +51,10 @@ KanonBot - nb2 插件版
 
     [emoji]
     # 是否开启emoji的功能。默认开启。
+    # 需要下载emoji.db.7z文件并解压至"{kanonbot_basepath}file"文件夹才会生效
     state = True
     # emoji的加载方式。
-    # "file"：下载emoji的数据库文件。
+    # "file"：加载本地文件
     mode = "file"
 
     [botswift]
@@ -64,33 +65,13 @@ KanonBot - nb2 插件版
     # 忽略该功能的群
     ignore_list = ["123456"]
 
-## To-Do
+## 已移植内容：
 
-🔵 接下来：
+- [x] 占卜
 
-- [ ] 新建更多文件夹
+- [x] emoji
 
-- [ ] 新建更多更多更多更多文件夹
-
-- [ ] q 头像加缓存
-
-- [ ] 自动删除缓存
-
-- [ ] botswift 功能代码
-
-- [ ] 指令冷却功能代码
-
-- [ ] 优化锁定
-
-🟢 已完成：
-
-- [x] 新建文件夹
-
-## 更新日志
-
-### 0.0.1
-
-新建文件夹
+- [x] 指令冷却
 
 ## 交流
 
