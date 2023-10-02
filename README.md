@@ -47,12 +47,12 @@ KanonBot - nb2 插件版
     url = "http://cdn.kanon.ink"
     # 是否开启API来获得完整功能，默认开启。
     # （理论上，目前部署kanon必须开启）
-    state = True
+    state = true
 
     [emoji]
     # 是否开启emoji的功能。默认开启。
     # 需要下载emoji.db.7z文件并解压至"{kanonbot_basepath}file"文件夹才会生效
-    state = True
+    state = true
     # emoji的加载方式。
     # "file"：加载本地文件
     mode = "file"
@@ -61,7 +61,7 @@ KanonBot - nb2 插件版
     # 是否开启仅1个bot响应功能。默认关闭。
     # 开启后，同一个群内仅1个bot会响应。只有在第一个bot在10次没回应的时候，第二个bot才会开始响应。
     # 注：10次为所有群总计
-    state = False
+    state = false
     # 忽略该功能的群
     ignore_list = ["123456"]
 
