@@ -1,14 +1,13 @@
 # coding=utf-8
 import random
 import time
-
 from nonebot import logger
 import nonebot
 import os
 import sqlite3
-from PIL import Image, ImageDraw, ImageFont
 from .config import kn_config, _zhanbu_datas, _config_list
-from .tools import get_file_path, connect_api, new_background2
+from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path
+from PIL import Image, ImageDraw, ImageFont
 
 config = nonebot.get_driver().config
 # 配置2：
@@ -26,9 +25,11 @@ try:
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 
+run = True
 
-def plugins_zhanbu(qq, cachepath):
-    message = None
+
+async def plugins_zhanbu(user_id, cachepath):
+    message = ""
     returnpath = None
 
     zhanbudb = cachepath + 'zhanbu/'
@@ -48,7 +49,7 @@ def plugins_zhanbu(qq, cachepath):
                 tables.append(data[1])
         if "zhanbu" not in tables:
             cursor.execute('create table zhanbu (userid varchar(10) primary key, id varchar(20))')
-        cursor.execute(f'select * from zhanbu where userid = "{qq}"')
+        cursor.execute(f'select * from zhanbu where userid = "{user_id}"')
         data = cursor.fetchone()
         if data is None:
             # 随机卡牌的好坏。1/3是坏，2/3是好
@@ -63,7 +64,7 @@ def plugins_zhanbu(qq, cachepath):
             zhanbu_name = zhanbu_data["name"]
             zhanbu_message = zhanbu_data["message"]
             # 写入占卜结果
-            cursor.execute(f'replace into zhanbu("userid","id") values("{qq}", "{zhanbu_id}")')
+            cursor.execute(f'replace into zhanbu("userid","id") values("{user_id}", "{zhanbu_id}")')
 
             if kn_config("kanon_api-state"):
                 # 如果开启了api，则从服务器下载占卜数据
@@ -74,9 +75,9 @@ def plugins_zhanbu(qq, cachepath):
                 if not os.path.exists(returnpath):
                     # 如果文件未缓存，则缓存下来
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
-                    image = connect_api("image", url)
+                    image = await connect_api("image", url)
                     image.save(returnpath)
-                message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+                    message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
             else:
                 # 使用本地数据
                 # message = f"今日占卜结果：{zhanbu_data['title']}\n{zhanbu_data['message']}"
@@ -110,7 +111,7 @@ def plugins_zhanbu(qq, cachepath):
                 if not os.path.exists(returnpath):
                     # 如果文件未缓存，则缓存下来
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
-                    image = connect_api("image", url)
+                    image = await connect_api("image", url)
                     image.save(returnpath)
     except:
         logger.error("KanonBot插件出错-plugin-zhanbu")
@@ -122,9 +123,8 @@ def plugins_zhanbu(qq, cachepath):
     return message, returnpath
 
 
-async def plugins_config(command_name: str, config_name: str, groupcode: str):
-    # 默认变量与判断属于那个操作
-    message = None
+def plugins_config(command_name: str, config_name: str, groupcode: str):
+    message = " "
     returnpath = None
     command_name = command_name.removeprefix("config")
     if command_name == "开启":
@@ -133,8 +133,6 @@ async def plugins_config(command_name: str, config_name: str, groupcode: str):
         command_state = False
     else:
         command_state = "查询"
-
-    # 匹配匹配对应的名称（commandname）
     config_list = _config_list()
     config_real_name = ""
     for name in config_list:
@@ -143,23 +141,15 @@ async def plugins_config(command_name: str, config_name: str, groupcode: str):
             config_real_name = name
             break
 
-    # 如果找不到名称则返回查询出错
-    if command_state != "查询":
-        if config_real_name == "":
-            message = "设置失败，请检查名称是否正确"
-            return message, returnpath
-
-    # 连接数据库并进行下一步操作
     dbpath = basepath + "db/"
     if not os.path.exists(dbpath):
         os.makedirs(dbpath)
-    db_path = dbpath + "config.db"
+    db_path = dbpath + "comfig.db"
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
-    # 读取对应表格，如不存在则创建
-    # if not os.path.exists(db_path):
-    #     cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+    if not os.path.exists(db_path):
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
     tables = []
@@ -169,7 +159,7 @@ async def plugins_config(command_name: str, config_name: str, groupcode: str):
     if groupcode not in tables:
         cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
 
-    if command_state != "查询":
+    if command_state is True or command_state is False:
         # 开启或关闭功能
         cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{config_real_name}"')
         data = cursor.fetchone()
@@ -187,139 +177,151 @@ async def plugins_config(command_name: str, config_name: str, groupcode: str):
             message = f"{config_name}已{command_name}"
     else:
         # 查询开启的功能
-        configs = {}
-        for config_name in config_list:
-            config = config_list[config_name]
-            cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{config_name}"')
-            data = cursor.fetchone()
-            if data is not None:
-                config_state = data[1]  # 有群数据，读取群数据
-                # 将神奇的数据库读取出来的1改为True
-                # 存进去的是True，读出来的是1
-                if config_state == 1:
-                    config_state = True
-                else:
-                    config_state = False
-            else:
-                config_state = config["state"]  # 无群设置数据，读取默认数据
-
-            group = config["group"]
-            config_name = config["name"]
-            if group not in list(configs):
-                configs[group] = {"True": [], "False": []}
-            configs[group][str(config_state)].append(config_name)
-        # 跟读读取的json数据绘制开关列表
-        image = await new_background2(
-            1500, 1110, draw_name="KanonBot", draw_title="功能列表"
-        )
-        draw = ImageDraw.Draw(image)
-        if kn_config("kanon_api-state"):
-            # 如果开启了api，则从服务器下载字体数据
-            fontfile = await get_file_path("SourceHanSansK-Normal.ttf")
-        else:
-            fontfile = None
-        font = ImageFont.truetype(font=fontfile, size=20)
-        draw.text(xy=(520, 90), text=groupcode, fill=(100, 100, 100), font=font)
-        x = 303
-        y = 196
-        printx = x
-        printy = y
-        for config in configs:
-            groupname = config
-            print(groupname)
-            fortlen = 45
-            if kn_config("kanon_api-state"):
-                # 如果开启了api，则从服务器下载字体数据
-                fontfile = await get_file_path("SourceHanSansK-Medium.ttf")
-            else:
-                fontfile = None
-            font = ImageFont.truetype(font=fontfile, size=20)
-            draw.text(xy=(printx, printy), text=groupname, fill=(24, 148, 227), font=font)
-            printy += fortlen + 8
-            configlist = configs[groupname]["True"]
-            fortlen = 40
-            if kn_config("kanon_api-state"):
-                # 如果开启了api，则从服务器下载字体数据
-                fontfile = await get_file_path("SourceHanSansK-Normal.ttf")
-            else:
-                fontfile = None
-            font = ImageFont.truetype(font=fontfile, size=20)
-            xnum = 0
-            for configname in configlist:
-                xnum += 1
-                if xnum >= 5:
-                    xnum = 1
-                    printy += fortlen + 5
-                    printx = x
-                draw.text(xy=(printx, printy), text=configname, fill=(0, 0, 0), font=font)
-                printx += 300
-
-            configlist = configs[groupname]["False"]
-            xnum = 0
-            for configname in configlist:
-                xnum += 1
-                if xnum >= 5:
-                    xnum = 1
-                    printy += fortlen + 5
-                    printx = x
-                draw.text(xy=(printx, printy), text=configname, fill=(150, 150, 150), font=font)
-                printx += 300
-
-            printy += fortlen + 5
-            printx = x
-
-        if kn_config("kanon_api-state"):
-            # 如果开启了api，则从服务器下载字体数据
-            fontfile = await get_file_path("SourceHanSansK-Normal.ttf")
-        else:
-            fontfile = None
-        font = ImageFont.truetype(font=fontfile, size=40)
-        text = "发送“开启/关闭 功能名”来 开启/关闭 相关功能。例：“开启 emoji”"
-        draw.text(xy=(290, 940), text=text, fill="#001e36", font=font)
-
-        # 保存内容
-        date_year = str(time.strftime("%Y", time.localtime()))
-        date_month = str(time.strftime("%m", time.localtime()))
-        date_day = str(time.strftime("%d", time.localtime()))
-        timenow = str(time.strftime("%H-%M-%S", time.localtime()))
-        returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}config/"
-        if not os.path.exists(returnpath):
-            os.makedirs(returnpath)
-        returnpath = f"{returnpath}{timenow}.png"
-        image.save(returnpath)
-
-    # except Exception as e:
-    #     message = "设置出错惹 >_<"
+        code = 1
+        message = "查询功能"
+        pass
     cursor.close()
     conn.close()
     return message, returnpath
 
 
-def plugins_emoji(emoji):
-    returnpath = None
+async def plugins_emoji_xibao(command, command2, imgmsgs):
+    if imgmsgs:
+        url = imgmsgs[0]
+        image = await connect_api("image", url)
+    else:
+        image = None
+
+    if command2 is None:
+        command2 = " "
+
+    if command == "喜报":
+        text_color1 = "#FFFF00"
+        text_color2 = "#FF0000"
+        text_color3 = "#EC5307"
+    else:
+        text_color1 = "#FFFFFF"
+        text_color2 = "#000000"
+        text_color3 = "#ECECEC"
+
     if kn_config("kanon_api-state"):
-        # 只有在开启api的时候才会开启此功能
-        path = f"{basepath}file/emoji.db"
-        if os.path.exists(path):
-            # 在init中已经读取过，这里不用再读一遍
-            # conn = sqlite3.connect(path)
-            # cursor = conn.cursor()
-            # cursor.execute(f'select * from emoji where emoji = "{emoji}"')
-            # data = cursor.fetchone()
-            # cursor.close()
-            # conn.close()
-            # if data is not None:
-            try:
-                url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={emoji}"
-                json = connect_api("json", url)
-                if json["code"] == 0:
-                    url = f"{kn_config('kanon_api-url')}/api/emoji?imageid={emoji}"
-                    image = connect_api("image", url)
-                    returnpath = f"{basepath}cache/emoji/"
-                    if not os.path.exists(returnpath):
-                        os.makedirs(returnpath)
-                    returnpath += f"{emoji}.png"
-                    image.save(returnpath)
-            except Exception as e:
-                returnpath = None
-    return returnpath
+        if command == "喜报":
+            url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-meme-xibao"
+        else:
+            url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-meme-beibao"
+        xibao_image = await connect_api("image", url)
+    else:
+        xibao_image = Image.new("RGB", (600, 450), (0, 0, 0))
+
+    if command2 != " " and imgmsgs:
+        image = image_resize2(image, (200, 200), overturn=False)
+        w, h = image.size
+        x = int((600 - w) / 2 + 130)
+        y = int((450 - h) / 2 + 30)
+        xibao_image.paste(image, (x, y), mask=image)
+
+        textlen = len(command2)
+        fortlen = 40
+        x = 190
+        if textlen <= 6:
+            x = int(x - ((textlen / 2) * fortlen))
+        else:
+            x = x - (3 * fortlen)
+        y = 200 - int(textlen * 0.05 * fortlen)
+
+        paste_image = await draw_text(
+            texts=command2,
+            size=fortlen,
+            textlen=6,
+            text_color=text_color1,
+            draw_qqemoji=False,
+            calculate=False
+        )
+        box = (x + 2, y + 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (x - 2, y + 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (x + 2, y - 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (x - 2, y - 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+
+        paste_image = await draw_text(
+            texts=command2,
+            size=fortlen,
+            text_color=text_color2,
+            textlen=6,
+            draw_qqemoji=True,
+            calculate=False
+        )
+        box = (x, y)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+
+    elif command2 != '':
+        textlen = len(command2)
+        if textlen <= 6:
+            fortlen = 200 - (textlen * 25)
+        else:
+            fortlen = 40
+
+        paste_image = await draw_text(
+            texts=command2,
+            size=fortlen,
+            textlen=12,
+            text_color=text_color1,
+            draw_qqemoji=False,
+            calculate=False
+        )
+        w, h = paste_image.size
+        x, y = xibao_image.size
+        box = (int((x - w) / 2) + 2, int((y - h) / 2) + 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (int((x - w) / 2) - 2, int((y - h) / 2) + 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (int((x - w) / 2) + 2, int((y - h) / 2) - 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+        box = (int((x - w) / 2) - 2, int((y - h) / 2) - 2)
+        xibao_image.paste(paste_image, box, mask=paste_image)
+
+        paste_image = await draw_text(
+            texts=command2,
+            size=fortlen,
+            text_color=text_color2,
+            textlen=12,
+            draw_qqemoji=True,
+            calculate=False
+        )
+        w, h = paste_image.size
+        x, y = xibao_image.size
+        box = (int((x - w) / 2), int((y - h) / 2))
+        xibao_image.paste(paste_image, box, mask=paste_image)
+
+    elif imgmsgs:
+        w, h = image.size
+        x = int((600 - w) / 2)
+        y = int((450 - h) / 2 + 30)
+        xibao_image.paste(image, (x, y, int(x + w), int(y + h)), mask=image)
+        image = Image.new(mode='RGB', size=(w, h), color=text_color3)
+        mask_image = Image.new("RGBA", (w, h), (0, 0, 0, 15))
+        xibao_image.paste(image, (x, y, int(x + w), int(y + h)), mask=mask_image)
+
+    return save_image(xibao_image)
+
+
+async def plugins_emoji_yizhi(user_avatar):
+    user_image = await connect_api("image", user_avatar)
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    # 开始绘图
+    imageyizhi = Image.new(mode='RGB', size=(768, 950), color="#FFFFFF")
+    draw = ImageDraw.Draw(imageyizhi)
+
+    imageyizhi.paste(user_image, (64, 64))
+    image_face = user_image.resize((100, 100))
+    imageyizhi.paste(image_face, (427, 800))
+
+    file_path = await get_file_path("SourceHanSansK-Bold.ttf")
+    font = ImageFont.truetype(font=file_path, size=85)
+    draw.text(xy=(60, 805), text='要我一直        吗？', fill=(0, 0, 0), font=font)
+
+    return save_image(imageyizhi)

@@ -4,19 +4,17 @@ import nonebot
 import os
 import re
 import sqlite3
+from PIL import Image, ImageDraw, ImageFont
 from nonebot import on_message, logger
-from nonebot.adapters.onebot.v11 import (
+from nonebot.adapters.qq import (
     Bot,
     MessageSegment,
-    Event,
-    GroupMessageEvent,
-    GROUP_ADMIN,
-    GROUP_OWNER
-)
+    MessageEvent
+    )
 import time
 from .config import kn_config, command_list
 from .bot_run import botrun
-from .tools import get_file_path, get_command
+from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -40,8 +38,7 @@ config = nonebot.get_driver().config
 
 # 配置1
 try:
-    adminqq = config.superusers
-    adminqq = list(adminqq)
+    adminqq = list(config.superusers)
 except Exception as e:
     adminqq = []
 # 配置2：
@@ -73,7 +70,7 @@ __plugin_meta__ = PluginMetadata(
     # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
     homepage="https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot",
     # 发布必填。
-    supported_adapters={"~onebot.v11"},
+    supported_adapters={"~qq"},
     # 支持的适配器集合，其中 `~` 在此处代表前缀 `nonebot.adapters.`，其余适配器亦按此格式填写。
     # 若插件可以保证兼容所有适配器（即仅使用基本适配器功能）可不填写，否则应该列出插件支持的适配器。
 )
@@ -98,22 +95,31 @@ run_kanon = on_message(priority=10, block=False)
 
 
 @run_kanon.handle()
-async def kanon(event: Event, bot: Bot):
+async def kanon(
+        message_event: MessageEvent,
+        bot: Bot
+    ):
     # 获取消息基础信息
     botid = str(bot.self_id)
-    atmsg = event.get_message()["at"]
-    atmsgs = []
-    if len(atmsg) >= 1:
-        for i in atmsg:
-            atmsgg = str(i.data["qq"])
-            atmsgg.removeprefix('[CQ:at,qq=')
-            atmsgg.removesuffix(']')
-            atmsgs.append(atmsgg)
-    msg = str(event.get_message())
-    qq = event.get_user_id()
-    timelong = str(time.strftime("%Y%m%d%H%M%S", time.localtime()))
-    msg = re.sub(u"\\[.*?]", "", msg)
-    msg = msg.replace('"', "'")
+    event_name = message_event.get_event_name()
+    user_id = message_event.get_user_id()
+
+    # 获取群号
+    if event_name == "GROUP_AT_MESSAGE_CREATE":
+        guild_id = channel_id = f"group_{message_event.group_id}"
+    elif event_name == "AT_MESSAGE_CREATE":
+        channel_id = f"channel_{message_event.channel_id}"
+        guild_id = f"channel_{message_event.guild_id}"
+    else:
+        channel_id = f"error_{user_id}"
+        guild_id = f"error_{user_id}"
+
+    msg = str(message_event.get_message())
+    print(f"msg:{msg}")
+    msg = msg.replace('"', "“").replace("'", "‘")
+    msg = msg.replace("(", "（").replace(")", "）")
+    msg = msg.replace("{", "（").replace("}", "）")
+    msg = msg.replace("[", "【").replace("]", "】")
     commands = get_command(msg)
     command = commands[0]
     now = int(time.time())
@@ -140,13 +146,13 @@ async def kanon(event: Event, bot: Bot):
         for data in datas:
             bots_list.append(data[0])
         # 如果发消息的用户为bot，则刷新心跳
-        if qq in bots_list:
-            cursor.execute(f'SELECT * FROM heart WHERE "botid" = "{qq}"')
+        if user_id in bots_list:
+            cursor.execute(f'SELECT * FROM heart WHERE "botid" = "{user_id}"')
             data = cursor.fetchone()
             cache_times = int(data[1])
             cache_hearttime = int(data[2])
             cursor.execute(f'replace into heart("botid", "times", "hearttime") '
-                           f'values("{qq}", "0", "{now}")')
+                           f'values("{user_id}", "0", "{now}")')
             conn.commit()
         cursor.close()
         conn.close()
@@ -155,56 +161,50 @@ async def kanon(event: Event, bot: Bot):
     commandname = ""
     commandlist = command_list()
     run = False
+
     # 识别精准
-    if not run:
+    if run is False:
         cache_commandlist = commandlist["精准"]
         if command in list(cache_commandlist):
             commandname = cache_commandlist[command]
             run = True
-    # 识别emoji
-    if not run:
-        path = f"{basepath}file/emoji.db"
-        if os.path.exists(path):
-            conn = sqlite3.connect(path)
-            cursor = conn.cursor()
-            cursor.execute(f'select * from emoji where emoji = "{command}"')
-            data = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            if data is not None:
-                run = True
-                commandname = "群聊功能-emoji"
+
     # 识别开头
-    if not run:
+    if run is False:
         cache_commandlist = commandlist["开头"]
         for cache_command in list(cache_commandlist):
             if command.startswith(cache_command):
                 commandname = cache_commandlist[cache_command]
                 run = True
                 break
+
     # 识别结尾
-    if not run:
+    if run is False:
         cache_commandlist = commandlist["结尾"]
         for cache_command in list(cache_commandlist):
             if command.endswith(cache_command):
                 commandname = cache_commandlist[cache_command]
                 run = True
                 break
+
     # 识别模糊
-    if not run:
+    if run is False:
         cache_commandlist = commandlist["模糊"]
         for cache_command in list(cache_commandlist):
             if cache_command in command:
                 commandname = cache_commandlist[command]
                 run = True
                 break
+
     # 识别精准2
-    if not run:
+    if run is False:
         cache_commandlist = commandlist["精准2"]
         if command in list(cache_commandlist):
             commandname = cache_commandlist[command]
             run = True
-    if not run and kn_config(""):
+
+    # 识别emoji
+    if run is False and kn_config("emoji-state"):
         conn = sqlite3.connect(await get_file_path("emoji_1.db"))
         cursor = conn.cursor()
         cursor.execute(f'select * from emoji where emoji = "{command}"')
@@ -216,19 +216,14 @@ async def kanon(event: Event, bot: Bot):
             run = True
 
     # 排除部分相应词
-    if run:
+    if run is True:
         if commandname == 'caicaikan':
             if len(command) >= 7:
                 run = False
         if commandname == 'blowplane':
             if len(command) >= 7:
                 run = False
-        if commandname == "亲亲" or \
-                commandname == "可爱" or \
-                commandname == "咬咬" or \
-                commandname == "摸摸" or \
-                commandname == "贴贴" or \
-                commandname == "逮捕":
+        if commandname in ["亲亲", "可爱", "咬咬", "摸摸", "贴贴", "逮捕"]:
             if len(command) >= 7:
                 run = False
     # 开始处理消息
@@ -239,138 +234,208 @@ async def kanon(event: Event, bot: Bot):
         configdb = dbpath + 'config.db'
         autoreplydb = dbpath + 'autoreply.db'
         userdatas_db = dbpath + "userdatas.db"
+        date = str(time.strftime("%Y-%m-%d", time.localtime()))
+        date_year = str(time.strftime("%Y", time.localtime()))
+        date_month = str(time.strftime("%m", time.localtime()))
+        date_day = str(time.strftime("%d", time.localtime()))
+        time_now = str(int(time.time()))
+
+        # 获取发送消息的用户信息
+        if event_name == "GROUP_AT_MESSAGE_CREATE":
+            user_data = {
+                "id": user_id,
+                "username": None,
+                "nick_name": None,
+                "avatar": None,
+                "union_openid": None,
+                "is_bot": None
+            }
+        elif event_name == "AT_MESSAGE_CREATE":
+            data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
+            user_data = {
+                "id": user_id,
+                "username": data.user.username,
+                "nick_name": data.nick,
+                "avatar": data.user.avatar,
+                "union_openid": data.user.union_openid,
+                "is_bot": data.user.bot
+            }
+        else:
+            user_data = {
+                "id": user_id,
+                "username": None,
+                "nick_name": None,
+                "avatar": None,
+                "union_openid": None,
+                "is_bot": None
+            }
 
         # 获取消息内容
-        allfriendlist = []
-        allgroupmember_data = []
-        if isinstance(event, GroupMessageEvent):
-            # 群消息
-            groupcode = str(event.group_id)
-            commandname_list = ["jinrilaopo", "jiehun", "keai", "welcome"]
-            if commandname in commandname_list:
-                allgroupmember_data = await bot.get_group_member_list(group_id=int(groupcode))
-            # 获取用户权限
-            if await GROUP_ADMIN(bot, event):
-                info_premission = '5'  # 管理员
-            elif await GROUP_OWNER(bot, event):
-                info_premission = '10'  # 群主
-            else:
-                info_premission = '0'  # 群员
-            # 如果群聊内at机器人，则添加at信息。
-            if event.is_tome():
-                atmsgs.append(botid)
+        # 获取用户信息
+        if event_name == "GROUP_AT_MESSAGE_CREATE":
+            user_data = {
+                "id": user_id,
+                "permission": 5,
+                "avatar": None,
+                "username": None,
+                "nick_name": None,
+                "union_openid": None,
+                "is_bot": None
+            }
+            user_permission = 5
+        elif event_name == "AT_MESSAGE_CREATE":
+            data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
+            user_permission = int(data.permissions)
+            data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
+            user_data = {
+                "id": user_id,
+                "permission": user_permission,
+                "avatar": data.user.avatar,
+                "username": data.user.username,
+                "nick_name": data.nick,
+                "union_openid": data.user.union_openid,
+                "is_bot": data.user.bot
+            }
         else:
-            # 私聊
-            groupcode = 'p' + str(event.get_user_id())
-            info_premission = '10'
-        groupcode = 'g' + groupcode
-        # 获取消息包含的图片
-        imgmsgmsg = event.get_message()["image"]
-        imgmsgs = []
-        if len(imgmsgmsg) >= 1:
-            for i in imgmsgmsg:
-                imgmsgg = str(i.data["url"])
-                imgmsgs.append(imgmsgg)
-        else:
-            imgmsgs = []
+            user_data = {
+                "id": user_id,
+                "permission": 5,
+                "avatar": None,
+                "username": None,
+                "nick_name": None,
+                "union_openid": None,
+                "is_bot": None
+            }
 
+        # 获取at内容
+        atmsgs = []
+        num = -1
+        jump_num = 0
+        for m in msg:
+            num += 1
+            if jump_num > 0:
+                jump_num -= 1
+            elif m == "<":
+                num_test = 2  # 起始计算数
+                while num_test <= 50:  # 终止计算数
+                    num_test += 1
+                    text = msg[num:(num + num_test)]
+                    if text.startswith("<attachment:"):
+                        num_test = 99999
+                    if text.endswith(">") and text.startswith("<@"):
+                        num_test = 99999
+                        atmsgs.append(text.removeprefix("<@").removesuffix(">"))
+                        jump_num = len(text) - 2
+        at_datas = []
+        for id in atmsgs:
+            data = await bot.get_member(guild_id=guild_id[8:], user_id=id)
+            at_data = {
+                "id": id,
+                "username": data.user.username,
+                "nick_name": data.nick,
+                "avatar": data.user.avatar,
+                "union_openid": data.user.union_openid,
+                "is_bot": data.user.bot
+            }
+            at_datas.append(at_data)
+            # data = await bot.get_members(guild_id=guild_id[8:], user_id=atmsg)
+            print(f"get_members:{at_data}")
+
+        # 获取成员名单
+        # data = await bot.get_members(guild_id=guild_id[8:])
+        # print(f"get_members:{data}")
+        friend_list = []
+        group_member_list = []
+        commandname_list = ["jinrilaopo", "jiehun", "keai", "welcome"]
+        if commandname in commandname_list:
+            pass
+
+        # 获取消息包含的图片
+        imgmsgs = []
+        num = -1
+        jump_num = 0
+        for m in msg:
+            num += 1
+            if jump_num > 0:
+                jump_num -= 1
+            elif m == "<":
+                num_test = 100  # 起始计算数
+                while num_test <= 150:  # 终止计算数
+                    num_test += 1
+                    text = msg[num:(num + num_test)]
+                    if text.startswith("<@"):
+                        num_test = 99999
+                    if text.endswith(">") and text.startswith("<attachment:"):
+                        num_test = 99999
+                        imgmsgs.append(text.removeprefix("<attachment:").removesuffix(">"))
+                        jump_num = len(text) - 2
+
+        msg = re.sub(u"<.*?>", "", msg)
         # 组装信息，进行后续响应
         msg_info = {
             "msg": msg,
             "commands": commands,
-            "atmsgs": atmsgs,
-            "info_premission": info_premission,
             "commandname": commandname,
-            "groupcode": groupcode,
-            "qq": qq,
-            "imgmsgs": imgmsgs
+            "bot_id": botid,
+            "channel_id": channel_id,
+            "guild_id": guild_id,
+            "at_datas": at_datas,
+            "user": user_data,
+            "imgmsgs": imgmsgs,
+            "event_name": event_name,
+            "friend_list": friend_list,
+            "group_member_list": group_member_list
         }
-        logger.info(msg_info)
-        data = await botrun(bot, allfriendlist, allgroupmember_data, msg_info)
-        logger.info(data)
+        logger.debug(msg_info)
+        data = await botrun(msg_info)
+        logger.debug(data)
         # 获取返回信息，进行回复
         code = int(data["code"])
-        message = data["message"]
-        imgpath = data["returnpath"]
-        imgpath2 = data["returnpath2"]
-        imgpath3 = data["returnpath3"]
-        at = data["at"]
 
-        # 排除部分无效内容
-        if code == 1:
-            if message is None or message == "":
-                code = 0
-                logger.error("空消息")
-                logger.error(data)
-        elif code == 2:
-            if not os.path.exists(imgpath):
-                code = 0
-                logger.error("空图片")
-                logger.error(data)
-        elif code == 3:
-            if message is None or message == "" or not os.path.exists(imgpath):
-                code = 0
-                logger.error("空消息或图片")
-                logger.error(data)
-        elif code == 4:
-            if (
-                    message is None or
-                    message == "" or
-                    not os.path.exists(imgpath) or
-                    not os.path.exists(imgpath2)
-            ):
-                code = 0
-                logger.error("空消息或图片")
-                logger.error(data)
-        elif code == 5:
-            if (
-                    message is None or
-                    message == "" or
-                    not os.path.exists(imgpath) or
-                    not os.path.exists(imgpath2) or
-                    not os.path.exists(imgpath3)
-            ):
-                code = 0
-                logger.error("空消息或图片")
-                logger.error(data)
-
-        # 开始返回消息
         if code == 0:
             pass
         elif code == 1:
+            message = data["message"]
             msg = MessageSegment.text(message)
-            if at is not False:
-                msgat = MessageSegment.at(at)
-                msgn = MessageSegment.text('\n')
-                msg = msgat + msgn + msg
             await run_kanon.finish(msg)
         elif code == 2:
-            msg = MessageSegment.image(r"file:///" + imgpath)
-            if at is not False:
-                msgat = MessageSegment.at(at)
-                msg = msgat + msg
+            img_url = await imgpath_to_url(data["returnpath"])
+            msg = MessageSegment.image(img_url)
             await run_kanon.finish(msg)
         elif code == 3:
-            msg1 = MessageSegment.text(message)
-            msg2 = MessageSegment.image(r"file:///" + imgpath)
-            if at is not False:
-                msgat = MessageSegment.at(at)
-                msgn = MessageSegment.text('\n')
-                msg = msgat + msgn + msg1 + msg2
-            else:
-                msg = msg1 + msg2
+            message = data["message"]
+            image_1 = await draw_text(data["message"],
+                                      size=25,
+                                      textlen=13,
+                                      text_color="#000000")
+            image_2 = Image.open(data["returnpath"], mode="r")
+            images = mix_image(image_1, image_2, mix_type=1)
+            returnpath = f"{cache_path}{date_year}/{date_month}/{date_day}/"
+            if not os.path.exists(returnpath):
+                os.makedirs(returnpath)
+            returnpath += f"{time_now}-{user_id}.png"
+            images.save(returnpath)
+            img_url = await imgpath_to_url(returnpath)
+            msg = MessageSegment.image(img_url)
             await run_kanon.finish(msg)
         elif code == 4:
+            img_url1 = await imgpath_to_url(data["returnpath"])
+            img_url2 = await imgpath_to_url(data["returnpath2"])
+            msg1 = MessageSegment.image(img_url1)
+            msg2 = MessageSegment.image(img_url2)
+            message = data["message"]
             msg0 = MessageSegment.text(message)
-            msg1 = MessageSegment.image(r"file:///" + imgpath)
-            msg2 = MessageSegment.image(r"file:///" + imgpath2)
             msg = msg0 + msg1 + msg2
             await run_kanon.finish(msg)
         elif code == 5:
+            img_url1 = await imgpath_to_url(data["returnpath"])
+            img_url2 = await imgpath_to_url(data["returnpath2"])
+            img_url3 = await imgpath_to_url(data["returnpath3"])
+            msg1 = MessageSegment.image(img_url1)
+            msg2 = MessageSegment.image(img_url2)
+            msg3 = MessageSegment.image(img_url3)
+            message = data["message"]
             msg0 = MessageSegment.text(message)
-            msg1 = MessageSegment.image(r"file:///" + imgpath)
-            msg2 = MessageSegment.image(r"file:///" + imgpath2)
-            msg3 = MessageSegment.image(r"file:///" + imgpath3)
             msg = msg0 + msg1 + msg2 + msg3
             await run_kanon.finish(msg)
         else:

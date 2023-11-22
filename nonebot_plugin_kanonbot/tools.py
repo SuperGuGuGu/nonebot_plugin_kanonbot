@@ -10,9 +10,9 @@ from nonebot import logger
 import nonebot
 import os
 import shutil
-import time
 from .config import kn_config
 import asyncio
+import time
 
 # 读取配置文件
 config = nonebot.get_driver().config
@@ -26,8 +26,7 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        if not basepath.endswith("/"):
-            basepath += "/"
+        basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 # 配置3：
@@ -37,12 +36,18 @@ except Exception as e:
     command_starts = ["/"]
 
 
-def get_command(msg) -> list:
+def get_command(msg: str) -> list:
     """
     使用空格和换行进行切分1次
     :param msg: 原始字符串。"hello world"
     :return: 切分后的内容["hello", "world"]
     """
+    # 去除前后面空格
+    while len(msg) > 0 and msg.startswith(" "):
+        msg = msg.removeprefix(" ")
+    while len(msg) > 0 and msg.endswith(" "):
+        msg = msg.removesuffix(" ")
+    # 分割命令
     commands = []
     if ' ' in msg or '\n' in msg:
         messages = msg.split(' ', 1)
@@ -77,33 +82,6 @@ def get_command(msg) -> list:
     return commands
 
 
-def get_face(qq, size: int = 640):
-    """
-    获取q头像
-    :param qq: int。例："123456", 123456
-    :param size: int。例如: 100, 200, 300
-    """
-    cache_path = f"{basepath}cache/头像/"
-    if not os.path.exists(cache_path):
-        os.makedirs(cache_path)
-    cache_path += str(qq)
-    try:
-        faceapi = f"https://q1.qlogo.cn/g?b=qq&nk={qq}&s=640"
-        response = httpx.get(faceapi)
-        image_face = Image.open(BytesIO(response.content))
-        image_face.save(cache_path)
-    except:
-        logger.error("获取头像失败")
-        # 获取失败，尝试读取缓存头像
-        if os.path.exists(cache_path):
-            image_face = Image.open(cache_path)
-        else:
-            # 没有缓存，返回空白图片
-            image_face = Image.new("RGB", (size, size))
-    image_face = image_face.resize((size, size))
-    return image_face
-
-
 def list_in_list(list_1: list, list_2: list):
     """
     判断数列是否在数列内
@@ -116,36 +94,30 @@ def list_in_list(list_1: list, list_2: list):
     return False
 
 
-def connect_api(type: str, url: str, post_json=None, file_path: str = None):
-    """
-    api请求
-    :param type: 类型，有"json", "image", "file"三种
-    :param url: 连接的url
-    :param post_json: post请求的数据
-    :param file_path: file类型保存的路径
-    :return:
-    """
-    # 把api调用的代码放在一起，方便下一步进行异步开发
+async def connect_api(type: str, url: str, post_json=None, file_path: str = None):
+    h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
-            return json.loads(httpx.get(url).text)
+            return json.loads(httpx.get(url, headers=h).text)
         else:
-            return json.loads(httpx.post(url, json=post_json).text)
+            return json.loads(httpx.post(url, json=post_json, headers=h).text)
     elif type == "image":
-        try:
-            image = Image.open(BytesIO(httpx.get(url).content))
-        except Exception as e:
-            logger.error("图片获取出错")
-            logger.error(url)
-            image = Image.open(BytesIO(httpx.get(url).content))
+        if url in ["none", "None"] or url is None:
+            image = draw_text("获取图片出错", 50, 10)
+        else:
+            try:
+                image = Image.open(BytesIO(httpx.get(url).content))
+            except Exception as e:
+                image = draw_text("获取图片出错", 50, 10)
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
             # 这里不能用httpx。用就报错。
-            with open(cache_file_path, "wb") as f, requests.get(url) as res:
+            with open(cache_file_path, "wb") as f, requests.get(url, headers=h) as res:
                 f.write(res.content)
-            logger.success("下载完成")
+            logger.info("下载完成")
             shutil.copyfile(cache_file_path, file_path)
             os.remove(cache_file_path)
         except Exception as e:
@@ -166,27 +138,17 @@ async def get_file_path(file_name) -> str:
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.info("正在下载" + file_name)
-        if kn_config("kanon_api-state"):
-            url = kn_config("kanon_api-url") + "/file/" + file_name
-        else:
-            if file_name == "NotoSansSC[wght].ttf":
-                url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
-            else:
-                url = ""
-        connect_api(type="file", url=url, file_path=file_path)
+        url = kn_config("kanon_api-url") + "/file/" + file_name
+        await connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
 
-async def lockst():
+async def lockst(lockdb):
     """
     如有其他指令在运行，则暂停该函数
     :param lockdb:
     :return:
     """
-    lockdb = f"{basepath}db/"
-    if not os.path.exists(lockdb):
-        os.makedirs(lockdb)
-    lockdb += "lock.db"
     sleeptime = random.randint(1, 200)
     sleeptime = float(sleeptime) / 100
     # 随机随眠0.01-2秒，避免同时收到消息进行处理
@@ -203,6 +165,7 @@ async def lockst():
                 tables.append(data[1])
         if "lock" not in tables:
             cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
+        # 查询数据
         cursor.execute('select * from lock where name = "lock"')
         locking = cursor.fetchone()
     except Exception as e:
@@ -229,7 +192,7 @@ async def lockst():
                 cursor.close()
                 conn.close()
                 if locking == 'on':
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(0.3)
                     if num == 0:
                         logger.error("等待超时")
                 else:
@@ -246,16 +209,7 @@ async def lockst():
     return locking
 
 
-def locked():
-    """
-    解除锁
-    :param lockdb:
-    :return:
-    """
-    lockdb = f"{basepath}db/"
-    if not os.path.exists(lockdb):
-        os.makedirs(lockdb)
-    lockdb += "lock.db"
+def locked(lockdb):
     # 解锁
     conn = sqlite3.connect(lockdb)
     cursor = conn.cursor()
@@ -267,27 +221,19 @@ def locked():
     return locking
 
 
-def command_cd(qq, groupcode, coolingtime: int = 60, coolingnum: int = 7, coolinglong: int = 200):
-    """
-    指令冷却时间
-    :param qq: 成员id
-    :param groupcode: 群号码
-    :param coolinglong: 触发冷却后，需要冷却的时间
-    :param coolingnum: coolingtime分钟内发送超过coolingnum条消息就触发冷却
-    :param coolingtime: coolingtime分钟内发送超过coolingnum条消息就触发冷却
-    :return: "off" 或者 ”100“。off为不进行冷却，数字为冷却剩余时间。
-    """
-    cooling = "off"
-    # coolingtime：冷却时间，单位S
-    # coolingnum：冷却数量，单位条
-    # coolinglong：冷却长度，单位S
+def command_cd(user_id, groupcode, timeshort, coolingdb):
+    cooling = 'off'
+    # 冷却时间，单位S
+    coolingtime = '60'
+    # 冷却数量，单位条
+    coolingnum = 12
+    # 冷却长度，单位S
+    coolinglong = 150
 
-    now = int(time.time())
     # 尝试创建数据库
     coolingnumber = str('0')
 
-    db_path = f"{basepath}db/cooling.db"
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(coolingdb)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
@@ -297,25 +243,28 @@ def command_cd(qq, groupcode, coolingtime: int = 60, coolingnum: int = 7, coolin
             tables.append(data[1])
     if groupcode not in tables:
         # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        cursor.execute(f'create table {groupcode} (userid VARCHAR(10) primary key,'
-                       f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
+        cursor.execute(
+            f'create table {groupcode} (userid VARCHAR(10) primary key,'
+            f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
     # 读取数据库内容：日期文件，群号表，用户数据
     # 查询数据
-    cursor.execute(f"select * from {groupcode} where userid = {qq}")
+    cursor.execute(f'select * from "{groupcode}" where userid = "{user_id}"')
     data = cursor.fetchone()
     try:
         if data is None:
             coolingnumber = '1'
             cooling = 'off'
-            cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
-                           f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+            cursor.execute(
+                f'replace into {groupcode}(userid,number,time,cooling) '
+                f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
         else:
             # 判断是否正在冷却
             cooling = data[3]
             if cooling == 'off':
                 #  判断时间，time-冷却时间再判断
                 timeshortdata = int(data[2]) + int(coolingtime)
-                if timeshortdata >= now:
+                timeshort = int(timeshort)
+                if timeshortdata >= timeshort:
                     # 小于冷却时间，冷却次数+1
                     coolingnumber = int(data[1]) + 1
                     #    判断冷却次数，次数>=冷却数量
@@ -323,43 +272,367 @@ def command_cd(qq, groupcode, coolingtime: int = 60, coolingnum: int = 7, coolin
                         cooling = 'on'
                         # 大于次数，开启冷却,写入
                         coolingnumber = str(coolingnumber)
-
-                        cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
-                                       f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                        timeshort = str(timeshort)
+                        cursor.execute(
+                            f'replace into {groupcode}(userid,number,time,cooling) '
+                            f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
                         timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                        coolingtime = str(timeshortdata - now)
+                        coolingtime = str(timeshortdata - int(timeshort))
                     else:
                         # 小于写入
+
                         cooling = 'off'
                         coolingnumber = str(coolingnumber)
-                        cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
-                                       f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                        timeshort = str(timeshort)
+                        cursor.execute(
+                            f'replace into {groupcode}(userid,number,time,cooling) '
+                            f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
                 else:
                     # 大于冷却时间，重新写入
                     coolingnumber = '1'
                     cooling = 'off'
-                    cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
-                                   f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                    timeshort = str(timeshort)
+                    cursor.execute(
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
             else:
                 timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                if timeshortdata >= now:
-                    coolingtime = str(timeshortdata - now)
+                timeshort = int(timeshort)
+                if timeshortdata >= timeshort:
+                    coolingtime = str(timeshortdata - timeshort)
                 else:
                     coolingnumber = '1'
                     cooling = 'off'
-                    cursor.execute(f'replace into {groupcode}(userid,number,time,cooling) '
-                                   f'values("{qq}","{coolingnumber}","{now}","{cooling}")')
+                    timeshort = str(timeshort)
+                    cursor.execute(
+                        f'replace into {groupcode}(userid,number,time,cooling) '
+                        f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
         if cooling != 'off':
             cooling = str(coolingtime)
     except Exception as e:
         logger.error("冷却数据库操作出错")
-        logger.error(db_path)
+        logger.error(coolingdb)
         cooling = "off"
     finally:
         conn.commit()
         cursor.close()
         conn.close()
     return cooling
+
+
+async def draw_text(texts: str,
+              size: int,
+              textlen: int = 20,
+              fontfile: str = "",
+              text_color="#000000",
+              biliemoji_infos=None,
+              draw_qqemoji=False,
+              calculate=False
+              ):
+    """
+    - 文字转图片
+
+    :param texts: 输入的字符串
+    :param size: 文字尺寸
+    :param textlen: 一行的文字数量
+    :param fontfile: 字体文字
+    :param text_color: 字体颜色，例："#FFFFFF"、(10, 10, 10)
+    :param biliemoji_infos: 识别emoji
+    :param draw_qqemoji: 识别qqemoji
+    :param calculate: 计算长度。True时只返回空白图，不用粘贴文字，加快速度。
+
+    :return: 图片文件（RGBA）
+    """
+
+    def get_font_render_w(text):
+        if text == " ":
+            return 20
+        none = ["\n", ""]
+        if text in none:
+            return 1
+        canvas = Image.new('RGB', (500, 500))
+        draw = ImageDraw.Draw(canvas)
+        draw.text((0, 0), text, font=font, fill=(255, 255, 255))
+        bbox = canvas.getbbox()
+        # 宽高
+        # size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
+        if bbox is None:
+            return 0
+        return bbox[2]
+
+    async def is_emoji(emoji):
+        if kn_config("kanon_api-state") is not True:
+            return False
+        else:
+            try:
+                conn = sqlite3.connect(await get_file_path("emoji_1.db"))
+                cursor = conn.cursor()
+                cursor.execute(f'select * from emoji where emoji = "{emoji}"')
+                data = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                if data is not None:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                return False
+
+    async def get_emoji(emoji):
+        cachepath = basepath + "cache/emoji/"
+        if not os.path.exists(cachepath):
+            os.makedirs(cachepath)
+        cachepath = cachepath + emoji + ".png"
+        if not os.path.exists(cachepath):
+            if kn_config("kanon_api-state") is True and (await is_emoji(emoji)) is True:
+                url = f"{kn_config('kanon_api-url')}/api/emoji?imageid={emoji}"
+                try:
+                    return_image = await connect_api("image", url)
+                    return_image.save(cachepath)
+                except Exception as e:
+                    logger.info("api出错，请联系开发者")
+                    # api出错时直接打印文字
+                    return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
+                    draw = ImageDraw.Draw(return_image)
+                    draw.text((0, 0), emoji, fill="#000000", font=font)
+                    return_image.paste(return_image, (0, 0), mask=return_image)
+            else:
+                # 不使用api，直接打印文字
+                return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
+                draw = ImageDraw.Draw(return_image)
+                draw.text((0, 0), emoji, fill="#000000", font=font)
+                return_image.paste(return_image, (0, 0), mask=return_image)
+        else:
+            return_image = Image.open(cachepath, mode="r")
+        return return_image
+
+    fortsize = size
+    if kn_config("kanon_api-state") is True:
+        if fontfile == "":
+            fontfile = await get_file_path("腾祥嘉丽中圆.ttf")
+    else:
+        fontfile = await get_file_path("NotoSansSC[wght].ttf")
+    font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+    # 计算图片尺寸
+    print_x = 0
+    print_y = 0
+    jump_num = 0
+    text_num = -1
+    for text in texts:
+        text_num += 1
+        if jump_num > 0:
+            jump_num -= 1
+        else:
+            if (textlen * fortsize) < print_x or text == "\n":
+                print_x = 0
+                print_y += 1.3 * fortsize
+                if text == "\n":
+                    continue
+            biliemoji_name = None
+            if biliemoji_infos is not None:
+                # 检测biliemoji
+                if text == "[":
+                    emoji_len = 0
+                    while emoji_len < 50:
+                        emoji_len += 1
+                        emoji_end = text_num + emoji_len
+                        if texts[emoji_end] == "[":
+                            # 不是bili emoji，跳过
+                            emoji_len = 60
+                        elif texts[emoji_end] == "]":
+                            biliemoji_name = texts[text_num:emoji_end + 1]
+                            jump_num = emoji_len
+                            emoji_len = 60
+            if biliemoji_name is not None:
+                for biliemoji_info in biliemoji_infos:
+                    emoji_name = biliemoji_info["emoji_name"]
+                    if emoji_name == biliemoji_name:
+                        print_x += fortsize
+            else:
+                if (await is_emoji(text)) is True:
+                    print_x += fortsize
+                elif text in ["\n", " "]:
+                    if text == " ":
+                        print_x += get_font_render_w(text) + 2
+                else:
+                    print_x += get_font_render_w(text) + 2
+
+    x = int((textlen + 1.5) * size)
+    y = int(print_y + 1.2 * size)
+
+    image = Image.new("RGBA", size=(x, y), color=(0, 0, 0, 0))  # 生成透明图片
+    draw_image = ImageDraw.Draw(image)
+
+    # 绘制文字
+    if calculate is False:
+        print_x = 0
+        print_y = 0
+        jump_num = 0
+        text_num = -1
+        for text in texts:
+            text_num += 1
+            if jump_num > 0:
+                jump_num -= 1
+            else:
+                if (textlen * fortsize) < print_x or text == "\n":
+                    print_x = 0
+                    print_y += 1.3 * fortsize
+                    if text == "\n":
+                        continue
+                biliemoji_name = None
+                if biliemoji_infos is not None:
+                    # 检测biliemoji
+                    if text == "[":
+                        emoji_len = 0
+                        while emoji_len < 50:
+                            emoji_len += 1
+                            emoji_end = text_num + emoji_len
+                            if texts[emoji_end] == "[":
+                                # 不是bili emoji，跳过
+                                emoji_len = 60
+                            elif texts[emoji_end] == "]":
+                                biliemoji_name = texts[text_num:emoji_end + 1]
+                                jump_num = emoji_len
+                                emoji_len = 60
+                if biliemoji_name is not None:
+                    for biliemoji_info in biliemoji_infos:
+                        emoji_name = biliemoji_info["emoji_name"]
+                        if emoji_name == biliemoji_name:
+                            emoji_url = biliemoji_info["url"]
+                            paste_image = await connect_api("image", emoji_url)
+                            paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                            image.paste(paste_image, (int(print_x), int(print_y)))
+                            print_x += fortsize
+                else:
+                    if (await is_emoji(text)) is True:
+                        paste_image = await get_emoji(text)
+                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                        image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
+                        print_x += fortsize
+                    elif text in ["\n", " "]:
+                        if text == " ":
+                            print_x += get_font_render_w(text) + 2
+                    else:
+                        draw_image.text(xy=(int(print_x), int(print_y)),
+                                        text=text,
+                                        fill=text_color,
+                                        font=font)
+                        print_x += get_font_render_w(text) + 2
+        # 把输出的图片裁剪为只有内容的部分
+        bbox = image.getbbox()
+        if bbox is None:
+            box_image = Image.new("RGBA", (2, fortsize), (0, 0, 0, 0))
+        else:
+            box_image = Image.new("RGBA", (bbox[2] - bbox[0], bbox[3] - bbox[1]), (0, 0, 0, 0))
+            box_image.paste(image, (0 - int(bbox[0]), 0 - int(bbox[1])), mask=image)
+        image = box_image
+    return image
+
+
+async def imgpath_to_url(imgpath):
+    """
+    图片路径转url
+    :param imgpath: 图片的路径
+    :return: 图片的url
+    """
+    if read == me:
+        pass
+    """
+    这里会运行报错，因为图片转链接功能需要图床的支持。请用户自行适配。
+    QQ适配器发送图片需要发送url让qq请求。
+    """
+    return imgurl
+
+
+def mix_image(image_1, image_2, mix_type = 1):
+    """
+    将两张图合并为1张
+    :param image_1: 要合并的图像1
+    :param image_2: 要合并的图像2
+    :param mix_type: 合成方式。1：竖向
+    :return:
+    """
+    images = Image.new("RGB", (10, 10), "#FFFFFF")
+    if mix_type == 1:
+        x1, y1 = image_1.size
+        x2, y2 = image_2.size
+        if image_1.mode == "RGB":
+            image_1 = image_1.convert("RGBA")
+        if image_2.mode == "RGB":
+            image_2 = image_2.convert("RGBA")
+
+        if x1 > x2:
+            x2_m = x1
+            y2_m = int(x2_m * x1 / y1)
+            images = Image.new("RGB", (x2_m, y2_m + y1), "#EEEEEE")
+            image_2_m = image_2.resize((x2_m, y2_m))
+            images.paste(image_1, (0, 0), mask=image_1)
+            images.paste(image_2_m, (0, y1), mask=image_2_m)
+        else:  # x1 < x2
+            x1_m = x2
+            y1_m = int(x1_m * x2 / y2)
+            images = Image.new("RGB", (x1_m, y1_m + y2), "#EEEEEE")
+            image_1_m = image_1.resize((x1_m, y1_m))
+            images.paste(image_1_m, (0, 0), mask=image_1_m)
+            images.paste(image_2, (0, y1_m), mask=image_2)
+    return images
+
+
+def save_image(image, user_id: str = str(random.randint(1000, 9999))):
+    date_year = str(time.strftime("%Y", time.localtime()))
+    date_month = str(time.strftime("%m", time.localtime()))
+    date_day = str(time.strftime("%d", time.localtime()))
+    time_now = str(int(time.time()))
+    returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
+    if not os.path.exists(returnpath):
+        os.makedirs(returnpath)
+    returnpath += f"{time_now}_{user_id}.png"
+    image.save(returnpath)
+    return returnpath
+
+
+def image_resize2(image, size: [int, int], overturn=False):
+    """
+    重缩放图像
+    :param image: 要缩放的图像
+    :param size: 缩放后的大小
+    :param overturn:
+    :return: 缩放后的图像
+    """
+    image_background = Image.new("RGBA", size=size, color=(0, 0, 0, 0))
+    image_background = image_background.resize(size)
+    w, h = image_background.size
+    x, y = image.size
+    if overturn:
+        if w / h >= x / y:
+            rex = w
+            rey = int(rex * y / x)
+            paste_image = image.resize((rex, rey))
+            image_background.paste(paste_image, (0, 0))
+        else:
+            rey = h
+            rex = int(rey * x / y)
+            paste_image = image.resize((rex, rey))
+            logger.infox = int((w - rex) / 2)
+            image_background.paste(paste_image, (logger.infox, 0))
+    else:
+        if w / h >= x / y:
+            rey = h
+            rex = int(rey * x / y)
+            paste_image = image.resize((rex, rey))
+            logger.infox = int((w - rex) / 2)
+            logger.infoy = 0
+            image_background.paste(paste_image, (logger.infox, logger.infoy))
+        else:
+            rex = w
+            rey = int(rex * y / x)
+            paste_image = image.resize((rex, rey))
+            logger.infox = 0
+            logger.infoy = int((h - rey) / 2)
+            image_background.paste(paste_image, (logger.infox, logger.infoy))
+
+    return image_background
 
 
 def circle_corner(img, radii):
@@ -390,56 +663,3 @@ def circle_corner(img, radii):
     img.putalpha(alpha)  # 白色区域透明可见，黑色区域不可见
     return img
 
-
-async def new_background2(image_x, image_y, draw_name, draw_title):
-    """
-    创建背景图v2
-    :param image_x: 背景图宽
-    :param image_y: 背景图长
-    :param draw_name:  图片名称（左）
-    :param draw_title:  图片标题（上）
-    :return:  image
-    """
-    # 创建背景
-    draw_image = Image.new("RGB", (image_x, image_y), "#c4e6fe")
-    mask_image = Image.new("RGB", (190, 975))
-    mask_image = circle_corner(mask_image, 34)
-    if kn_config("kanon_api-state"):
-        # 如果开启了api，则从服务器下载图片数据
-        filepath = await get_file_path("kanonbot-draw-蓝色渐变.png")
-        paste_image = Image.open(filepath, "r")
-        paste_image = paste_image.resize((190, 975))
-    else:
-        paste_image = Image.new("RGB", (190, 975), "#")
-    draw_image.paste(paste_image, (37, 68), mask=mask_image)
-
-    # 添加卡片名称
-    paste_image = Image.new("RGBA", (975, 975) ,(0, 0, 0, 0))
-    draw2 = ImageDraw.Draw(paste_image)
-    fortlen = 142
-    if kn_config("kanon_api-state"):
-        # 如果开启了api，则从服务器下载字体数据
-        fontfile = await get_file_path("SourceHanSansK-ExtraLight.ttf")
-    else:
-        fontfile = None
-    font = ImageFont.truetype(font=fontfile, size=fortlen)
-    draw2.text((487-fortlen, 97), text=draw_name, font=font, fill=(193, 211, 255))
-    paste_image = paste_image.rotate(90)
-    draw_image.paste(paste_image, (0, 332), mask=paste_image)
-
-    # 添加卡片标题
-    draw = ImageDraw.Draw(draw_image)
-    if kn_config("kanon_api-state"):
-        # 如果开启了api，则从服务器下载字体数据
-        fontfile = await get_file_path("SourceHanSansK-Normal.ttf")
-    else:
-        fontfile = None
-    font = ImageFont.truetype(font=fontfile, size=56)
-    draw.text((270, 68), text=draw_title, font=font, fill=(24, 148, 227))
-
-    # 添加主体框
-    w, h = draw_image.size
-    paste_image = Image.new("RGB", (w-308, h-216), color="#e7f6ff")
-    paste_image = circle_corner(paste_image, 34)
-    draw_image.paste(paste_image, (268, 156), mask=paste_image)
-    return draw_image
