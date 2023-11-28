@@ -26,7 +26,8 @@ try:
         if not basepath.endswith("/"):
             basepath += "/"
     else:
-        basepath += "/"
+        if not basepath.endswith("/"):
+            basepath += "/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 # 配置3：
@@ -42,14 +43,16 @@ def get_command(msg: str) -> list:
     :param msg: 原始字符串。"hello world"
     :return: 切分后的内容["hello", "world"]
     """
-    # 去除前后面空格
+    # 去除前后空格
     while len(msg) > 0 and msg.startswith(" "):
         msg = msg.removeprefix(" ")
     while len(msg) > 0 and msg.endswith(" "):
         msg = msg.removesuffix(" ")
+    if "<" in msg:
+        msg = msg.replace("<", " <", 1)
     # 分割命令
     commands = []
-    if ' ' in msg or '\n' in msg:
+    if ' ' in msg or '\n' in msg or '<' in msg:
         messages = msg.split(' ', 1)
         for command in messages:
             if "\n" in command:
@@ -96,7 +99,7 @@ def list_in_list(list_1: list, list_2: list):
 
 async def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
+                       "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
             return json.loads(httpx.get(url, headers=h).text)
@@ -104,12 +107,13 @@ async def connect_api(type: str, url: str, post_json=None, file_path: str = None
             return json.loads(httpx.post(url, json=post_json, headers=h).text)
     elif type == "image":
         if url in ["none", "None"] or url is None:
-            image = draw_text("获取图片出错", 50, 10)
+            image = await draw_text("获取图片出错", 50, 10)
         else:
             try:
                 image = Image.open(BytesIO(httpx.get(url).content))
             except Exception as e:
-                image = draw_text("获取图片出错", 50, 10)
+                image = await draw_text("获取图片出错", 50, 10)
+                logger.error(f"获取图片出错:{e}")
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
@@ -662,4 +666,3 @@ def circle_corner(img, radii):
 
     img.putalpha(alpha)  # 白色区域透明可见，黑色区域不可见
     return img
-

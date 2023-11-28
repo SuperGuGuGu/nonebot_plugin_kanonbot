@@ -1,4 +1,6 @@
 # coding=utf-8
+import re
+
 from .config import kn_config, _config_list
 from .tools import lockst, locked, command_cd, get_command
 from .plugins import (
@@ -50,6 +52,7 @@ async def botrun(msg_info):
     command = commands[0]
     if len(commands) >= 2:
         command2 = commands[1]
+        command2 = re.sub(u"<.*?>", "", command2)
     else:
         command2 = None
     at_datas = msg_info["at_datas"]
@@ -161,8 +164,8 @@ async def botrun(msg_info):
         return state
 
     # ## 心跳服务相关 ##
+    # 判断心跳服务是否开启。
     if kn_config("botswift-state"):
-        # run = False  # 默认不发消息
         # 读取忽略该功能的群聊
         ignore_list = kn_config("botswift-ignore_list")
         if guild_id.startswith("channel-"):

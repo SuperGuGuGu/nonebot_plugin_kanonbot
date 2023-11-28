@@ -124,6 +124,14 @@ async def kanon(
     command = commands[0]
     now = int(time.time())
 
+    # 获取消息包含的图片
+    imgmsgs = []
+    image_datas = message_event.get_message()['image']
+    for image_data in image_datas:
+        image_data = str(image_data)
+        img_url = f"{image_data.removeprefix('<attachment[image]:').removesuffix('>')}"
+        imgmsgs.append(img_url)
+
     # ## 心跳服务相关 ##
     if kn_config("botswift-state"):
         botswift_db = f"{basepath}db/botswift.db"
@@ -342,35 +350,11 @@ async def kanon(
             print(f"get_members:{at_data}")
 
         # 获取成员名单
-        # data = await bot.get_members(guild_id=guild_id[8:])
-        # print(f"get_members:{data}")
         friend_list = []
         group_member_list = []
-        commandname_list = ["jinrilaopo", "jiehun", "keai", "welcome"]
-        if commandname in commandname_list:
-            pass
-
-        # 获取消息包含的图片
-        imgmsgs = []
-        num = -1
-        jump_num = 0
-        for m in msg:
-            num += 1
-            if jump_num > 0:
-                jump_num -= 1
-            elif m == "<":
-                num_test = 100  # 起始计算数
-                while num_test <= 150:  # 终止计算数
-                    num_test += 1
-                    text = msg[num:(num + num_test)]
-                    if text.startswith("<@"):
-                        num_test = 99999
-                    if text.endswith(">") and text.startswith("<attachment:"):
-                        num_test = 99999
-                        imgmsgs.append(text.removeprefix("<attachment:").removesuffix(">"))
-                        jump_num = len(text) - 2
 
         msg = re.sub(u"<.*?>", "", msg)
+        commands = get_command(msg)
         # 组装信息，进行后续响应
         msg_info = {
             "msg": msg,

@@ -1,6 +1,5 @@
 # coding=utf-8
 import random
-import time
 from nonebot import logger
 import nonebot
 import os
@@ -124,7 +123,7 @@ async def plugins_zhanbu(user_id, cachepath):
 
 
 def plugins_config(command_name: str, config_name: str, groupcode: str):
-    message = " "
+    message = ""
     returnpath = None
     command_name = command_name.removeprefix("config")
     if command_name == "开启":
@@ -205,11 +204,20 @@ async def plugins_emoji_xibao(command, command2, imgmsgs):
         text_color3 = "#ECECEC"
 
     if kn_config("kanon_api-state"):
+        file_path = f"{basepath}cache/plugin_image/"
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
         if command == "喜报":
+            file_path += "喜报.png"
             url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-meme-xibao"
         else:
+            file_path += "悲报.png"
             url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-meme-beibao"
-        xibao_image = await connect_api("image", url)
+        if os.path.exists(file_path):
+            xibao_image = Image.open(file_path, "r")
+        else:
+            xibao_image = await connect_api("image", url)
+            xibao_image.save(file_path)
     else:
         xibao_image = Image.new("RGB", (600, 450), (0, 0, 0))
 
@@ -257,7 +265,7 @@ async def plugins_emoji_xibao(command, command2, imgmsgs):
         box = (x, y)
         xibao_image.paste(paste_image, box, mask=paste_image)
 
-    elif command2 != '':
+    elif command2 != " ":
         textlen = len(command2)
         if textlen <= 6:
             fortlen = 200 - (textlen * 25)
@@ -297,13 +305,15 @@ async def plugins_emoji_xibao(command, command2, imgmsgs):
         xibao_image.paste(paste_image, box, mask=paste_image)
 
     elif imgmsgs:
+        image = image_resize2(image, (500, 300), overturn=False)
         w, h = image.size
-        x = int((600 - w) / 2)
-        y = int((450 - h) / 2 + 30)
-        xibao_image.paste(image, (x, y, int(x + w), int(y + h)), mask=image)
+        xibao_image_w, xibao_image_h = xibao_image.size
+        x = int((xibao_image_w - w) / 2)
+        y = int((xibao_image_h - h) / 2 + 30)
+        xibao_image.paste(image, (x, y), mask=image)
         image = Image.new(mode='RGB', size=(w, h), color=text_color3)
         mask_image = Image.new("RGBA", (w, h), (0, 0, 0, 15))
-        xibao_image.paste(image, (x, y, int(x + w), int(y + h)), mask=mask_image)
+        xibao_image.paste(image, (x, y), mask=mask_image)
 
     return save_image(xibao_image)
 
