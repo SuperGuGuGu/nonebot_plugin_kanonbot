@@ -6,7 +6,7 @@ from .tools import lockst, locked, command_cd, get_command
 from .plugins import (
     plugins_zhanbu,
     plugins_config,
-    plugins_emoji_xibao, plugins_emoji_yizhi
+    plugins_emoji_xibao, plugins_emoji_yizhi, plugins_game_cck
 )
 import time
 import nonebot
@@ -248,11 +248,9 @@ async def botrun(msg_info):
                     returnpath = await plugins_emoji_xibao(command, command2, imgmsgs)
                     code = 2
             else:
-                at = True
                 logger.info(f"run-{commandname}")
                 returnpath = await plugins_emoji_xibao(command, command2, imgmsgs)
                 code = 2
-
         if "一直" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
                 cooling = command_cd(
@@ -279,8 +277,36 @@ async def botrun(msg_info):
                 else:
                     returnpath = await plugins_emoji_yizhi(user_avatar)
                 code = 2
-    elif "###" == commandname:
-        pass
+    elif commandname.startswith("小游戏"):
+        commandname = commandname.removeprefix("小游戏-")
+        if "猜猜看" == commandname and getconfig(commandname):
+            if command == "cck":
+                command = "猜猜看"
+            if command == "猜猜看" and getconfig("commandcd"):
+                cooling = command_cd(
+                    user_id=user_id,
+                    groupcode=channel_id,
+                    timeshort=time_now,
+                    coolingdb=f"{dbpath}cooling.db")
+                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                    code = 1
+                    message = f"指令冷却中（{cooling}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    code, message, returnpath, returnpath2, returnpath3 = await plugins_game_cck(
+                        command=command,
+                        channel_id=channel_id,
+                        command2=command2,
+                        time_now=time_now)
+            else:
+                logger.info(f"run-{commandname}")
+                code, message, returnpath, returnpath2, returnpath3 = await plugins_game_cck(
+                        command=command,
+                        channel_id=channel_id,
+                        command2=command2,
+                        time_now=time_now)
+
     elif "###" == commandname:
         pass
 
@@ -292,9 +318,6 @@ async def botrun(msg_info):
     # 目前还不需要这个功能吧，先放着先
 
     # 返回消息处理
-    code = str(code)
-    if at is True:
-        at = user_id
     locked(lockdb)
     return {"code": code,
             "message": message,

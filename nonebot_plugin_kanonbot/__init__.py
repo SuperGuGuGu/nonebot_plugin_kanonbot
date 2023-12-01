@@ -381,47 +381,52 @@ async def kanon(
         elif code == 1:
             message = data["message"]
             msg = MessageSegment.text(message)
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
+
         elif code == 2:
             img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
+
         elif code == 3:
             message = data["message"]
-            image_1 = await draw_text(data["message"],
-                                      size=25,
-                                      textlen=13,
-                                      text_color="#000000")
-            image_2 = Image.open(data["returnpath"], mode="r")
-            images = mix_image(image_1, image_2, mix_type=1)
-            returnpath = f"{cache_path}{date_year}/{date_month}/{date_day}/"
-            if not os.path.exists(returnpath):
-                os.makedirs(returnpath)
-            returnpath += f"{time_now}-{user_id}.png"
-            images.save(returnpath)
-            img_url = await imgpath_to_url(returnpath)
+            msg = MessageSegment.text(message)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
+
         elif code == 4:
-            img_url1 = await imgpath_to_url(data["returnpath"])
-            img_url2 = await imgpath_to_url(data["returnpath2"])
-            msg1 = MessageSegment.image(img_url1)
-            msg2 = MessageSegment.image(img_url2)
             message = data["message"]
-            msg0 = MessageSegment.text(message)
-            msg = msg0 + msg1 + msg2
-            await run_kanon.finish(msg)
+            msg = MessageSegment.text(message)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath"])
+            msg = MessageSegment.image(img_url)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath2"])
+            msg = MessageSegment.image(img_url)
+            await run_kanon.send(msg)
+
         elif code == 5:
-            img_url1 = await imgpath_to_url(data["returnpath"])
-            img_url2 = await imgpath_to_url(data["returnpath2"])
-            img_url3 = await imgpath_to_url(data["returnpath3"])
-            msg1 = MessageSegment.image(img_url1)
-            msg2 = MessageSegment.image(img_url2)
-            msg3 = MessageSegment.image(img_url3)
             message = data["message"]
-            msg0 = MessageSegment.text(message)
-            msg = msg0 + msg1 + msg2 + msg3
-            await run_kanon.finish(msg)
+            msg = MessageSegment.text(message)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath"])
+            msg = MessageSegment.image(img_url)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath2"])
+            msg = MessageSegment.image(img_url)
+            await run_kanon.send(msg)
+
+            img_url = await imgpath_to_url(data["returnpath3"])
+            msg = MessageSegment.image(img_url)
+            await run_kanon.send(msg)
+
         else:
             pass
     await run_kanon.finish()

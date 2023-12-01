@@ -584,6 +584,12 @@ def mix_image(image_1, image_2, mix_type = 1):
 
 
 def save_image(image, user_id: str = str(random.randint(1000, 9999))):
+    """
+    保存图片文件到缓存文件夹
+    :param image:要保存的图片
+    :param user_id:用户id，减少路径上的冲突，不填为随机数字
+    :return:保存的路径
+    """
     date_year = str(time.strftime("%Y", time.localtime()))
     date_month = str(time.strftime("%m", time.localtime()))
     date_day = str(time.strftime("%d", time.localtime()))
@@ -591,7 +597,16 @@ def save_image(image, user_id: str = str(random.randint(1000, 9999))):
     returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(returnpath):
         os.makedirs(returnpath)
-    returnpath += f"{time_now}_{user_id}.png"
+    returnpath += f"{time_now}_{user_id}"
+    num = 10
+    while num > 0:
+        num -= 1
+        random_num = str(random.randint(1000, 9999))
+        if os.path.exists(f"{returnpath}_{random_num}.png"):
+            continue
+        else:
+            returnpath = f"{returnpath}_{random_num}.png"
+            break
     image.save(returnpath)
     return returnpath
 
@@ -618,23 +633,23 @@ def image_resize2(image, size: [int, int], overturn=False):
             rey = h
             rex = int(rey * x / y)
             paste_image = image.resize((rex, rey))
-            logger.infox = int((w - rex) / 2)
-            image_background.paste(paste_image, (logger.infox, 0))
+            x = int((w - rex) / 2)
+            image_background.paste(paste_image, (x, 0))
     else:
         if w / h >= x / y:
             rey = h
             rex = int(rey * x / y)
             paste_image = image.resize((rex, rey))
-            logger.infox = int((w - rex) / 2)
-            logger.infoy = 0
-            image_background.paste(paste_image, (logger.infox, logger.infoy))
+            x = int((w - rex) / 2)
+            y = 0
+            image_background.paste(paste_image, (x, y))
         else:
             rex = w
             rey = int(rex * y / x)
             paste_image = image.resize((rex, rey))
-            logger.infox = 0
-            logger.infoy = int((h - rey) / 2)
-            image_background.paste(paste_image, (logger.infox, logger.infoy))
+            x = 0
+            y = int((h - rey) / 2)
+            image_background.paste(paste_image, (x, y))
 
     return image_background
 

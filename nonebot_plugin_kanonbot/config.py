@@ -130,9 +130,10 @@ def _config_list():
     commandname: {默认状态, "'帮助'命令中显示的内容", 该功能的群组, 用于设置功能开关所识别的名字}
     """
     configs = {
-        "chickin": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "喜报": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
         "一直": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
+        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "chickin": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "洗了": {"state": True, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
         "jiehun": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
         "qinqin": {"state": True, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
@@ -154,7 +155,6 @@ def _config_list():
         "momo": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
         "commandcd": {"state": True, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"},
         "jinrilaopo": {"state": True, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"},
-        "caicaikan": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
         "blowplane": {"state": False, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"}
     }
     return configs
@@ -177,6 +177,10 @@ def command_list():
             "喜报": "表情功能-喜报",
             "悲报": "表情功能-喜报",
             "一直": "表情功能-一直",
+            "cck": "小游戏-猜猜看",
+            "bzd": "小游戏-猜猜看",
+            "猜猜看": "小游戏-猜猜看",
+            "是": "小游戏-猜猜看",
             "爬": "表情功能-pa",
             "洗": "表情功能-洗了",
             "洗了": "表情功能-洗了",
@@ -208,9 +212,6 @@ def command_list():
             "来点wlp": "图库功能-wlp",
             "多来点wlp": "图库功能-wlp",
             "成员名单": "图库功能-wlp",
-            "cck": "小游戏-caicaikan",
-            "bzd": "小游戏-caicaikan",
-            "猜猜看": "小游戏-caicaikan",
             "炸飞机": "小游戏-blowplane",
             "结束炸飞机": "小游戏-blowplane",
         },

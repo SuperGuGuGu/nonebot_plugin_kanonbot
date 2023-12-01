@@ -1,4 +1,5 @@
 # coding=utf-8
+import json
 import random
 from nonebot import logger
 import nonebot
@@ -326,12 +327,199 @@ async def plugins_emoji_yizhi(user_avatar):
     imageyizhi = Image.new(mode='RGB', size=(768, 950), color="#FFFFFF")
     draw = ImageDraw.Draw(imageyizhi)
 
-    imageyizhi.paste(user_image, (64, 64))
-    image_face = user_image.resize((100, 100))
-    imageyizhi.paste(image_face, (427, 800))
+    imageyizhi.paste(user_image, (64, 64), mask=user_image)
+    image_face = image_resize2(user_image, (100, 100), overturn=False)
+    imageyizhi.paste(image_face, (427, 800), mask=user_image)
 
     file_path = await get_file_path("SourceHanSansK-Bold.ttf")
     font = ImageFont.truetype(font=file_path, size=85)
     draw.text(xy=(60, 805), text='要我一直        吗？', fill=(0, 0, 0), font=font)
 
     return save_image(imageyizhi)
+
+
+async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
+    """
+    cck插件内容
+    返回：
+    当code = 0时，不做任何回复；
+    当code = 1时，回复message消息；
+    当code = 2时，回复returnpath目录中的图片
+    当code = 3时，回复message消息和returnpath目录中的图片
+    :param command: 命令
+    :param channel_id: 频道号
+    :param time_now: 时间码
+    :param command2: 命令参数
+    :return: code, message, returnpath
+    """
+    time_now = int(time_now)
+    code = 0
+    message = " "
+    returnpath = None
+    returnpath2 = None
+    returnpath3 = None
+    if not kn_config("kanon_api-state"):
+        logger.error("未开启api，已经退出cck")
+        return 0, message, returnpath
+    # 转换命令名
+    if command == 'cck':
+        command = '猜猜看'
+    elif command == 'testcck':
+        command = '猜猜看'
+    elif command == 'bzd':
+        command = '不知道'
+
+    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if "gameinglist" not in tables:
+        cursor.execute(
+            'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+            'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+    cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+    data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    game_state = None
+    if data is not None:
+        # 有game数据
+        gameing = data[3]
+        if gameing is True:
+            # 有正在进行的game
+            gamename = data[1]
+            if gamename == "猜猜看":
+                # 正在进行的是猜猜看
+                if int(time_now) <= (int(data[2]) + 300):
+                    # 正在运行的cck最后一次运行时间相隔现在5分钟内
+                    if command == '猜猜看':
+                        message = '已经在cck了'
+                        code = 1
+                    else:
+                        game_state = "gameing"
+                else:
+                    # 正在运行的cck最后一次运行时间相隔现在5分钟后
+                    if command == '猜猜看':
+                        game_state = "new"
+                    else:
+                        game_state = "exit"
+                        code = 1
+                        message = "时间超时，请重新开始"
+            else:
+                # 正在进行其他游戏
+                code = 1
+                message = '正在进行其他游戏,请先结束'
+        else:
+            # 没有正在进行的game
+            if command == '猜猜看':
+                game_state = "new"
+            else:
+                code = 1
+                message = "没有在猜猜看哦"
+    else:
+        # data is None
+        if command == "猜猜看":
+            game_state = "new"
+        elif command in ["不知道", "是"]:
+            code = 1
+            message = "没有在进行猜猜看哦"
+        else:
+            code = 1
+            message = "没有在猜猜看哦"
+
+    if game_state == "new":
+        logger.info('新建游戏')
+        filepath = await get_file_path("plugin-cck-member_list.json")
+        data = open(filepath, 'r', encoding='utf8')
+        json_data = json.load(data)
+        member_ids = list(json_data["member_data"])
+        member_id = random.choice(member_ids)
+        image_name = random.choice(json_data["member_data"][member_id]["images"])
+        returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/"
+        if not os.path.exists(returnpath):
+            os.makedirs(returnpath)
+        url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-cck-{member_id}-{image_name}"
+        image = await connect_api("image", url)
+        image.save(returnpath)
+
+        gameinfo = {"imagepath": returnpath}
+        gamename = 'caicaikan'
+        # 保存数据
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist(groupcode,gamename,lasttime,gameing,gameinfo1,gameinfo2,gameinfo3) '
+            f'values("{channel_id}","{gamename}","{time_now}","on","{gameinfo}"," "," ")')
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+        print('保存完成，生成三张图')
+        cck_card = Image.open(returnpath, mode="r")
+        x = 1334
+        y = 1002
+
+        cck_imane1 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
+        ImageDraw.Draw(cck_imane1)
+        trimx = 0 - random.randint(0, x - 300)
+        trimy = 0 - random.randint(0, y - 100)
+        cck_imane1.paste(cck_card, (trimx, trimy))
+
+        cck_imane2 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
+        ImageDraw.Draw(cck_imane2)
+        trimx = 0 - random.randint(0, x - 300)
+        trimy = 0 - random.randint(0, y - 100)
+        cck_imane2.paste(cck_card, (trimx, trimy))
+
+        cck_imane3 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
+        ImageDraw.Draw(cck_imane3)
+        trimx = 0 - random.randint(0, x - 300)
+        trimy = 0 - random.randint(0, y - 100)
+        cck_imane3.paste(cck_card, (trimx, trimy))
+
+        cck_imane = Image.new("RGB", (150, 150), "#FFFFFF")
+        cck_imane1 = cck_imane1.resize((150, 50))
+        cck_imane.paste(cck_imane1, (0, 0))
+
+        cck_imane2 = cck_imane2.resize((150, 50))
+        cck_imane.paste(cck_imane1, (0, 50))
+
+        cck_imane3 = cck_imane3.resize((150, 50))
+        cck_imane.paste(cck_imane1, (0, 100))
+        returnpath = save_image(cck_imane)
+
+        num = random.randint(0, 5)
+        if num == 1:
+            message = '那个女人是谁呢？好美'
+        elif num == 2:
+            message = '猜猜wlp是谁～'
+        elif num == 3:
+            message = '猜猜她是谁～'
+        elif num == 4:
+            message = '猜猜她是谁～'
+        elif num == 5:
+            message = '猜猜她是谁～'
+        code = 3
+    elif game_state == "gameing":
+        if command == "是":
+            pass
+        elif command == "不知道":
+            pass
+        else:
+            logger.error("错误内容")
+    elif game_state == "exit":
+        # 手段退出game状态
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f'"{channel_id}","none","0",0,"none")')
+        cursor.close()
+        conn.commit()
+        conn.close()
+    return code, message, returnpath, returnpath2, returnpath3
