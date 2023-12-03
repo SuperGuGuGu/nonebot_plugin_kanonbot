@@ -1,4 +1,5 @@
 # coding=utf-8
+import re
 import httpx
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -50,6 +51,9 @@ def get_command(msg: str) -> list:
         msg = msg.removesuffix(" ")
     if "<" in msg:
         msg = msg.replace("<", " <", 1)
+    # 删除图片等内容
+    msg = re.sub(u"<.*?>", "", msg)
+    msg = re.sub(u"\\[.*?]", "", msg)
     # 分割命令
     commands = []
     if ' ' in msg or '\n' in msg or '<' in msg:

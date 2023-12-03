@@ -39,7 +39,7 @@ if not os.path.exists(basepath):
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.2.1")
+    logger.info("KanonBot-0.2.4")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -52,7 +52,6 @@ async def botrun(msg_info):
     command = commands[0]
     if len(commands) >= 2:
         command2 = commands[1]
-        command2 = re.sub(u"<.*?>", "", command2)
     else:
         command2 = None
     at_datas = msg_info["at_datas"]
@@ -175,21 +174,14 @@ async def botrun(msg_info):
             if guild_id[6:] in kn_config("botswift-ignore_list"):
                 run = True
 
-    # 如果需要继续运行则True
-    if run is False:
-        return {"code": code,
-                "message": message,
-                "returnpath": returnpath,
-                "at": at,
-                "returnpath2": returnpath2,
-                "returnpath3": returnpath3
-                }
-
     # 处理消息
     if commandname.startswith("config"):
         if user_permission == 7 or user_id in adminqq or commandname == "config查询":
             logger.info(f"run-{commandname}")
-            config_name = get_command(command2)[0]
+            if command2 is not None:
+                config_name = get_command(command2)[0]
+            else:
+                config_name = None
             message, returnpath = plugins_config(commandname, config_name, channel_id)
             if message is not None:
                 code = 1
@@ -280,8 +272,14 @@ async def botrun(msg_info):
     elif commandname.startswith("小游戏"):
         commandname = commandname.removeprefix("小游戏-")
         if "猜猜看" == commandname and getconfig(commandname):
+            # 转换命令名
+            if command2 is not None:
+                command = command2
             if command == "cck":
                 command = "猜猜看"
+            elif command == "bzd":
+                command = "不知道"
+
             if command == "猜猜看" and getconfig("commandcd"):
                 cooling = command_cd(
                     user_id=user_id,
@@ -294,17 +292,15 @@ async def botrun(msg_info):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath, returnpath2, returnpath3 = await plugins_game_cck(
+                    code, message, returnpath = await plugins_game_cck(
                         command=command,
                         channel_id=channel_id,
-                        command2=command2,
                         time_now=time_now)
             else:
                 logger.info(f"run-{commandname}")
-                code, message, returnpath, returnpath2, returnpath3 = await plugins_game_cck(
+                code, message, returnpath = await plugins_game_cck(
                         command=command,
                         channel_id=channel_id,
-                        command2=command2,
                         time_now=time_now)
 
     elif "###" == commandname:
@@ -322,7 +318,6 @@ async def botrun(msg_info):
     return {"code": code,
             "message": message,
             "returnpath": returnpath,
-            "at": at,
             "returnpath2": returnpath2,
             "returnpath3": returnpath3
             }

@@ -177,9 +177,8 @@ def plugins_config(command_name: str, config_name: str, groupcode: str):
             message = f"{config_name}已{command_name}"
     else:
         # 查询开启的功能
-        code = 1
-        message = "查询功能"
-        pass
+        message = "功能列表：\n现支持的功能列表\n1.喜报/悲报\n2.一直\n3.占卜\n4.猜猜看\n\n\n\n"
+
     cursor.close()
     conn.close()
     return message, returnpath
@@ -338,7 +337,7 @@ async def plugins_emoji_yizhi(user_avatar):
     return save_image(imageyizhi)
 
 
-async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
+async def plugins_game_cck(command, channel_id, time_now):
     """
     cck插件内容
     返回：
@@ -361,13 +360,6 @@ async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
     if not kn_config("kanon_api-state"):
         logger.error("未开启api，已经退出cck")
         return 0, message, returnpath
-    # 转换命令名
-    if command == 'cck':
-        command = '猜猜看'
-    elif command == 'testcck':
-        command = '猜猜看'
-    elif command == 'bzd':
-        command = '不知道'
 
     conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
     cursor = conn.cursor()
@@ -385,12 +377,13 @@ async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
     data = cursor.fetchone()
     cursor.close()
     conn.close()
+    print('该群正在进行的游戏' + str(data))
 
     game_state = None
     if data is not None:
         # 有game数据
         gameing = data[3]
-        if gameing is True:
+        if gameing == 1:
             # 有正在进行的game
             gamename = data[1]
             if gamename == "猜猜看":
@@ -440,26 +433,35 @@ async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
         member_ids = list(json_data["member_data"])
         member_id = random.choice(member_ids)
         image_name = random.choice(json_data["member_data"][member_id]["images"])
+        member_name = json_data["member_data"][member_id]["member_name"]
+        member_alias = json_data["member_data"][member_id]["alias"]
+
         returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/"
         if not os.path.exists(returnpath):
             os.makedirs(returnpath)
-        url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-cck-{member_id}-{image_name}"
-        image = await connect_api("image", url)
-        image.save(returnpath)
+        returnpath += image_name
+        if not os.path.exists(returnpath):
+            url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-cck-{member_id}-{image_name}"
+            image = await connect_api("image", url)
+            image.save(returnpath)
 
-        gameinfo = {"imagepath": returnpath}
-        gamename = 'caicaikan'
+        gameinfo = {
+            "member_id": member_id,
+            "member_name": member_name,
+            "image_name": image_name,
+            "member_alias": member_alias
+        }
         # 保存数据
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
         cursor = conn.cursor()
         cursor.execute(
-            f'replace into gameinglist(groupcode,gamename,lasttime,gameing,gameinfo1,gameinfo2,gameinfo3) '
-            f'values("{channel_id}","{gamename}","{time_now}","on","{gameinfo}"," "," ")')
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f'"{channel_id}","猜猜看","{time_now}",True,"{gameinfo}")')
         cursor.close()
         conn.commit()
         conn.close()
 
-        print('保存完成，生成三张图')
+        # print('保存完成，生成三张图')
         cck_card = Image.open(returnpath, mode="r")
         x = 1334
         y = 1002
@@ -487,13 +489,13 @@ async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
         cck_imane.paste(cck_imane1, (0, 0))
 
         cck_imane2 = cck_imane2.resize((150, 50))
-        cck_imane.paste(cck_imane1, (0, 50))
+        cck_imane.paste(cck_imane2, (0, 50))
 
         cck_imane3 = cck_imane3.resize((150, 50))
-        cck_imane.paste(cck_imane1, (0, 100))
+        cck_imane.paste(cck_imane3, (0, 100))
         returnpath = save_image(cck_imane)
 
-        num = random.randint(0, 5)
+        num = random.randint(1, 5)
         if num == 1:
             message = '那个女人是谁呢？好美'
         elif num == 2:
@@ -506,20 +508,54 @@ async def plugins_game_cck(command, channel_id, time_now, command2:str = None):
             message = '猜猜她是谁～'
         code = 3
     elif game_state == "gameing":
-        if command == "是":
-            pass
-        elif command == "不知道":
-            pass
+        if command == "不知道":
+            gamedata = json.loads(data[4].replace("'", '"'))
+            member_id = gamedata["member_id"]
+            member_name = gamedata["member_name"]
+            image_name = gamedata["image_name"]
+            returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
+            message = f"是{member_name}哦"
+            code = 3
+
+            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                f'"{channel_id}","none","0",False,"none")')
+            cursor.close()
+            conn.commit()
+            conn.close()
         else:
-            logger.error("错误内容")
+            gamedata = json.loads(data[4].replace("'", '"'))
+            member_id = gamedata["member_id"]
+            member_name = gamedata["member_name"]
+            image_name = gamedata["image_name"]
+            member_alias = gamedata["member_alias"]
+            if command in member_alias:
+                message = f"恭喜猜中，她就是{command}"
+                returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
+                code = 3
+
+                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                cursor = conn.cursor()
+                cursor.execute(
+                    f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                    f'"{channel_id}","none","0",False,"none")')
+                cursor.close()
+                conn.commit()
+                conn.close()
+            else:
+                message = f"猜错了哦，她不是{command}"
+                code = 1
+
     elif game_state == "exit":
-        # 手段退出game状态
+        # 手动退出game状态
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
         cursor = conn.cursor()
         cursor.execute(
             f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
-            f'"{channel_id}","none","0",0,"none")')
+            f'"{channel_id}","none","0",False,"none")')
         cursor.close()
         conn.commit()
         conn.close()
-    return code, message, returnpath, returnpath2, returnpath3
+    return code, message, returnpath
