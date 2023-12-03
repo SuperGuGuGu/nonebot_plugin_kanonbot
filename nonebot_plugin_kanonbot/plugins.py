@@ -427,15 +427,25 @@ async def plugins_game_cck(command, channel_id, time_now):
 
     if game_state == "new":
         logger.info('新建游戏')
+        # 获取游戏基本数据（卡牌列表）
         filepath = await get_file_path("plugin-cck-member_list.json")
         data = open(filepath, 'r', encoding='utf8')
         json_data = json.load(data)
         member_ids = list(json_data["member_data"])
-        member_id = random.choice(member_ids)
-        image_name = random.choice(json_data["member_data"][member_id]["images"])
+        member_id = random.choice(member_ids)  # 选择一个角色
+        image_name = random.choice(json_data["member_data"][member_id]["images"])  # 选择一张卡牌
         member_name = json_data["member_data"][member_id]["member_name"]
         member_alias = json_data["member_data"][member_id]["alias"]
 
+        # 收集本次游戏数据
+        gameinfo = {
+            "member_id": member_id,  # 角色id
+            "member_name": member_name,  # 角色名称
+            "image_name": image_name,  # 卡牌的文件名
+            "member_alias": member_alias  # 角色别称
+        }
+
+        # 获取卡牌png文件
         returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/"
         if not os.path.exists(returnpath):
             os.makedirs(returnpath)
@@ -445,12 +455,6 @@ async def plugins_game_cck(command, channel_id, time_now):
             image = await connect_api("image", url)
             image.save(returnpath)
 
-        gameinfo = {
-            "member_id": member_id,
-            "member_name": member_name,
-            "image_name": image_name,
-            "member_alias": member_alias
-        }
         # 保存数据
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
         cursor = conn.cursor()
@@ -461,40 +465,47 @@ async def plugins_game_cck(command, channel_id, time_now):
         conn.commit()
         conn.close()
 
-        # print('保存完成，生成三张图')
+        # 切分卡牌为3张，并保存为1张
         cck_card = Image.open(returnpath, mode="r")
         x = 1334
         y = 1002
 
+        # 切分1
         cck_imane1 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
         ImageDraw.Draw(cck_imane1)
         trimx = 0 - random.randint(0, x - 300)
         trimy = 0 - random.randint(0, y - 100)
         cck_imane1.paste(cck_card, (trimx, trimy))
 
+        # 切分2
         cck_imane2 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
         ImageDraw.Draw(cck_imane2)
         trimx = 0 - random.randint(0, x - 300)
         trimy = 0 - random.randint(0, y - 100)
         cck_imane2.paste(cck_card, (trimx, trimy))
 
+        # 切分3
         cck_imane3 = Image.new(mode='RGB', size=(300, 100), color="#FFFFFF")
         ImageDraw.Draw(cck_imane3)
         trimx = 0 - random.randint(0, x - 300)
         trimy = 0 - random.randint(0, y - 100)
         cck_imane3.paste(cck_card, (trimx, trimy))
 
+        # 合并1
         cck_imane = Image.new("RGB", (150, 150), "#FFFFFF")
         cck_imane1 = cck_imane1.resize((150, 50))
         cck_imane.paste(cck_imane1, (0, 0))
 
+        # 合并2
         cck_imane2 = cck_imane2.resize((150, 50))
         cck_imane.paste(cck_imane2, (0, 50))
 
+        # 合并3
         cck_imane3 = cck_imane3.resize((150, 50))
         cck_imane.paste(cck_imane3, (0, 100))
         returnpath = save_image(cck_imane)
 
+        # 添加回复的句子
         num = random.randint(1, 5)
         if num == 1:
             message = '那个女人是谁呢？好美'
@@ -506,17 +517,22 @@ async def plugins_game_cck(command, channel_id, time_now):
             message = '猜猜她是谁～'
         elif num == 5:
             message = '猜猜她是谁～'
-        code = 3
+        code = 3   # 添加回复的类型
     elif game_state == "gameing":
+        # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
         if command == "不知道":
+            # 读取游戏数据
             gamedata = json.loads(data[4].replace("'", '"'))
             member_id = gamedata["member_id"]
             member_name = gamedata["member_name"]
             image_name = gamedata["image_name"]
+
+            # 返回卡牌图片和句子
             returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
             message = f"是{member_name}哦"
             code = 3
 
+            # 将”结束游戏状态“写入到数据库
             conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
             cursor = conn.cursor()
             cursor.execute(
@@ -526,16 +542,21 @@ async def plugins_game_cck(command, channel_id, time_now):
             conn.commit()
             conn.close()
         else:
+            # 读取游戏内容
             gamedata = json.loads(data[4].replace("'", '"'))
             member_id = gamedata["member_id"]
             member_name = gamedata["member_name"]
             image_name = gamedata["image_name"]
             member_alias = gamedata["member_alias"]
+
+            # 判断用户发送词是否符合
             if command in member_alias:
+                # 添加回复句子与图
                 message = f"恭喜猜中，她就是{command}"
                 returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
                 code = 3
 
+                # 将”结束游戏状态“写入到数据库
                 conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
                 cursor = conn.cursor()
                 cursor.execute(
@@ -550,6 +571,7 @@ async def plugins_game_cck(command, channel_id, time_now):
 
     elif game_state == "exit":
         # 手动退出game状态
+        # 将”结束游戏状态“写入到数据库
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
         cursor = conn.cursor()
         cursor.execute(
