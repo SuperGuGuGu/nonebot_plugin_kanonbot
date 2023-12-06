@@ -122,14 +122,15 @@ async def connect_api(type: str, url: str, post_json=None, file_path: str = None
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
-            # 这里不能用httpx。用就报错。
-            with open(cache_file_path, "wb") as f, requests.get(url, headers=h) as res:
-                f.write(res.content)
-            logger.info("下载完成")
+            f = open(cache_file_path, "wb")
+            res = httpx.get(url, headers=h).content
+            f.write(res)
+            f.close()
+            logger.debug(f"下载完成-{file_path}")
             shutil.copyfile(cache_file_path, file_path)
             os.remove(cache_file_path)
         except Exception as e:
-            logger.error(f"文件下载出错-{file_path}")
+            logger.error(f"文件下载出错-{e}, {file_path}")
     return
 
 
@@ -656,6 +657,41 @@ def image_resize2(image, size: [int, int], overturn=False):
             image_background.paste(paste_image, (x, y))
 
     return image_background
+
+
+def new_background(image_x: int, image_y: int):
+    """
+    创建背景图
+    :param image_x: 背景图宽 int
+    :param image_y: 背景图长 int
+    :return: 返回一张背景图 image
+
+    """
+    image_x = int(image_x)
+    image_y = int(image_y)
+
+    # 创建 背景_背景
+    new_image = Image.new(mode='RGB', size=(image_x, image_y), color="#d7f2ff")
+
+    # 创建 背景_描边
+    image_x -= 56
+    image_y -= 56
+    image_paste = Image.new(mode='RGB', size=(image_x, image_y), color="#86d6ff")
+    image_paste = circle_corner(image_paste, radii=25)
+    paste_x = int(int(new_image.width - image_paste.width) / 2)
+    paste_y = int(int(new_image.height - image_paste.height) / 2)
+    new_image.paste(image_paste, (paste_x, paste_y), mask=image_paste)
+
+    # 创建 背景_底色
+    image_x -= 3
+    image_y -= 3
+    image_paste = Image.new(mode='RGB', size=(image_x, image_y), color="#eaf6fc")
+    image_paste = circle_corner(image_paste, radii=25)
+    paste_x = int(int(new_image.width - image_paste.width) / 2)
+    paste_y = int(int(new_image.height - image_paste.height) / 2)
+    new_image.paste(image_paste, (paste_x, paste_y), mask=image_paste)
+
+    return new_image
 
 
 def circle_corner(img, radii):

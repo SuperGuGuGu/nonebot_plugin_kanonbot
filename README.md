@@ -66,21 +66,6 @@ state = false
 # 忽略该功能的群号/子频道号
 ignore_list = ["123456"]
 
-[chat]
-# 聊天功能配置。需要填写tocken才能使用
-# 聊天模型。默认为百度文心一言模型（）。
-model = "model"
-# tocken
-tocken = "file"
-# tocken
-tocken = "file"
-# tocken
-tocken = "file"
-# tocken
-tocken = "file"
-# tocken
-tocken = "file"
-
 ```
 
 ## 已移植内容：
@@ -92,6 +77,10 @@ tocken = "file"
 - [x] 喜报/悲报
 
 - [x] 一直（仅频道）
+
+- [x] 猜猜看
+- 
+- [x] 炸飞机
 
 - [x] 指令冷却
 

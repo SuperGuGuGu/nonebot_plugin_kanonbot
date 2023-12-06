@@ -1,12 +1,13 @@
 # coding=utf-8
 import json
 import random
+import time
 from nonebot import logger
 import nonebot
 import os
 import sqlite3
 from .config import kn_config, _zhanbu_datas, _config_list
-from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path
+from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path, new_background
 from PIL import Image, ImageDraw, ImageFont
 
 config = nonebot.get_driver().config
@@ -77,12 +78,11 @@ async def plugins_zhanbu(user_id, cachepath):
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
                     image = await connect_api("image", url)
                     image.save(returnpath)
-                    message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+                    message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
             else:
                 # 使用本地数据
-                # message = f"今日占卜结果：{zhanbu_data['title']}\n{zhanbu_data['message']}"
-                message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
-            pass
+                # message = f"抽到了一张牌子：{zhanbu_data['title']}\n{zhanbu_data['message']}"
+                message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
         else:
             zhanbu_name = ""
             zhanbu_message = ""
@@ -101,7 +101,7 @@ async def plugins_zhanbu(user_id, cachepath):
                     zhanbu_message = zhanbu_data[ids]["message"]
                     break
 
-            message = f"今日占卜结果：{zhanbu_name}\n{zhanbu_message}"
+            message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
             if kn_config("kanon_api-state"):
                 # 如果开启了api，则从服务器下载占卜数据
                 returnpath = f"{basepath}image/占卜2/"
@@ -168,7 +168,8 @@ def plugins_config(command_name: str, config_name: str, groupcode: str):
             if state == command_state:
                 message = f"{config_name}已{command_name}"
             else:
-                cursor.execute(f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
+                cursor.execute(
+                    f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
                 conn.commit()
             message = f"{config_name}已{command_name}"
         else:
@@ -337,7 +338,7 @@ async def plugins_emoji_yizhi(user_avatar):
     return save_image(imageyizhi)
 
 
-async def plugins_game_cck(command, channel_id, time_now):
+async def plugins_game_cck(command, channel_id):
     """
     cck插件内容
     返回：
@@ -347,11 +348,9 @@ async def plugins_game_cck(command, channel_id, time_now):
     当code = 3时，回复message消息和returnpath目录中的图片
     :param command: 命令
     :param channel_id: 频道号
-    :param time_now: 时间码
-    :param command2: 命令参数
     :return: code, message, returnpath
     """
-    time_now = int(time_now)
+    time_now = int(time.time())
     code = 0
     message = " "
     returnpath = None
@@ -377,7 +376,7 @@ async def plugins_game_cck(command, channel_id, time_now):
     data = cursor.fetchone()
     cursor.close()
     conn.close()
-    print('该群正在进行的游戏' + str(data))
+    logger.debug(f"该群正在进行的游戏{data}")
 
     game_state = None
     if data is not None:
@@ -390,14 +389,14 @@ async def plugins_game_cck(command, channel_id, time_now):
                 # 正在进行的是猜猜看
                 if int(time_now) <= (int(data[2]) + 300):
                     # 正在运行的cck最后一次运行时间相隔现在5分钟内
-                    if command == '猜猜看':
-                        message = '已经在cck了'
+                    if command == "猜猜看":
+                        message = "已经在cck了"
                         code = 1
                     else:
                         game_state = "gameing"
                 else:
                     # 正在运行的cck最后一次运行时间相隔现在5分钟后
-                    if command == '猜猜看':
+                    if command == "猜猜看":
                         game_state = "new"
                     else:
                         game_state = "exit"
@@ -406,7 +405,7 @@ async def plugins_game_cck(command, channel_id, time_now):
             else:
                 # 正在进行其他游戏
                 code = 1
-                message = '正在进行其他游戏,请先结束'
+                message = f"正在进行{gamename},请先结束{gamename}"
         else:
             # 没有正在进行的game
             if command == '猜猜看':
@@ -423,7 +422,7 @@ async def plugins_game_cck(command, channel_id, time_now):
             message = "没有在进行猜猜看哦"
         else:
             code = 1
-            message = "没有在猜猜看哦"
+            message = "没有在猜猜看哦。"
 
     if game_state == "new":
         logger.info('新建游戏')
@@ -517,7 +516,9 @@ async def plugins_game_cck(command, channel_id, time_now):
             message = '猜猜她是谁～'
         elif num == 5:
             message = '猜猜她是谁～'
-        code = 3   # 添加回复的类型
+        message += ("\n游戏限制5分钟内"
+                    "\n@bot并发送/猜猜看+名字\n例：“@kanon/猜猜看 花音”\n")
+        code = 3  # 添加回复的类型
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
         if command == "不知道":
@@ -580,4 +581,793 @@ async def plugins_game_cck(command, channel_id, time_now):
         cursor.close()
         conn.commit()
         conn.close()
+    return code, message, returnpath
+
+
+async def plugins_game_blowplane(command: str, channel_id: str):
+    """
+    炸飞机插件内容
+    返回：
+    当code = 0时，不做任何回复；
+    当code = 1时，回复message消息；
+    当code = 2时，回复returnpath目录中的图片
+    当code = 3时，回复message消息和returnpath目录中的图片
+    :param command: 命令
+    :param channel_id: 频道号
+    :return: code, message, returnpath
+    """
+    code = 0
+    message = ""
+    returnpath = ""
+    time_now = str(int(time.time()))
+
+    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if "gameinglist" not in tables:
+        cursor.execute(
+            'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+            'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+    cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+    data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    logger.debug(f"该群正在进行的游戏{data}")
+
+    game_state = None
+    if data is not None:
+        # 有game数据
+        gameing = data[3]
+        if gameing == 1:
+            # 有正在进行的game
+            gamename = data[1]
+            if gamename == "炸飞机":
+                # 正在进行的是炸飞机
+                if int(time_now) <= (int(data[2]) + 300):
+                    # 正在运行的炸飞机最后一次运行时间相隔现在5分钟内
+                    if command == "炸飞机":
+                        message = "已经在炸飞机了"
+                        code = 1
+                    else:
+                        game_state = "gameing"
+                else:
+                    # 正在运行的炸飞机最后一次运行时间相隔现在5分钟后
+                    if command == "炸飞机":
+                        game_state = "new"
+                    else:
+                        game_state = "exit"
+                        code = 1
+                        message = "时间超时，请重新开始"
+            else:
+                # 正在进行其他游戏
+                code = 1
+                message = f"正在进行{gamename},请先结束{gamename}"
+        else:
+            # 没有正在进行的game
+            if command == "炸飞机":
+                game_state = "new"
+            else:
+                code = 1
+                message = "没有在炸飞机哦"
+    else:
+        # data is None
+        if command == "炸飞机":
+            game_state = "new"
+        elif command.startswith("炸") or command == "结束":
+            code = 1
+            message = "没有在进行炸飞机哦"
+        else:
+            code = 1
+            message = "没有在炸飞机哦。"
+
+    if game_state == "new":
+        # 生成游戏数据
+        #  生成飞机位置
+        plantnum = 3
+        num = plantnum
+        plants_info = []
+        while num >= 1:
+            num -= 1
+            plant_info = []
+            plant_dection = random.randint(0, 3)
+            if plant_dection == 0:  # 向下
+                plantx1 = 3
+                plantx2 = 8
+                planty1 = 1
+                planty2 = 7
+            elif plant_dection == 1:  # 向左
+                plantx1 = 1
+                plantx2 = 7
+                planty1 = 3
+                planty2 = 8
+            elif plant_dection == 2:  # 向上
+                plantx1 = 3
+                plantx2 = 8
+                planty1 = 4
+                planty2 = 10
+            else:  # 向右
+                plantx1 = 4
+                plantx2 = 10
+                planty1 = 3
+                planty2 = 8
+            plantx = random.randint(plantx1, plantx2)
+            planty = random.randint(planty1, planty2)
+            plant_info.append(plantx)
+            plant_info.append(planty)
+            plant_info.append(plant_dection)
+
+            # 计算出飞机各个坐标
+            plantxys = []
+            if plant_dection == 0:  # 向上
+                plantxys.append((plantx, planty))
+                plantxys.append((plantx - 2, planty + 1))
+                plantxys.append((plantx - 1, planty + 1))
+                plantxys.append((plantx, planty + 1))
+                plantxys.append((plantx + 1, planty + 1))
+                plantxys.append((plantx + 2, planty + 1))
+                plantxys.append((plantx, planty + 2))
+                plantxys.append((plantx - 1, planty + 3))
+                plantxys.append((plantx, planty + 3))
+                plantxys.append((plantx + 1, planty + 3))
+            elif plant_dection == 1:  # 向左
+                plantxys.append((plantx, planty))
+                plantxys.append((plantx + 1, planty - 2))
+                plantxys.append((plantx + 1, planty - 1))
+                plantxys.append((plantx + 1, planty))
+                plantxys.append((plantx + 1, planty + 1))
+                plantxys.append((plantx + 1, planty + 2))
+                plantxys.append((plantx + 2, planty))
+                plantxys.append((plantx + 3, planty - 1))
+                plantxys.append((plantx + 3, planty))
+                plantxys.append((plantx + 3, planty + 1))
+            elif plant_dection == 2:  # 向下
+                plantxys.append((plantx, planty))
+                plantxys.append((plantx + 2, planty - 1))
+                plantxys.append((plantx + 1, planty - 1))
+                plantxys.append((plantx, planty - 1))
+                plantxys.append((plantx - 1, planty - 1))
+                plantxys.append((plantx - 2, planty - 1))
+                plantxys.append((plantx, planty - 2))
+                plantxys.append((plantx + 1, planty - 3))
+                plantxys.append((plantx, planty - 3))
+                plantxys.append((plantx - 1, planty - 3))
+            else:  # 向右
+                plantxys.append((plantx, planty))
+                plantxys.append((plantx - 1, planty - 2))
+                plantxys.append((plantx - 1, planty - 1))
+                plantxys.append((plantx - 1, planty))
+                plantxys.append((plantx - 1, planty + 1))
+                plantxys.append((plantx - 1, planty + 2))
+                plantxys.append((plantx - 2, planty))
+                plantxys.append((plantx - 3, planty - 1))
+                plantxys.append((plantx - 3, planty))
+                plantxys.append((plantx - 3, planty + 1))
+
+            # 检查是否合理
+            plane_save = True
+            for cache_plant_info in plants_info:
+                cache_plant_dection = cache_plant_info[2]
+                cache_plantx = cache_plant_info[0]
+                cache_planty = cache_plant_info[1]
+
+                cache_plantxys = []
+                if cache_plant_dection == 0:  # 向上
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 3))
+                    cache_plantxys.append((cache_plantx, cache_planty + 3))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 3))
+                elif cache_plant_dection == 1:  # 向左
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty + 1))
+                elif cache_plant_dection == 2:  # 向下
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 3))
+                    cache_plantxys.append((cache_plantx, cache_planty - 3))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 3))
+                else:  # 向右
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty + 1))
+
+                for cache_plantxy in cache_plantxys:
+                    for plantxy in plantxys:
+                        if plantxy == cache_plantxy:
+                            plane_save = False
+            if plane_save is True:
+                plants_info.append(plant_info)
+            else:
+                num += 1
+
+        # 创建底图
+        image = new_background(900, 900)
+        filepath = await get_file_path("plugin-zfj-farme.png")
+        paste_image = Image.open(filepath, mode="r")
+        image.paste(paste_image, (0, 0), mask=paste_image)
+
+        returnpath = save_image(image)
+
+        boms_list = []
+
+        # 收集本次游戏数据
+        gameinfo = {
+            "plants_info": plants_info,  # 飞机数据
+            "boms_list": boms_list,  # 炸弹数据
+        }
+
+        # 保存数据
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f'"{channel_id}","炸飞机","{time_now}",True,"{gameinfo}")')
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+        message = '游戏已生成，发送炸+坐标来炸。' \
+                  '\n例：“炸a1”。' \
+                  '\n请在10分钟内完成游戏。' \
+                  '\n你拥有13颗炸弹' \
+                  '\n发送结束炸飞机可以提前结束游戏'
+        code = 3
+    elif game_state == "gameing":
+        # 读取游戏数据
+        gamedata = json.loads(data[4].replace("'", '"'))
+        plants_info = gamedata["plants_info"]
+        boms_list = gamedata["boms_list"]
+
+        if command == "结束":
+            # 创建底图
+            image = new_background(900, 900)
+            filepath = await get_file_path("plugin-zfj-farme.png")
+            paste_image = Image.open(filepath, mode="r")
+            image.paste(paste_image, (0, 0), mask=paste_image)
+
+            # 获取飞机图片
+            filepath = await get_file_path("plugin-zfj-plane1.png")
+            paste_image_1 = Image.open(filepath, mode="r")
+            filepath = await get_file_path("plugin-zfj-plane2.png")
+            paste_image_2 = Image.open(filepath, mode="r")
+            filepath = await get_file_path("plugin-zfj-plane3.png")
+            paste_image_3 = Image.open(filepath, mode="r")
+
+            # 绘制飞机的位置
+            num = 0
+            for plant_info in plants_info:
+                if num == 0:
+                    paste_image_0 = paste_image_1
+                elif num == 1:
+                    paste_image_0 = paste_image_2
+                else:
+                    paste_image_0 = paste_image_3
+                num += 1
+
+                cache_plantx = int(plant_info[0])
+                cache_planty = int(plant_info[1])
+                cache_plant_dection = int(plant_info[2])
+                cache_plantxy = (cache_plantx, cache_planty)
+
+                cache_plantxys = []
+                if cache_plant_dection == 0:  # 向上
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 3))
+                    cache_plantxys.append((cache_plantx, cache_planty + 3))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 3))
+                elif cache_plant_dection == 1:  # 向左
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty))
+                    cache_plantxys.append((cache_plantx + 3, cache_planty + 1))
+                elif cache_plant_dection == 2:  # 向下
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx + 2, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx + 1, cache_planty - 3))
+                    cache_plantxys.append((cache_plantx, cache_planty - 3))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 3))
+                else:  # 向右
+                    cache_plantxys.append((cache_plantx, cache_planty))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 2))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                    cache_plantxys.append((cache_plantx - 1, cache_planty + 2))
+                    cache_plantxys.append((cache_plantx - 2, cache_planty))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty - 1))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty))
+                    cache_plantxys.append((cache_plantx - 3, cache_planty + 1))
+
+                for cache_plantxy in cache_plantxys:
+                    plantx = cache_plantxy[0]
+                    planty = cache_plantxy[1]
+                    printx = -16 + plantx * 78
+                    printy = -16 + planty * 78
+                    image.paste(paste_image_0, (printx, printy), mask=paste_image_0)
+
+            # 获取状态图片
+            filepath = await get_file_path("plugin-zfj-miss.png")
+            paste_image_0 = Image.open(filepath, mode="r")
+            filepath = await get_file_path("plugin-zfj-injured.png")
+            paste_image_1 = Image.open(filepath, mode="r")
+            filepath = await get_file_path("plugin-zfj-crash.png")
+            paste_image_2 = Image.open(filepath, mode="r")
+
+            # 绘制现在状态图
+            for bom in boms_list:
+                printx = -16 + (int(bom[0]) * 78)
+                printy = -16 + (int(bom[1]) * 78)
+                bom_state = int(bom[2])
+                if bom_state == 0:
+                    image.paste(paste_image_0, (printx, printy), mask=paste_image_0)
+                elif bom_state == 1:
+                    image.paste(paste_image_1, (printx, printy), mask=paste_image_1)
+                elif bom_state == 2:
+                    image.paste(paste_image_2, (printx, printy), mask=paste_image_2)
+
+            # 保存图片
+            returnpath = save_image(image)
+            message = "游戏已结束"
+            code = 3
+
+            # 将”结束游戏状态“写入到数据库
+            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                f'"{channel_id}","none","0",False,"none")')
+            cursor.close()
+            conn.commit()
+            conn.close()
+        else:
+            if command.startswith("炸"):
+                command = command.removeprefix('炸')
+            # 转换坐标为数字
+            bomx = 0
+            if "a" in command:
+                bomx = 1
+            elif "b" in command:
+                bomx = 2
+            elif "c" in command:
+                bomx = 3
+            elif "d" in command:
+                bomx = 4
+            elif "e" in command:
+                bomx = 5
+            elif "f" in command:
+                bomx = 6
+            elif "g" in command:
+                bomx = 7
+            elif "h" in command:
+                bomx = 8
+            elif "i" in command:
+                bomx = 9
+            elif "j" in command:
+                bomx = 10
+
+            bomy = 0
+            if "10" in command:
+                bomy = 10
+            elif "1" in command:
+                bomy = 1
+            elif "2" in command:
+                bomy = 2
+            elif "3" in command:
+                bomy = 3
+            elif "4" in command:
+                bomy = 4
+            elif "5" in command:
+                bomy = 5
+            elif "6" in command:
+                bomy = 6
+            elif "7" in command:
+                bomy = 7
+            elif "8" in command:
+                bomy = 8
+            elif "9" in command:
+                bomy = 9
+
+            if bomx == 0 or bomy == 0:
+                code = 1
+                message = "错误，请检查拼写。只能使用小写字母和数字来表示位置"
+            else:
+                if len(boms_list) >= 14:
+                    # 炸弹用完，结束游戏
+                    # 创建底图
+                    image = new_background(900, 900)
+                    filepath = await get_file_path("plugin-zfj-farme.png")
+                    paste_image = Image.open(filepath, mode="r")
+                    image.paste(paste_image, (0, 0), mask=paste_image)
+
+                    # 获取飞机图片
+                    filepath = await get_file_path("plugin-zfj-plane1.png")
+                    plane_image_1 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-plane2.png")
+                    plane_image_2 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-plane3.png")
+                    plane_image_3 = Image.open(filepath, mode="r")
+
+                    # 绘制飞机的位置
+                    num = 0
+                    for plant_info in plants_info:
+                        if num == 0:
+                            paste_image = plane_image_1
+                        elif num == 1:
+                            paste_image = plane_image_2
+                        else:
+                            paste_image = plane_image_3
+                        num += 1
+
+                        cache_plantx = int(plant_info[0])
+                        cache_planty = int(plant_info[1])
+                        cache_plant_dection = int(plant_info[2])
+                        cache_plantxy = (cache_plantx, cache_planty)
+
+                        cache_plantxys = []
+                        if cache_plant_dection == 0:  # 向上
+                            cache_plantxys.append((cache_plantx, cache_planty))
+                            cache_plantxys.append((cache_plantx - 2, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx + 2, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx, cache_planty + 2))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty + 3))
+                            cache_plantxys.append((cache_plantx, cache_planty + 3))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty + 3))
+                        elif cache_plant_dection == 1:  # 向左
+                            cache_plantxys.append((cache_plantx, cache_planty))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty - 2))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty + 2))
+                            cache_plantxys.append((cache_plantx + 2, cache_planty))
+                            cache_plantxys.append((cache_plantx + 3, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx + 3, cache_planty))
+                            cache_plantxys.append((cache_plantx + 3, cache_planty + 1))
+                        elif cache_plant_dection == 2:  # 向下
+                            cache_plantxys.append((cache_plantx, cache_planty))
+                            cache_plantxys.append((cache_plantx + 2, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx - 2, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx, cache_planty - 2))
+                            cache_plantxys.append((cache_plantx + 1, cache_planty - 3))
+                            cache_plantxys.append((cache_plantx, cache_planty - 3))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty - 3))
+                        else:  # 向右
+                            cache_plantxys.append((cache_plantx, cache_planty))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty - 2))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                            cache_plantxys.append((cache_plantx - 1, cache_planty + 2))
+                            cache_plantxys.append((cache_plantx - 2, cache_planty))
+                            cache_plantxys.append((cache_plantx - 3, cache_planty - 1))
+                            cache_plantxys.append((cache_plantx - 3, cache_planty))
+                            cache_plantxys.append((cache_plantx - 3, cache_planty + 1))
+
+                        for cache_plantxy in cache_plantxys:
+                            plantx = cache_plantxy[0]
+                            planty = cache_plantxy[1]
+                            printx = -16 + plantx * 78
+                            printy = -16 + planty * 78
+                            image.paste(paste_image, (printx, printy), mask=paste_image)
+
+                    # 获取状态图片
+                    filepath = await get_file_path("plugin-zfj-miss.png")
+                    state_image_0 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-injured.png")
+                    state_image_1 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-crash.png")
+                    state_image_2 = Image.open(filepath, mode="r")
+
+                    # 绘制现在状态图
+                    for bom in boms_list:
+                        printx = -16 + (int(bom[0]) * 78)
+                        printy = -16 + (int(bom[1]) * 78)
+                        bom_state = int(bom[2])
+                        if bom_state == 0:
+                            image.paste(state_image_0, (printx, printy), mask=state_image_0)
+                        elif bom_state == 1:
+                            image.paste(state_image_1, (printx, printy), mask=state_image_1)
+                        elif bom_state == 2:
+                            image.paste(state_image_2, (printx, printy), mask=state_image_2)
+
+                    # 保存图片
+                    returnpath = save_image(image)
+                    message = "炸弹已用光，游戏结束"
+                    code = 3
+
+                    # 将”结束游戏状态“写入到数据库
+                    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                        f'"{channel_id}","none","0",False,"none")')
+                    cursor.close()
+                    conn.commit()
+                    conn.close()
+                else:
+                    # 创建底图
+                    image = new_background(900, 900)
+                    filepath = await get_file_path("plugin-zfj-farme.png")
+                    paste_image = Image.open(filepath, mode="r")
+                    image.paste(paste_image, (0, 0), mask=paste_image)
+
+                    # 获取状态图片
+                    filepath = await get_file_path("plugin-zfj-miss.png")
+                    state_image_0 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-injured.png")
+                    state_image_1 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-crash.png")
+                    state_image_2 = Image.open(filepath, mode="r")
+
+                    # 绘制现在状态图
+                    for bom in boms_list:
+                        printx = -16 + (int(bom[0]) * 78)
+                        printy = -16 + (int(bom[1]) * 78)
+                        bom_state = int(bom[2])
+                        if bom_state == 0:
+                            image.paste(state_image_0, (printx, printy), mask=state_image_0)
+                        elif bom_state == 1:
+                            image.paste(state_image_1, (printx, printy), mask=state_image_1)
+                        elif bom_state == 2:
+                            image.paste(state_image_2, (printx, printy), mask=state_image_2)
+
+                    # 获取飞机图片
+                    filepath = await get_file_path("plugin-zfj-plane1.png")
+                    plane_image_1 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-plane2.png")
+                    plane_image_2 = Image.open(filepath, mode="r")
+                    filepath = await get_file_path("plugin-zfj-plane3.png")
+                    plane_image_3 = Image.open(filepath, mode="r")
+
+                    bomstate = -1
+                    for bom in boms_list:
+                        printx = int(bom[0])
+                        printy = int(bom[1])
+                        if printx == bomx and printy == bomy:
+                            bomstate = 3
+                    if bomstate != 3:
+                        bomxy = (bomx, bomy)
+                        for plant_info in plants_info:
+                            cache_plantx = int(plant_info[0])
+                            cache_planty = int(plant_info[1])
+                            cache_plant_dection = int(plant_info[2])
+                            cache_plantxy = (cache_plantx, cache_planty)
+                            if bomxy == cache_plantxy:
+                                bomstate = 2
+                            else:
+                                cache_plantxys = []
+                                if cache_plant_dection == 0:  # 向上
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 3))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 3))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 3))
+                                elif cache_plant_dection == 1:  # 向左
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty + 1))
+                                elif cache_plant_dection == 2:  # 向下
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 3))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 3))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 3))
+                                else:  # 向右
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty + 1))
+
+                                for cache_plantxy in cache_plantxys:
+                                    if bomxy == cache_plantxy:
+                                        bomstate = 1
+                        if bomstate == -1:
+                            bomstate = 0
+                    if bomstate != 3:
+                        printx = -16 + (bomx * 78)
+                        printy = -16 + (bomy * 78)
+                        bom_state = int(bomstate)
+                        if bom_state == 0:
+                            image.paste(state_image_0, (printx, printy), mask=state_image_0)
+                        elif bom_state == 1:
+                            image.paste(state_image_1, (printx, printy), mask=state_image_1)
+                        elif bom_state == 2:
+                            image.paste(state_image_2, (printx, printy), mask=state_image_2)
+
+                    # 保存数据
+                    if bomstate == 0 or bomstate == 1 or bomstate == 2:
+                        boom_data = [bomx, bomy, bomstate]
+                        boms_list.append(boom_data)
+
+                        # 收集本次游戏数据
+                        gameinfo = {
+                            "plants_info": plants_info,  # 飞机数据
+                            "boms_list": boms_list,  # 炸弹数据
+                        }
+
+                        # 保存数据
+                        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                            f'"{channel_id}","炸飞机","{time_now}",True,"{gameinfo}")')
+                        cursor.close()
+                        conn.commit()
+                        conn.close()
+
+                    if bomstate == 3:
+                        code = 1
+                        message = "出错!炸弹必须设置在未炸过的地方"
+                    elif bomstate == 0:
+                        code = 3
+                        message = "引爆成功，该地方为空"
+                    elif bomstate == 1:
+                        code = 3
+                        message = "成功炸伤飞机"
+                    elif bomstate == 2:
+                        code = 3
+                        message = "成功炸沉飞机"
+
+                    if bomstate == 2:
+                        num = 0
+                        for bom in boms_list:
+                            bomstate = bom[2]
+                            if bomstate == 2:
+                                num += 1
+                        if num >= 3:
+                            # 绘制飞机的位置
+                            num = 0
+                            for plant_info in plants_info:
+                                if num == 0:
+                                    paste_image = plane_image_1
+                                elif num == 1:
+                                    paste_image = plane_image_2
+                                else:
+                                    paste_image = plane_image_3
+                                num += 1
+
+                                cache_plantx = int(plant_info[0])
+                                cache_planty = int(plant_info[1])
+                                cache_plant_dection = int(plant_info[2])
+                                cache_plantxy = (cache_plantx, cache_planty)
+
+                                cache_plantxys = []
+                                if cache_plant_dection == 0:  # 向上
+                                    cache_plantxys.append((cache_plantx, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 3))
+                                    cache_plantxys.append((cache_plantx, cache_planty + 3))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 3))
+                                elif cache_plant_dection == 1:  # 向左
+                                    cache_plantxys.append((cache_plantx, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 3, cache_planty + 1))
+                                elif cache_plant_dection == 2:  # 向下
+                                    cache_plantxys.append((cache_plantx, cache_planty))
+                                    cache_plantxys.append((cache_plantx + 2, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx + 1, cache_planty - 3))
+                                    cache_plantxys.append((cache_plantx, cache_planty - 3))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 3))
+                                else:  # 向右
+                                    cache_plantxys.append((cache_plantx, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 2))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 1))
+                                    cache_plantxys.append((cache_plantx - 1, cache_planty + 2))
+                                    cache_plantxys.append((cache_plantx - 2, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty - 1))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty))
+                                    cache_plantxys.append((cache_plantx - 3, cache_planty + 1))
+
+                                for cache_plantxy in cache_plantxys:
+                                    plantx = cache_plantxy[0]
+                                    planty = cache_plantxy[1]
+                                    printx = -16 + plantx * 78
+                                    printy = -16 + planty * 78
+                                    image.paste(paste_image, (printx, printy), mask=paste_image)
+
+                            # 将”结束游戏状态“写入到数据库
+                            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                                f'"{channel_id}","none","0",False,"none")')
+                            cursor.close()
+                            conn.commit()
+                            conn.close()
+
+                            message = '恭喜炸沉所有飞机，游戏结束。'
+
+                    returnpath = save_image(image)
+
     return code, message, returnpath

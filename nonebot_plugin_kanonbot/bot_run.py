@@ -6,7 +6,7 @@ from .tools import lockst, locked, command_cd, get_command
 from .plugins import (
     plugins_zhanbu,
     plugins_config,
-    plugins_emoji_xibao, plugins_emoji_yizhi, plugins_game_cck
+    plugins_emoji_xibao, plugins_emoji_yizhi, plugins_game_cck, plugins_game_blowplane
 )
 import time
 import nonebot
@@ -39,28 +39,27 @@ if not os.path.exists(basepath):
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.2.4")
+    logger.info("KanonBot-0.2.5")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
         os.makedirs(lockdb)
     lockdb += "lock.db"
     await lockst(lockdb)
-    global image, addimage
-    msg = msg_info["msg"]
-    commands = msg_info["commands"]
-    command = commands[0]
+    msg: str = msg_info["msg"]
+    commands: list = msg_info["commands"]
+    command: str = commands[0]
     if len(commands) >= 2:
         command2 = commands[1]
     else:
         command2 = None
-    at_datas = msg_info["at_datas"]
+    at_datas: list = msg_info["at_datas"]
     user_permission: str = msg_info["user"]["permission"]
     user_id: str = msg_info["user"]["id"]
     user_avatar: str = msg_info["user"]["avatar"]
     user_nick_name: str = msg_info["user"]["nick_name"]
     if user_nick_name is not None:
-        user_username = user_nick_name
+        user_username: str = user_nick_name
     else:
         user_username: str = msg_info["user"]["username"]
     commandname: str = msg_info["commandname"]
@@ -68,9 +67,9 @@ async def botrun(msg_info):
     channel_id: str = msg_info["channel_id"]
     imgmsgs = msg_info["imgmsgs"]
     botid: str = msg_info["bot_id"]
-    friend_list = msg_info["friend_list"]
-    group_member_list = msg_info["group_member_list"]
-    event_name = msg_info["event_name"]
+    friend_list: list = msg_info["friend_list"]
+    group_member_list: list = msg_info["group_member_list"]
+    event_name: str = msg_info["event_name"]
 
     image_face = []
     image_face2 = []
@@ -78,18 +77,44 @@ async def botrun(msg_info):
     qq2name = None
 
     # ## 变量初始化 ##
-    date = str(time.strftime("%Y-%m-%d", time.localtime()))
-    date_year = str(time.strftime("%Y", time.localtime()))
-    date_month = str(time.strftime("%m", time.localtime()))
-    date_day = str(time.strftime("%d", time.localtime()))
-    time_h = str(time.strftime("%H", time.localtime()))
-    time_m = str(time.strftime("%M", time.localtime()))
-    time_s = str(time.strftime("%S", time.localtime()))
-    time_now = str(int(time.time()))
-
+    date: str = time.strftime("%Y-%m-%d", time.localtime())
+    date_year: str = time.strftime("%Y", time.localtime())
+    date_month: str = time.strftime("%m", time.localtime())
+    date_day: str = time.strftime("%d", time.localtime())
+    time_h: str = time.strftime("%H", time.localtime())
+    time_m: str = time.strftime("%M", time.localtime())
+    time_s: str = time.strftime("%S", time.localtime())
+    time_now: str = str(time.time())
     cachepath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
+
+    def del_files2(dir_path):
+        """
+        删除文件夹下所有文件和路径，保留要删的父文件夹
+        """
+        for root, dirs, files in os.walk(dir_path, topdown=False):
+            # 第一步：删除文件
+            for name in files:
+                os.remove(os.path.join(root, name))  # 删除文件
+            # 第二步：删除空文件夹
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))  # 删除一个空目录
+
+    # 清除缓存
+    if os.path.exists(f"{basepath}/cache/{int(date_year) - 1}"):
+        filenames = os.listdir(f"{basepath}/cache/{int(date_year) - 1}")
+        if filenames:
+            del_files2(f"{basepath}/cache/{int(date_year) - 1}")
+    elif os.path.exists(f"{basepath}/cache/{date_year}/{int(date_month) - 1}"):
+        filenames = os.listdir(f"{basepath}/cache/{date_year}/{int(date_month) - 1}")
+        if filenames:
+            del_files2(f"{basepath}/cache/{date_year}/{int(date_month) - 1}")
+    elif os.path.exists(f"{basepath}/cache/{date_year}/{date_month}/{int(date_day) - 1}"):
+        filenames = os.listdir(f"{basepath}/cache/{date_year}/{date_month}/{int(date_day) - 1}")
+        if filenames:
+            del_files2(f"{basepath}/cache/{date_year}/{date_month}/{int(date_day) - 1}")
+
     dbpath = basepath + "db/"
     if not os.path.exists(dbpath):
         os.makedirs(dbpath)
@@ -280,28 +305,43 @@ async def botrun(msg_info):
             elif command == "bzd":
                 command = "不知道"
 
+            # 判断指令冷却
             if command == "猜猜看" and getconfig("commandcd"):
                 cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
+                    user_id=user_id, groupcode=channel_id, timeshort=time_now, coolingdb=f"{dbpath}cooling.db")
                 if cooling != "off" and user_permission != "7" and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath = await plugins_game_cck(
-                        command=command,
-                        channel_id=channel_id,
-                        time_now=time_now)
+                    code, message, returnpath = await plugins_game_cck(command=command, channel_id=channel_id)
             else:
                 logger.info(f"run-{commandname}")
-                code, message, returnpath = await plugins_game_cck(
-                        command=command,
-                        channel_id=channel_id,
-                        time_now=time_now)
+                code, message, returnpath = await plugins_game_cck(command=command, channel_id=channel_id)
+        elif "炸飞机" == commandname and getconfig(commandname):
+            # 转换命令名
+            if command.startswith("炸") and not command.startswith("炸飞机"):
+                command = command.removeprefix("炸")
+            if command2 is not None:
+                command = command2
+            if command == "zfj":
+                command = "炸飞机"
+
+            # 判断指令冷却
+            if command == "炸飞机" and getconfig("commandcd"):
+                cooling = command_cd(
+                    user_id=user_id, groupcode=channel_id, timeshort=time_now, coolingdb=f"{dbpath}cooling.db")
+                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                    code = 1
+                    message = f"指令冷却中（{cooling}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    code, message, returnpath = await plugins_game_blowplane(command=command, channel_id=channel_id)
+            else:
+                logger.info(f"run-{commandname}")
+                code, message, returnpath = await plugins_game_blowplane( command=command, channel_id=channel_id)
 
     elif "###" == commandname:
         pass

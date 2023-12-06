@@ -134,6 +134,7 @@ def _config_list():
         "喜报": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
         "一直": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
         "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
         "chickin": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "洗了": {"state": True, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
         "jiehun": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
@@ -154,8 +155,7 @@ def _config_list():
         "ji2": {"state": True, "message": "急", "group": "表情功能", "name": "急"},
         "momo": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
         "commandcd": {"state": True, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"},
-        "jinrilaopo": {"state": True, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"},
-        "blowplane": {"state": False, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"}
+        "jinrilaopo": {"state": True, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"}
     }
     return configs
 
@@ -181,6 +181,7 @@ def command_list():
             "bzd": "小游戏-猜猜看",
             "猜猜看": "小游戏-猜猜看",
             "是": "小游戏-猜猜看",
+            "炸飞机": "小游戏-炸飞机",
             "爬": "表情功能-pa",
             "洗": "表情功能-洗了",
             "洗了": "表情功能-洗了",
@@ -212,16 +213,14 @@ def command_list():
             "来点wlp": "图库功能-wlp",
             "多来点wlp": "图库功能-wlp",
             "成员名单": "图库功能-wlp",
-            "炸飞机": "小游戏-blowplane",
-            "结束炸飞机": "小游戏-blowplane",
         },
         "开头": {
             "来点": "wlp",
             "多来点": "wlp",
             "wlp是": "wlp",
             "新lp是": "wlp",
-            "是": "caicaikan",
-            "炸": "blowplane"
+            "是": "小游戏-猜猜看",
+            "炸": "小游戏-炸飞机"
         },
         "结尾": {
         },
