@@ -14,7 +14,7 @@ from nonebot.adapters.qq import (
 import time
 from .config import kn_config, command_list
 from .bot_run import botrun
-from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image
+from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -248,63 +248,38 @@ async def kanon(
         date_day = str(time.strftime("%d", time.localtime()))
         time_now = str(int(time.time()))
 
-        # 获取发送消息的用户信息
-        if event_name == "GROUP_AT_MESSAGE_CREATE":
-            user_data = {
-                "id": user_id,
-                "username": None,
-                "nick_name": None,
-                "avatar": None,
-                "union_openid": None,
-                "is_bot": None
-            }
-        elif event_name == "AT_MESSAGE_CREATE":
-            data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
-            user_data = {
-                "id": user_id,
-                "username": data.user.username,
-                "nick_name": data.nick,
-                "avatar": data.user.avatar,
-                "union_openid": data.user.union_openid,
-                "is_bot": data.user.bot
-            }
-        else:
-            user_data = {
-                "id": user_id,
-                "username": None,
-                "nick_name": None,
-                "avatar": None,
-                "union_openid": None,
-                "is_bot": None
-            }
-
         # 获取消息内容
         # 获取用户信息
-        if event_name == "GROUP_AT_MESSAGE_CREATE":
-            user_data = {
-                "id": user_id,
-                "permission": 5,
-                "avatar": None,
-                "username": None,
-                "nick_name": None,
-                "union_openid": None,
-                "is_bot": None
-            }
-            user_permission = 5
-        elif event_name == "AT_MESSAGE_CREATE":
-            data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
-            user_permission = int(data.permissions)
-            data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
+        if event_name == "AT_MESSAGE_CREATE":
+            try:
+                data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
+                user_permission = int(data.permissions)
+            except:
+                user_permission = 5
+            try:
+                data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
+                user_avatar = data.user.avatar
+                user_username = data.user.username
+                user_nick_name = data.nick
+                user_openid = data.user.union_openid
+                user_is_bot = data.user.bot
+            except:
+                user_avatar = None
+                user_username = None
+                user_nick_name = None
+                user_openid = None
+                user_is_bot = False
             user_data = {
                 "id": user_id,
                 "permission": user_permission,
-                "avatar": data.user.avatar,
-                "username": data.user.username,
-                "nick_name": data.nick,
-                "union_openid": data.user.union_openid,
-                "is_bot": data.user.bot
+                "avatar": user_avatar,
+                "username": user_username,
+                "nick_name": user_nick_name,
+                "union_openid": user_openid,
+                "is_bot": user_is_bot
             }
         else:
+            # event_name == "GROUP_AT_MESSAGE_CREATE":
             user_data = {
                 "id": user_id,
                 "permission": 5,
@@ -312,7 +287,7 @@ async def kanon(
                 "username": None,
                 "nick_name": None,
                 "union_openid": None,
-                "is_bot": None
+                "is_bot": False
             }
 
         # 获取at内容
@@ -336,18 +311,20 @@ async def kanon(
                         jump_num = len(text) - 2
         at_datas = []
         for id in atmsgs:
-            data = await bot.get_member(guild_id=guild_id[8:], user_id=id)
-            at_data = {
-                "id": id,
-                "username": data.user.username,
-                "nick_name": data.nick,
-                "avatar": data.user.avatar,
-                "union_openid": data.user.union_openid,
-                "is_bot": data.user.bot
-            }
-            at_datas.append(at_data)
-            # data = await bot.get_members(guild_id=guild_id[8:], user_id=atmsg)
-            print(f"get_members:{at_data}")
+            try:
+                data = await bot.get_member(guild_id=guild_id[8:], user_id=id)
+                at_data = {
+                    "id": id,
+                    "username": data.user.username,
+                    "nick_name": data.nick,
+                    "avatar": data.user.avatar,
+                    "union_openid": data.user.union_openid,
+                    "is_bot": data.user.bot
+                }
+                at_datas.append(at_data)
+            except Exception as e:
+                logger.error("获取at内容失败")
+
 
         # 获取成员名单
         friend_list = []
@@ -386,7 +363,12 @@ async def kanon(
         elif code == 2:
             img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
         elif code == 3:
             message = data["message"]
@@ -395,7 +377,11 @@ async def kanon(
 
             img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
         elif code == 4:
             message = data["message"]
@@ -404,11 +390,19 @@ async def kanon(
 
             img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
             img_url = await imgpath_to_url(data["returnpath2"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
         elif code == 5:
             message = data["message"]
@@ -417,15 +411,27 @@ async def kanon(
 
             img_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
             img_url = await imgpath_to_url(data["returnpath2"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
             img_url = await imgpath_to_url(data["returnpath3"])
             msg = MessageSegment.image(img_url)
-            await run_kanon.send(msg)
+            try:
+                await run_kanon.send(msg)
+            except Exception as e:
+                logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                await run_kanon.send(f"图片发送失败：message:{e.message},请点击链接查看\n{img_url}")
 
         else:
             pass

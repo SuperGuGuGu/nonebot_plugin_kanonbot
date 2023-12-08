@@ -29,7 +29,7 @@ except Exception as e:
 run = True
 
 
-async def plugins_zhanbu(user_id, cachepath):
+async def plugin_zhanbu(user_id, cachepath):
     message = ""
     returnpath = None
 
@@ -76,8 +76,13 @@ async def plugins_zhanbu(user_id, cachepath):
                 if not os.path.exists(returnpath):
                     # 如果文件未缓存，则缓存下来
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
-                    image = await connect_api("image", url)
-                    image.save(returnpath)
+                    try:
+                        image = await connect_api("image", url)
+                        image.save(returnpath)
+                    except Exception as e:
+                        image = await draw_text("获取图片出错", 50, 10)
+                        logger.error(f"获取图片出错:{e}")
+                        returnpath = save_image(image)
                     message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
             else:
                 # 使用本地数据
@@ -111,8 +116,13 @@ async def plugins_zhanbu(user_id, cachepath):
                 if not os.path.exists(returnpath):
                     # 如果文件未缓存，则缓存下来
                     url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
-                    image = await connect_api("image", url)
-                    image.save(returnpath)
+                    try:
+                        image = await connect_api("image", url)
+                        image.save(returnpath)
+                    except Exception as e:
+                        image = await draw_text("获取图片出错", 50, 10)
+                        logger.error(f"获取图片出错:{e}")
+                        returnpath = save_image(image)
     except:
         logger.error("KanonBot插件出错-plugin-zhanbu")
     finally:
@@ -123,14 +133,77 @@ async def plugins_zhanbu(user_id, cachepath):
     return message, returnpath
 
 
-def plugins_config(command_name: str, config_name: str, groupcode: str):
+async def plugin_checkin(user_id: str, group_id: str, date: str):
+    """
+    签到功能，state=0,message="签到成功" state=1,message="签到失败"
+    :param user_id: 用户id
+    :param group_id: 群id
+    :param date: 今日日期
+    :return: {"state": state, "message": message}
+    """
+    state = "success"
+    message = ""
+    date: str = time.strftime("%Y-%m-%d", time.localtime())
+
+    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+    cursor = conn.cursor()
+    if not os.path.exists(f"{basepath}db/"):
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        os.makedirs(f"{basepath}db/")
+        cursor.execute(f"CREATE TABLE checkin(user_id VARCHAR (10) PRIMARY KEY, point BOOLEAN(20))")
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if "checkin" not in tables:
+        cursor.execute(f"create table {group_id}(user_id VARCHAR(10) primary key, date BOOLEAN(20), point INT(20))")
+    cursor.execute(f'select * from {group_id} where user_id = "{user_id}"')
+    data = cursor.fetchone()
+    add_point = random.randint(2, 3)
+    if data is None:
+        # 未有数据，签到并返回成功
+        point = add_point
+        cursor.execute(f'replace into {group_id} ("user_id","date","point") values("{user_id}","{date}",{point})')
+        conn.commit()
+        state = 0
+    else:
+        last_data = data[1]
+        point = data[2]
+        if data == last_data:
+            # 已经签到过，不再签到
+            state = 1
+        else:
+            # 今日未签到，正常签到
+            point = int(point) + add_point
+            cursor.execute(f'replace into {group_id} ("user_id","date","point") values("{user_id}","{date}",{point})')
+            conn.commit()
+            state = 0
+    cursor.close()
+    conn.close()
+
+    # 创建返回的消息
+    if state == 0:
+        message = f"签到成功，获得{add_point}根薯条，现在有{point}根薯条"
+    else:
+        message = f"今天签到过啦，{state}根薯条还不够吃嘛…>_<…"
+
+    return {"state": state, "message": message}
+
+
+def plugin_config(command_name: str, config_name, groupcode: str):
     message = ""
     returnpath = None
     command_name = command_name.removeprefix("config")
     if command_name == "开启":
         command_state = True
+        if config_name is None:
+            return "请添加要关闭的功能名字，例：“开启 猜猜看”", None
     elif command_name == "关闭":
         command_state = False
+        if config_name is None:
+            return "请添加要关闭的功能名字，例：“关闭 猜猜看”", None
     else:
         command_state = "查询"
     config_list = _config_list()
@@ -141,6 +214,7 @@ def plugins_config(command_name: str, config_name: str, groupcode: str):
             config_real_name = name
             break
 
+    # 初始化数据库
     dbpath = basepath + "db/"
     if not os.path.exists(dbpath):
         os.makedirs(dbpath)
@@ -159,7 +233,10 @@ def plugins_config(command_name: str, config_name: str, groupcode: str):
     if groupcode not in tables:
         cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
 
-    if command_state is True or command_state is False:
+    # 检查开关状态
+    if command_name is None:
+        message = f"未添加功能名。请输入“{command_name}+功能名来开启与关闭对应功能”"
+    elif command_state is True or command_state is False:
         # 开启或关闭功能
         cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{config_real_name}"')
         data = cursor.fetchone()
@@ -178,17 +255,29 @@ def plugins_config(command_name: str, config_name: str, groupcode: str):
             message = f"{config_name}已{command_name}"
     else:
         # 查询开启的功能
-        message = "功能列表：\n现支持的功能列表\n1.喜报/悲报\n2.一直\n3.占卜\n4.猜猜看\n\n\n\n"
+        message = ("功能列表："
+                   "\n现支持的功能列表"
+                   "\n1.喜报/悲报"
+                   "\n2.一直"
+                   "\n3.猜猜看"
+                   "\n4.炸飞机"
+                   "\n5.签到"
+                   "\n6.可爱"
+                   " ")
 
     cursor.close()
     conn.close()
     return message, returnpath
 
 
-async def plugins_emoji_xibao(command, command2, imgmsgs):
+async def plugin_emoji_xibao(command, command2, imgmsgs):
     if imgmsgs:
         url = imgmsgs[0]
-        image = await connect_api("image", url)
+        try:
+            image = await connect_api("image", url)
+        except Exception as e:
+            image = await draw_text("获取图片出错", 50, 10)
+            logger.error(f"获取图片出错:{e}")
     else:
         image = None
 
@@ -217,8 +306,13 @@ async def plugins_emoji_xibao(command, command2, imgmsgs):
         if os.path.exists(file_path):
             xibao_image = Image.open(file_path, "r")
         else:
-            xibao_image = await connect_api("image", url)
-            xibao_image.save(file_path)
+            try:
+                xibao_image = await connect_api("image", url)
+                image.save(file_path)
+            except Exception as e:
+                image = await draw_text("获取图片出错", 50, 10)
+                logger.error(f"获取图片出错:{e}")
+                return save_image(image)
     else:
         xibao_image = Image.new("RGB", (600, 450), (0, 0, 0))
 
@@ -319,8 +413,12 @@ async def plugins_emoji_xibao(command, command2, imgmsgs):
     return save_image(xibao_image)
 
 
-async def plugins_emoji_yizhi(user_avatar):
-    user_image = await connect_api("image", user_avatar)
+async def plugin_emoji_yizhi(user_avatar):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("获取图片出错", 50, 10)
+        logger.error(f"获取图片出错:{e}")
     user_image = image_resize2(user_image, (640, 640), overturn=False)
 
     # 开始绘图
@@ -329,7 +427,7 @@ async def plugins_emoji_yizhi(user_avatar):
 
     imageyizhi.paste(user_image, (64, 64), mask=user_image)
     image_face = image_resize2(user_image, (100, 100), overturn=False)
-    imageyizhi.paste(image_face, (427, 800), mask=user_image)
+    imageyizhi.paste(image_face, (427, 800), mask=image_face)
 
     file_path = await get_file_path("SourceHanSansK-Bold.ttf")
     font = ImageFont.truetype(font=file_path, size=85)
@@ -338,7 +436,278 @@ async def plugins_emoji_yizhi(user_avatar):
     return save_image(imageyizhi)
 
 
-async def plugins_game_cck(command, channel_id):
+async def plugin_emoji_keai(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("获取图片出错", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    image = Image.new(mode='RGB', size=(768, 950), color="#FFFFFF")
+    draw = ImageDraw.Draw(image)
+    w, h = user_image.size
+    image.paste(user_image, (int((768 - w) / 2), int((854 - h) / 2)))
+
+    text = f'请问你们看到{user_name}了吗？'
+    image_paste = await draw_text(text, 50, 30)
+    u, v = image_paste.size
+    y = 40
+    x = int(y / v * u)
+    image_paste.resize((x, y))
+    image.paste(image_paste, (9, 9), mask=image_paste)
+
+    font_file = await get_file_path("SourceHanSansK-Bold.ttf")
+    font = ImageFont.truetype(font=font_file, size=60)
+    draw.text(xy=(20, 810), text='非常可爱！简直就是小天使', fill=(0, 0, 0), font=font)
+
+    font = ImageFont.truetype(font=font_file, size=32)
+    draw.text(xy=(30, 900), text='ta没失踪也没怎么样，我只是觉得你们都该看一下', fill=(0, 0, 0),
+              font=font)
+
+    return save_image(image)
+
+
+async def plugin_emoji_jiehun(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    image = Image.new("RGB", (640, 640), "#FFFFFF")
+    draw = ImageDraw.Draw(image)
+    path = await get_file_path("plugin-jiehun-jiehun.png")
+    paste_image = Image.open(path, mode="r")
+    image.paste(paste_image, (0, 0), mask=paste_image)
+
+    # 添加名字1
+    textlen = len(user_name)
+    if textlen >= 10:
+        user_name = str(user_name[0:9])
+        user_name += "..."
+
+    imagetext = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    paste_image = await draw_text(user_name, 17, 13)
+    imagetext.paste(paste_image, (0, 90), mask=paste_image)
+
+    imagetext = imagetext.rotate(-18.5)
+    image.paste(imagetext, (0, 100), mask=imagetext)
+
+    return save_image(image)
+
+
+async def plugin_emoji_qinqin(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_tietie(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_daibu(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_ti(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_yaoyao(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_pa(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_ji(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_yizhi(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_quanquan(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_wolaopo(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_zhi(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_jiehunzheng(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_momo(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_ji2(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji_autorply(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+async def plugin_emoji(user_avatar, user_name):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    pass
+
+    return save_image(image)
+
+
+
+async def plugin_game_cck(command, channel_id):
     """
     cck插件内容
     返回：
@@ -387,7 +756,7 @@ async def plugins_game_cck(command, channel_id):
             gamename = data[1]
             if gamename == "猜猜看":
                 # 正在进行的是猜猜看
-                if int(time_now) <= (int(data[2]) + 300):
+                if int(time_now) <= (int(data[2]) + 600):
                     # 正在运行的cck最后一次运行时间相隔现在5分钟内
                     if command == "猜猜看":
                         message = "已经在cck了"
@@ -451,8 +820,12 @@ async def plugins_game_cck(command, channel_id):
         returnpath += image_name
         if not os.path.exists(returnpath):
             url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-cck-{member_id}-{image_name}"
-            image = await connect_api("image", url)
-            image.save(returnpath)
+            try:
+                image = await connect_api("image", url)
+                image.save(returnpath)
+            except Exception as e:
+                logger.error(f"获取图片出错:{e}")
+                return 1, "图片下载出错"
 
         # 保存数据
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -517,7 +890,8 @@ async def plugins_game_cck(command, channel_id):
         elif num == 5:
             message = '猜猜她是谁～'
         message += ("\n游戏限制5分钟内"
-                    "\n@bot并发送/猜猜看+名字\n例：“@kanon/猜猜看 花音”\n")
+                    "\n@bot并发送/猜猜看+名字"
+                    "\n例：“@kanon/猜猜看 花音”")
         code = 3  # 添加回复的类型
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
@@ -584,7 +958,7 @@ async def plugins_game_cck(command, channel_id):
     return code, message, returnpath
 
 
-async def plugins_game_blowplane(command: str, channel_id: str):
+async def plugin_game_blowplane(command: str, channel_id: str):
     """
     炸飞机插件内容
     返回：
@@ -836,8 +1210,8 @@ async def plugins_game_blowplane(command: str, channel_id: str):
         conn.commit()
         conn.close()
 
-        message = '游戏已生成，发送炸+坐标来炸。' \
-                  '\n例：“炸a1”。' \
+        message = '游戏已生成，发送/炸飞机+坐标进行游戏。' \
+                  '\n例：“@kanon/炸飞机 a1”' \
                   '\n请在10分钟内完成游戏。' \
                   '\n你拥有13颗炸弹' \
                   '\n发送结束炸飞机可以提前结束游戏'

@@ -101,7 +101,12 @@ def list_in_list(list_1: list, list_2: list):
     return False
 
 
-async def connect_api(type: str, url: str, post_json=None, file_path: str = None):
+async def connect_api(
+        type: str,
+        url: str,
+        post_json=None,
+        file_path: str = None,
+        failure_message: str = None):
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
@@ -113,11 +118,7 @@ async def connect_api(type: str, url: str, post_json=None, file_path: str = None
         if url in ["none", "None"] or url is None:
             image = await draw_text("获取图片出错", 50, 10)
         else:
-            try:
-                image = Image.open(BytesIO(httpx.get(url).content))
-            except Exception as e:
-                image = await draw_text("获取图片出错", 50, 10)
-                logger.error(f"获取图片出错:{e}")
+            image = Image.open(BytesIO(httpx.get(url).content))
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
@@ -147,7 +148,7 @@ async def get_file_path(file_name) -> str:
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.info("正在下载" + file_name)
-        url = kn_config("kanon_api-url") + "/file/" + file_name
+        url = f"{kn_config('kanon_api-url')}/file/{file_name}"
         await connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
@@ -509,7 +510,11 @@ async def draw_text(texts: str,
                         emoji_name = biliemoji_info["emoji_name"]
                         if emoji_name == biliemoji_name:
                             emoji_url = biliemoji_info["url"]
-                            paste_image = await connect_api("image", emoji_url)
+                            try:
+                                paste_image = await connect_api("image", emoji_url)
+                            except Exception as e:
+                                paste_image = await draw_text("获取图片出错", 50, 10)
+                                logger.error(f"获取图片出错:{e}")
                             paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                             image.paste(paste_image, (int(print_x), int(print_y)))
                             print_x += fortsize
