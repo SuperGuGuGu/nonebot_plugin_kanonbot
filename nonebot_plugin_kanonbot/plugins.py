@@ -7,7 +7,7 @@ import nonebot
 import os
 import sqlite3
 from .config import kn_config, _zhanbu_datas, _config_list
-from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path, new_background
+from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, circle_corner
 from PIL import Image, ImageDraw, ImageFont
 
 config = nonebot.get_driver().config
@@ -158,14 +158,14 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
         if data[1] != "sqlite_sequence":
             tables.append(data[1])
     if "checkin" not in tables:
-        cursor.execute(f"create table {group_id}(user_id VARCHAR(10) primary key, date BOOLEAN(20), point INT(20))")
-    cursor.execute(f'select * from {group_id} where user_id = "{user_id}"')
+        cursor.execute(f"create table checkin(user_id VARCHAR(10) primary key, date BOOLEAN(20), point INT(20))")
+    cursor.execute(f'select * from checkin where user_id = "{user_id}"')
     data = cursor.fetchone()
     add_point = random.randint(2, 3)
     if data is None:
         # 未有数据，签到并返回成功
         point = add_point
-        cursor.execute(f'replace into {group_id} ("user_id","date","point") values("{user_id}","{date}",{point})')
+        cursor.execute(f'replace into checkin ("user_id","date","point") values("{user_id}","{date}",{point})')
         conn.commit()
         state = 0
     else:
@@ -177,7 +177,7 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
         else:
             # 今日未签到，正常签到
             point = int(point) + add_point
-            cursor.execute(f'replace into {group_id} ("user_id","date","point") values("{user_id}","{date}",{point})')
+            cursor.execute(f'replace into checkin ("user_id","date","point") values("{user_id}","{date}",{point})')
             conn.commit()
             state = 0
     cursor.close()
@@ -189,7 +189,7 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
     else:
         message = f"今天签到过啦，{state}根薯条还不够吃嘛…>_<…"
 
-    return {"state": state, "message": message}
+    return state, message
 
 
 def plugin_config(command_name: str, config_name, groupcode: str):
@@ -257,16 +257,35 @@ def plugin_config(command_name: str, config_name, groupcode: str):
         # 查询开启的功能
         message = ("功能列表："
                    "\n现支持的功能列表"
-                   "\n1.喜报/悲报"
+                   "\n1.合成emoji"
                    "\n2.一直"
                    "\n3.猜猜看"
                    "\n4.炸飞机"
                    "\n5.签到"
-                   "\n6.可爱"
                    " ")
 
     cursor.close()
     conn.close()
+    return message, returnpath
+
+
+async def plugin_emoji_emoji(command):
+    message = None
+
+    returnpath = f"{basepath}cache/emoji/"
+    if not os.path.exists(returnpath):
+        os.makedirs(returnpath)
+    returnpath += f"{command}.png"
+
+    if not os.path.exists(returnpath):
+        url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={command}"
+        return_json = await connect_api("json", url)
+        if return_json["code"] == 0:
+            url = f"{kn_config('kanon_api-url')}/api/emoji?imageid={command}"
+            image = await connect_api("image", url)
+            image.save(returnpath)
+        else:
+            message = f"{command}不支持合成"
     return message, returnpath
 
 
@@ -417,7 +436,7 @@ async def plugin_emoji_yizhi(user_avatar):
     try:
         user_image = await connect_api("image", user_avatar)
     except Exception as e:
-        user_image = await draw_text("获取图片出错", 50, 10)
+        user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
     user_image = image_resize2(user_image, (640, 640), overturn=False)
 
@@ -440,7 +459,7 @@ async def plugin_emoji_keai(user_avatar, user_name):
     try:
         user_image = await connect_api("image", user_avatar)
     except Exception as e:
-        user_image = await draw_text("获取图片出错", 50, 10)
+        user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
     user_image = image_resize2(user_image, (640, 640), overturn=False)
 
@@ -452,7 +471,7 @@ async def plugin_emoji_keai(user_avatar, user_name):
     text = f'请问你们看到{user_name}了吗？'
     image_paste = await draw_text(text, 50, 30)
     u, v = image_paste.size
-    y = 40
+    y = 48
     x = int(y / v * u)
     image_paste.resize((x, y))
     image.paste(image_paste, (9, 9), mask=image_paste)
@@ -496,6 +515,71 @@ async def plugin_emoji_jiehun(user_avatar, user_name):
     image.paste(imagetext, (0, 100), mask=imagetext)
 
     return save_image(image)
+
+
+async def plugin_emoji_momo(user_avatar):
+    try:
+        user_image = await connect_api("image", user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (640, 640), overturn=False)
+
+    # 开始绘图
+    filepath = await get_file_path("plugin-emoji-momo-0.png")
+    pic = Image.open(filepath, mode="r")
+
+    date_year = time.strftime("%Y", time.localtime())
+    date_month = time.strftime("%m", time.localtime())
+    date_day = time.strftime("%d", time.localtime())
+    timestamp = str(time.time())
+    returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/摸摸/"
+    gifcache = f"{returnpath}{timestamp}_{random.randint(1000, 9999)}gifcache/"
+    if not os.path.exists(gifcache):
+        os.makedirs(gifcache)
+
+    image_x = [75, 74, 76, 78, 77]
+    image_y = [83, 84, 82, 80, 81]
+    imagepace_x = [33, 33, 33, 33, 33]
+    imagepace_y = [37, 35, 33, 36, 40]
+
+    image_face_clown = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
+    image_face_clown = circle_corner(image_face_clown, 30)
+
+    imagenum = len(image_x)
+    num = 1
+    while num <= imagenum:
+        print_imagepace_x = imagepace_x[num - 1]
+        print_imagepace_y = imagepace_y[num - 1]
+        print_image_x = image_x[num - 1]
+        print_image_y = image_y[num - 1]
+        print_image_face = user_image.resize((print_image_x, print_image_y))
+        print_image_face_clown = image_face_clown.resize((print_image_x, print_image_y))
+
+        pic1 = pic
+        filepath = await get_file_path("plugin-emoji-momo-0.png")
+        pic = Image.open(filepath, mode="r")
+        filepath = await get_file_path(f"plugin-emoji-momo-{num}.png")
+        paste_image = Image.open(filepath, mode="r")
+
+        pic1.paste(pic, (0, 0))
+        pic1.paste(print_image_face, (print_imagepace_x, print_imagepace_y),
+                   mask=print_image_face_clown)
+        pic1.paste(paste_image, (0, 0), mask=paste_image)
+
+        pic1.save(f"{gifcache}/{num}.png")
+        num += 1
+
+    returnpath = f"{returnpath}{timestamp}_{random.randint(1000, 9999)}.gif"
+    frames = []
+    png_files = os.listdir(gifcache)
+    for frame_id in range(1, len(png_files) + 1):
+        frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
+        frames.append(frame)
+    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=70, loop=0,
+                   disposal=2)
+
+    return returnpath
 
 
 async def plugin_emoji_qinqin(user_avatar, user_name):
@@ -589,19 +673,6 @@ async def plugin_emoji_ji(user_avatar, user_name):
     return save_image(image)
 
 
-async def plugin_emoji_yizhi(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
 async def plugin_emoji_quanquan(user_avatar, user_name):
     try:
         user_image = await connect_api("image", user_avatar)
@@ -654,19 +725,6 @@ async def plugin_emoji_jiehunzheng(user_avatar, user_name):
     return save_image(image)
 
 
-async def plugin_emoji_momo(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
 async def plugin_emoji_ji2(user_avatar, user_name):
     try:
         user_image = await connect_api("image", user_avatar)
@@ -704,7 +762,6 @@ async def plugin_emoji(user_avatar, user_name):
     pass
 
     return save_image(image)
-
 
 
 async def plugin_game_cck(command, channel_id):
@@ -891,7 +948,8 @@ async def plugin_game_cck(command, channel_id):
             message = '猜猜她是谁～'
         message += ("\n游戏限制5分钟内"
                     "\n@bot并发送/猜猜看+名字"
-                    "\n例：“@kanon/猜猜看 花音”")
+                    "\n例：“@kanon/猜猜看 花音”"
+                    "\n发送/猜猜看+不知道结束游戏")
         code = 3  # 添加回复的类型
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
@@ -1021,6 +1079,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                 # 正在进行其他游戏
                 code = 1
                 message = f"正在进行{gamename},请先结束{gamename}"
+                game_state = "new"
         else:
             # 没有正在进行的game
             if command == "炸飞机":
@@ -1214,7 +1273,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                   '\n例：“@kanon/炸飞机 a1”' \
                   '\n请在10分钟内完成游戏。' \
                   '\n你拥有13颗炸弹' \
-                  '\n发送结束炸飞机可以提前结束游戏'
+                  '\n发送“结束炸飞机”可以提前结束游戏'
         code = 3
     elif game_state == "gameing":
         # 读取游戏数据
