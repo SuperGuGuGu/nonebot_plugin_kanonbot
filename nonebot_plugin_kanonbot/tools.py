@@ -1,7 +1,7 @@
 # coding=utf-8
 import re
+import string
 import httpx
-import requests
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import sqlite3
@@ -89,6 +89,19 @@ def get_command(msg: str) -> list:
     return commands
 
 
+def get_qq_face(qq, size: int = 640):
+    """
+    获取q头像
+    :param qq: int。例："123456", 123456
+    :param size: int。例如: 100, 200, 300
+    """
+    faceapi = f"https://q1.qlogo.cn/g?b=qq&nk={qq}&s=640"
+    response = httpx.get(faceapi)
+    image_face = Image.open(BytesIO(response.content))
+    image_face = image_face.resize((size, size))
+    return image_face
+
+
 def list_in_list(list_1: list, list_2: list):
     """
     判断数列是否在数列内
@@ -157,7 +170,7 @@ async def get_file_path(file_name) -> str:
 async def lockst(lockdb):
     """
     如有其他指令在运行，则暂停该函数
-    :param lockdb:
+    :param lockdb: 数据库路径
     :return:
     """
     sleeptime = random.randint(1, 200)
@@ -727,3 +740,198 @@ def circle_corner(img, radii):
 
     img.putalpha(alpha)  # 白色区域透明可见，黑色区域不可见
     return img
+
+
+def get_unity_user_id(platform: str, user_id: str):
+    """
+    获取统一id
+    :param platform: 现在id平台
+    :param user_id: 现在id
+    :return: 统一id
+    """
+    platform = str(platform)
+    user_id = str(user_id)
+    # 读取数据库列表
+    if not os.path.exists(f"{basepath}db/"):
+        os.makedirs(f"{basepath}db/")
+    conn = sqlite3.connect(f"{basepath}db/config.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建数据库
+    if "id_list" not in tables:
+        cursor.execute(
+            'create table "id_list"'
+            '(id INTEGER primary key AUTOINCREMENT, unity_id VARCHAR(10), platform VARCHAR(10), user_id VARCHAR(10))')
+
+    # 开始读取数据
+    cursor.execute(f'SELECT * FROM "id_list" WHERE platform = "{platform}" AND user_id = "{user_id}"')
+    data = cursor.fetchone()
+    if data is None:
+        # 无数据，创建一个unity_id
+        num = 100
+        while num > 0:
+            num -= 1
+            if num > 10:
+                random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+            else:
+                random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+
+            cursor.execute(f'SELECT * FROM "id_list" WHERE unity_id = "{random_str}"')
+            data = cursor.fetchone()
+
+            if data is None:
+                cursor.execute(
+                    f'replace into id_list ("unity_id","platform","user_id") '
+                    f'values("{random_str}","{platform}","{user_id}")')
+                conn.commit()
+                break
+            else:
+                continue
+
+        # 读取unity_user_id
+        cursor.execute(f'SELECT * FROM id_list WHERE platform = "{platform}" AND user_id = "{user_id}"')
+        data = cursor.fetchone()
+        unity_user_id = data[1]
+
+    else:
+        # 读取unity_user_id
+        unity_user_id = data[1]
+
+    # 关闭数据库
+    cursor.close()
+    conn.close()
+
+    return str(unity_user_id)
+
+
+def get_user_id(platform: str, unity_user_id: str):
+    """
+    获取用户对应平台的id
+    :param platform:平台名称
+    :param unity_user_id:用户unity_user_id
+    :return:
+    """
+    platform = str(platform)
+    unity_user_id = str(unity_user_id)
+    # 读取数据库列表
+    if not os.path.exists(f"{basepath}db/"):
+        os.makedirs(f"{basepath}db/")
+    conn = sqlite3.connect(f"{basepath}db/config.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建数据库
+    if "id_list" not in tables:
+        cursor.execute(
+            'create table "id_list"'
+            '(id INTEGER primary key AUTOINCREMENT, unity_id VARCHAR(10), platform VARCHAR(10), user_id VARCHAR(10))')
+
+    # 开始读取数据
+    cursor.execute(f'SELECT * FROM "id_list" WHERE platform = "{platform}" AND unity_id = "{unity_user_id}"')
+    data = cursor.fetchone()
+    if data is None:
+        user_id = None
+    else:
+        user_id = data[3]
+
+    # 关闭数据库
+    cursor.close()
+    conn.close()
+
+    return user_id
+
+
+def get_unity_user_data(unity_user_id: str):
+    """
+    获取统一id
+    :param unity_id: 统一id
+    :return: 用户数据
+    """
+    unity_user_id = str(unity_user_id)
+    # 读取数据库列表
+    if not os.path.exists(f"{basepath}db/"):
+        os.makedirs(f"{basepath}db/")
+    conn = sqlite3.connect(f"{basepath}db/config.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建数据库
+    if "user_data" not in tables:
+        cursor.execute('create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))')
+
+    # 开始读取数据
+    cursor.execute(f'SELECT * FROM "user_data" WHERE unity_id = "{unity_user_id}"')
+    data = cursor.fetchone()
+    if data is None:
+        unity_user_data = {}
+    else:
+        data: str = data[1]
+        # 转为json格式
+        try:
+            unity_user_data = json.loads(data)
+        except Exception as e:
+            logger.error("读取json数据出错,json:data")
+            unity_user_data = {}
+
+    # 关闭数据库
+    cursor.close()
+    conn.close()
+
+    for data in list(unity_user_data):
+        if type(unity_user_data[data]) is str:
+            if "{basepath}" in unity_user_data[data]:
+                unity_user_data[data] = unity_user_data[data].replace("{basepath}", basepath)
+    return unity_user_data
+
+
+def save_unity_user_data(unity_id: str, unity_user_data: json):
+    """
+
+    :param unity_id:
+    :param unity_user_data:
+    :return:
+    """
+    unity_user_data = str(unity_user_data)
+    # 替换同义词
+    unity_user_data = unity_user_data.replace("'", '\\-code-replace-code-\\')
+    unity_user_data = unity_user_data.replace('"', "'")
+    unity_user_data = unity_user_data.replace("\\-code-replace-code-\\", '"')
+    unity_user_data = unity_user_data.replace("None", "null")
+
+    # 读取数据库列表
+    if not os.path.exists(f"{basepath}db/"):
+        os.makedirs(f"{basepath}db/")
+    conn = sqlite3.connect(f"{basepath}db/config.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建数据库
+    if "user_data" not in tables:
+        cursor.execute('create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))')
+
+    # 写入数据
+    cursor.execute(f"replace into 'user_data' ('unity_id','user_data') values('{unity_id}','{unity_user_data}')")
+    conn.commit()
+
+    # 关闭数据库
+    cursor.close()
+    conn.close()
+
+    return

@@ -218,7 +218,7 @@ def plugin_config(command_name: str, config_name, groupcode: str):
     dbpath = basepath + "db/"
     if not os.path.exists(dbpath):
         os.makedirs(dbpath)
-    db_path = dbpath + "comfig.db"
+    db_path = dbpath + "config.db"
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     if not os.path.exists(db_path):
@@ -432,9 +432,12 @@ async def plugin_emoji_xibao(command, command2, imgmsgs):
     return save_image(xibao_image)
 
 
-async def plugin_emoji_yizhi(user_avatar):
+async def plugin_emoji_yizhi(user_avatar:str):
     try:
-        user_image = await connect_api("image", user_avatar)
+        if user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = Image.open(user_avatar, "r")
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")

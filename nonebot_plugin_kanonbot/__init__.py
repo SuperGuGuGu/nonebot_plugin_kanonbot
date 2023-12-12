@@ -14,7 +14,8 @@ from nonebot.adapters.qq import (
 import time
 from .config import kn_config, command_list
 from .bot_run import botrun
-from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api
+from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api, get_unity_user_id, \
+    get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -249,46 +250,73 @@ async def kanon(
         time_now = str(int(time.time()))
 
         # 获取消息内容
+        unity_user_id = get_unity_user_id("qq_Official", user_id)
+        unity_user_data = get_unity_user_data(unity_user_id)
+
         # 获取用户信息
+        save = False
         if event_name == "AT_MESSAGE_CREATE":
+            # q频道
             try:
                 data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
-                user_permission = int(data.permissions)
+                unity_user_data["permission"] = int(data.permissions)
+                save = True
             except:
-                user_permission = 5
+                logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id[8:]}， user_id：{user_id}")
+                unity_user_data["permission"] = 5
             try:
                 data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
-                user_avatar = data.user.avatar
-                user_username = data.user.username
-                user_nick_name = data.nick
-                user_openid = data.user.union_openid
-                user_is_bot = data.user.bot
+                unity_user_data["avatar"] = data.user.avatar
+                unity_user_data["username"] = data.user.username
+                unity_user_data["nick_name"] = data.nick
+                unity_user_data["union_openid"] = data.user.union_openid
+                unity_user_data["is_bot"] = data.user.bot
+                save = True
             except:
-                user_avatar = None
-                user_username = None
-                user_nick_name = None
-                user_openid = None
-                user_is_bot = False
-            user_data = {
-                "id": user_id,
-                "permission": user_permission,
-                "avatar": user_avatar,
-                "username": user_username,
-                "nick_name": user_nick_name,
-                "union_openid": user_openid,
-                "is_bot": user_is_bot
-            }
+                logger.error(f"get_member API请求失败guild_id：{guild_id[8:]}， user_id：{user_id}")
         else:
             # event_name == "GROUP_AT_MESSAGE_CREATE":
-            user_data = {
-                "id": user_id,
-                "permission": 5,
-                "avatar": None,
-                "username": None,
-                "nick_name": None,
-                "union_openid": None,
-                "is_bot": False
-            }
+            # q群无api
+            pass
+
+        # 同步unity数据
+        if "user_id" not in list(unity_user_data):
+            unity_user_data["user_id"] = unity_user_id
+            save = True
+        if "username" not in list(unity_user_data):
+            unity_user_data["username"] = "user"
+            save = True
+        if "nick_name" not in list(unity_user_data):
+            unity_user_data["nick_name"] = None
+            save = True
+        if "permission" not in list(unity_user_data):
+            unity_user_data["permission"] = 5
+            save = True
+        if "avatar" not in list(unity_user_data):
+            unity_user_data["avatar"] = None
+            save = True
+        if "face_image" not in list(unity_user_data) and unity_user_data["avatar"] is not None:
+            image_path = f"{basepath}file/user_face/"
+            if not os.path.exists(image_path):
+                os.makedirs(image_path)
+            image_path += f"{unity_user_id}.png"
+            image = await connect_api("image", unity_user_data["avatar"])
+            image.save(image_path)
+            unity_user_data["face_image"] = image_path
+            save = True
+        if "face_image" not in list(unity_user_data) and unity_user_data["avatar"] is None:
+            cache_user_id = get_user_id("qq", unity_user_id)
+            if cache_user_id is not None:
+                image_path = f"{basepath}file/user_face/"
+                if not os.path.exists(image_path):
+                    os.makedirs(image_path)
+                image_path = "{basepath}" + f"file/user_face/{unity_user_id}.png"
+                image = get_qq_face(cache_user_id)
+                image.save(image_path)
+                unity_user_data["face_image"] = image_path
+                save = True
+        if save:
+            save_unity_user_data(unity_user_id, unity_user_data)
 
         # 获取at内容
         atmsgs = []
@@ -325,7 +353,6 @@ async def kanon(
             except Exception as e:
                 logger.error("获取at内容失败")
 
-
         # 获取成员名单
         friend_list = []
         group_member_list = []
@@ -341,7 +368,7 @@ async def kanon(
             "channel_id": channel_id,
             "guild_id": guild_id,
             "at_datas": at_datas,
-            "user": user_data,
+            "user": unity_user_data,
             "imgmsgs": imgmsgs,
             "event_name": event_name,
             "friend_list": friend_list,
