@@ -41,7 +41,7 @@ if not os.path.exists(basepath):
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.2.8")
+    logger.info("KanonBot-0.2.8.1")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -63,7 +63,10 @@ async def botrun(msg_info):
     at_datas: list = msg_info["at_datas"]
     user_permission: str = msg_info["user"]["permission"]
     user_id: str = msg_info["user"]["user_id"]
-    user_avatar: str = msg_info["user"]["face_image"]
+    if "face_image" in list(msg_info["user"]):
+        user_avatar: str = msg_info["user"]["face_image"]
+    else:
+        user_avatar = "None"
     user_nick_name: str = msg_info["user"]["nick_name"]
     if user_nick_name is not None:
         user_username: str = user_nick_name

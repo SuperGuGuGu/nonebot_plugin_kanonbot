@@ -934,4 +934,4 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     cursor.close()
     conn.close()
 
-    return
+    return unity_user_data

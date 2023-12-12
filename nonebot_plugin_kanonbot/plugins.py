@@ -434,7 +434,9 @@ async def plugin_emoji_xibao(command, command2, imgmsgs):
 
 async def plugin_emoji_yizhi(user_avatar:str):
     try:
-        if user_avatar.startswith("http"):
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
             user_image = await connect_api("image", user_avatar)
         else:
             user_image = Image.open(user_avatar, "r")
@@ -1082,7 +1084,6 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                 # 正在进行其他游戏
                 code = 1
                 message = f"正在进行{gamename},请先结束{gamename}"
-                game_state = "new"
         else:
             # 没有正在进行的game
             if command == "炸飞机":

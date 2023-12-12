@@ -116,7 +116,6 @@ async def kanon(
         guild_id = f"error_{user_id}"
 
     msg = str(message_event.get_message())
-    print(f"msg:{msg}")
     msg = msg.replace('"', "“").replace("'", "‘")
     msg = msg.replace("(", "（").replace(")", "）")
     msg = msg.replace("{", "（").replace("}", "）")
@@ -310,13 +309,14 @@ async def kanon(
                 image_path = f"{basepath}file/user_face/"
                 if not os.path.exists(image_path):
                     os.makedirs(image_path)
-                image_path = "{basepath}" + f"file/user_face/{unity_user_id}.png"
+                image_path += f"{unity_user_id}.png"
                 image = get_qq_face(cache_user_id)
                 image.save(image_path)
+                image_path = "{basepath}" + f"file/user_face/{unity_user_id}.png"
                 unity_user_data["face_image"] = image_path
                 save = True
         if save:
-            save_unity_user_data(unity_user_id, unity_user_data)
+            unity_user_data = save_unity_user_data(unity_user_id, unity_user_data)
 
         # 获取at内容
         atmsgs = []
