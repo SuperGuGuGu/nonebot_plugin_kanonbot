@@ -158,7 +158,7 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
         if data[1] != "sqlite_sequence":
             tables.append(data[1])
     if "checkin" not in tables:
-        cursor.execute(f"create table checkin(user_id VARCHAR(10) primary key, date BOOLEAN(20), point INT(20))")
+        cursor.execute(f"create table checkin(user_id VARCHAR(10) primary key, date VARCHAR(10), point INT(20))")
     cursor.execute(f'select * from checkin where user_id = "{user_id}"')
     data = cursor.fetchone()
     add_point = random.randint(2, 3)
@@ -171,7 +171,7 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
     else:
         last_data = data[1]
         point = data[2]
-        if data == last_data:
+        if date == last_data:
             # 已经签到过，不再签到
             state = 1
         else:
@@ -187,7 +187,7 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
     if state == 0:
         message = f"签到成功，获得{add_point}根薯条，现在有{point}根薯条"
     else:
-        message = f"今天签到过啦，{state}根薯条还不够吃嘛…>_<…"
+        message = f"今天签到过啦，{point}根薯条还不够吃嘛…QAQ…"
 
     return state, message
 
@@ -816,7 +816,7 @@ async def plugin_game_cck(command, channel_id):
         if gameing == 1:
             # 有正在进行的game
             gamename = data[1]
-            if gamename == "猜猜看":
+            if gamename == "小游戏-猜猜看":
                 # 正在进行的是猜猜看
                 if int(time_now) <= (int(data[2]) + 600):
                     # 正在运行的cck最后一次运行时间相隔现在5分钟内
@@ -836,7 +836,7 @@ async def plugin_game_cck(command, channel_id):
             else:
                 # 正在进行其他游戏
                 code = 1
-                message = f"正在进行{gamename},请先结束{gamename}"
+                message = f"正在进行{gamename}，请先结束{gamename}。\n结束指令“/{gamename} 结束”"
         else:
             # 没有正在进行的game
             if command == '猜猜看':
@@ -894,7 +894,7 @@ async def plugin_game_cck(command, channel_id):
         cursor = conn.cursor()
         cursor.execute(
             f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
-            f'"{channel_id}","猜猜看","{time_now}",True,"{gameinfo}")')
+            f'"{channel_id}","小游戏-猜猜看","{time_now}",True,"{gameinfo}")')
         cursor.close()
         conn.commit()
         conn.close()
@@ -1063,7 +1063,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
         if gameing == 1:
             # 有正在进行的game
             gamename = data[1]
-            if gamename == "炸飞机":
+            if gamename == "小游戏-炸飞机":
                 # 正在进行的是炸飞机
                 if int(time_now) <= (int(data[2]) + 300):
                     # 正在运行的炸飞机最后一次运行时间相隔现在5分钟内
@@ -1083,7 +1083,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
             else:
                 # 正在进行其他游戏
                 code = 1
-                message = f"正在进行{gamename},请先结束{gamename}"
+                message = f"正在进行{gamename}，请先结束{gamename}。\n结束指令“/{gamename} 结束”"
         else:
             # 没有正在进行的game
             if command == "炸飞机":
@@ -1268,7 +1268,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
         cursor = conn.cursor()
         cursor.execute(
             f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
-            f'"{channel_id}","炸飞机","{time_now}",True,"{gameinfo}")')
+            f'"{channel_id}","小游戏-炸飞机","{time_now}",True,"{gameinfo}")')
         cursor.close()
         conn.commit()
         conn.close()
@@ -1277,7 +1277,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                   '\n例：“@kanon/炸飞机 a1”' \
                   '\n请在10分钟内完成游戏。' \
                   '\n你拥有13颗炸弹' \
-                  '\n发送“结束炸飞机”可以提前结束游戏'
+                  '\n发送“/炸飞机 结束”可以提前结束游戏'
         code = 3
     elif game_state == "gameing":
         # 读取游戏数据
@@ -1699,7 +1699,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                         cursor = conn.cursor()
                         cursor.execute(
                             f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
-                            f'"{channel_id}","炸飞机","{time_now}",True,"{gameinfo}")')
+                            f'"{channel_id}","小游戏-炸飞机","{time_now}",True,"{gameinfo}")')
                         cursor.close()
                         conn.commit()
                         conn.close()

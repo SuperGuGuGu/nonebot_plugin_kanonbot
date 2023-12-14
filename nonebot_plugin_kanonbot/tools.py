@@ -904,12 +904,12 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     :param unity_user_data:
     :return:
     """
-    unity_user_data = str(unity_user_data)
+    unity_user_data_str = str(unity_user_data)
     # 替换同义词
-    unity_user_data = unity_user_data.replace("'", '\\-code-replace-code-\\')
-    unity_user_data = unity_user_data.replace('"', "'")
-    unity_user_data = unity_user_data.replace("\\-code-replace-code-\\", '"')
-    unity_user_data = unity_user_data.replace("None", "null")
+    unity_user_data_str = unity_user_data_str.replace("'", '\\-code-replace-code-\\')
+    unity_user_data_str = unity_user_data_str.replace('"', "'")
+    unity_user_data_str = unity_user_data_str.replace("\\-code-replace-code-\\", '"')
+    unity_user_data_str = unity_user_data_str.replace("None", "null")
 
     # 读取数据库列表
     if not os.path.exists(f"{basepath}db/"):
@@ -927,7 +927,7 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
         cursor.execute('create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))')
 
     # 写入数据
-    cursor.execute(f"replace into 'user_data' ('unity_id','user_data') values('{unity_id}','{unity_user_data}')")
+    cursor.execute(f"replace into 'user_data' ('unity_id','user_data') values('{unity_id}','{unity_user_data_str}')")
     conn.commit()
 
     # 关闭数据库
