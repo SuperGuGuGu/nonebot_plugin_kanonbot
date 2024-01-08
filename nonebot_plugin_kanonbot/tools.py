@@ -2,6 +2,8 @@
 import re
 import string
 import httpx
+import requests
+import toml
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import sqlite3
@@ -11,7 +13,6 @@ from nonebot import logger
 import nonebot
 import os
 import shutil
-from .config import kn_config
 import asyncio
 import time
 
@@ -87,6 +88,110 @@ def get_command(msg: str) -> list:
                 break
         commands.append(command)
     return commands
+
+
+def kn_config(config_name: str):
+    """
+    获取配置。
+    获取"kanon_api-url"时，相当于获取"config["kanon_api"]["url"]"的配置项
+    :param config_name: 获取的配置名称
+    :return: 配置内容
+    """
+    path = basepath + "kanon_config.toml"
+
+    def save_config():
+        with open(path, 'w') as config_file:
+            toml.dump(config, config_file)
+
+    if not os.path.exists(path):
+        config = {
+            "Kanon_Config": {
+                "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
+            "knapi": {
+                "url": "http://cdn.kanon.ink"}}
+        save_config()
+        nonebot.logger.info("未存在KanonBot配置文件，正在创建")
+    config = toml.load(path)
+
+    # 下面这堆代码自己都快看不懂了，有空再重构一下
+    # 用“-”来分段
+    config_group = config_name
+    if config_name == "kanon_api-url":
+        if "kanon_api" in list(config):
+            if "url" not in list(config["kanon_api"]):
+                config["kanon_api"]["url"] = "http://cdn.kanon.ink"
+                save_config()
+        else:
+            config["kanon_api"] = {"url": "http://cdn.kanon.ink"}
+            save_config()
+        return config["kanon_api"]["url"]
+    elif config_name == "kanon_api-state":
+        if "kanon_api" in list(config):
+            if "state" not in list(config["kanon_api"]):
+                config["kanon_api"]["state"] = True
+                save_config()
+        else:
+            config["kanon_api"] = {"state": True}
+            save_config()
+        return config["kanon_api"]["state"]
+    elif config_name == "kanon_api-unity_key":
+        if "kanon_api" in list(config):
+            if "unity_key" not in list(config["kanon_api"]):
+                config["kanon_api"]["unity_key"] = "none"
+                save_config()
+        else:
+            config["kanon_api"] = {"unity_key": "none"}
+            save_config()
+        return config["kanon_api"]["unity_key"]
+    elif config_name == "emoji-state":
+        if "emoji" in list(config):
+            if "state" not in list(config["emoji"]):
+                config["emoji"]["state"] = True
+                save_config()
+        else:
+            config["emoji"] = {"state": True}
+            save_config()
+        return config["emoji"]["state"]
+    elif config_name == "emoji-mode":
+        if "emoji" in list(config):
+            if "mode" not in list(config["emoji"]):
+                config["emoji"]["mode"] = "file"
+                save_config()
+        else:
+            config["emoji"] = {"mode": "file"}
+            save_config()
+        return config["emoji"]["mode"]
+    elif config_name == "botswift-state":
+        if "botswift" in list(config):
+            if "state" not in list(config["botswift"]):
+                config["botswift"]["state"] = False
+                save_config()
+        else:
+            config["botswift"] = {"state": False}
+            save_config()
+        return config["botswift"]["state"]
+    elif config_name == "botswift-ignore_list":
+        if "botswift" in list(config):
+            if "ignore_list" not in list(config["botswift"]):
+                config["botswift"]["ignore_list"] = []
+                save_config()
+        else:
+            config["botswift"] = {"ignore_list": []}
+            save_config()
+        return config["botswift"]["ignore_list"]
+    elif config_name == "":
+        return
+    elif config_name == "":
+        return
+    elif config_name == "":
+        return
+    elif config_name == "":
+        return
+    elif config_name == "":
+        return
+    elif config_name == "":
+        return
+    return False
 
 
 def get_qq_face(qq, size: int = 640):
@@ -245,7 +350,7 @@ def locked(lockdb):
     return locking
 
 
-def command_cd(user_id, groupcode, timeshort, coolingdb):
+def command_cd(user_id, groupcode, timeshort: int, coolingdb):
     cooling = 'off'
     # 冷却时间，单位S
     coolingtime = '60'
@@ -287,7 +392,6 @@ def command_cd(user_id, groupcode, timeshort, coolingdb):
             if cooling == 'off':
                 #  判断时间，time-冷却时间再判断
                 timeshortdata = int(data[2]) + int(coolingtime)
-                timeshort = int(timeshort)
                 if timeshortdata >= timeshort:
                     # 小于冷却时间，冷却次数+1
                     coolingnumber = int(data[1]) + 1
@@ -296,18 +400,16 @@ def command_cd(user_id, groupcode, timeshort, coolingdb):
                         cooling = 'on'
                         # 大于次数，开启冷却,写入
                         coolingnumber = str(coolingnumber)
-                        timeshort = str(timeshort)
                         cursor.execute(
                             f'replace into {groupcode}(userid,number,time,cooling) '
                             f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
                         timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                        coolingtime = str(timeshortdata - int(timeshort))
+                        coolingtime = str(timeshortdata - timeshort)
                     else:
                         # 小于写入
 
                         cooling = 'off'
                         coolingnumber = str(coolingnumber)
-                        timeshort = str(timeshort)
                         cursor.execute(
                             f'replace into {groupcode}(userid,number,time,cooling) '
                             f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
@@ -315,19 +417,16 @@ def command_cd(user_id, groupcode, timeshort, coolingdb):
                     # 大于冷却时间，重新写入
                     coolingnumber = '1'
                     cooling = 'off'
-                    timeshort = str(timeshort)
                     cursor.execute(
                         f'replace into {groupcode}(userid,number,time,cooling) '
                         f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
             else:
                 timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                timeshort = int(timeshort)
                 if timeshortdata >= timeshort:
                     coolingtime = str(timeshortdata - timeshort)
                 else:
                     coolingnumber = '1'
                     cooling = 'off'
-                    timeshort = str(timeshort)
                     cursor.execute(
                         f'replace into {groupcode}(userid,number,time,cooling) '
                         f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
@@ -631,6 +730,7 @@ def save_image(image, user_id: str = str(random.randint(1000, 9999))):
         else:
             returnpath = f"{returnpath}_{random_num}.png"
             break
+    logger.debug(f"保存图片文件：{returnpath}")
     image.save(returnpath)
     return returnpath
 
@@ -781,6 +881,16 @@ def get_unity_user_id(platform: str, user_id: str):
             else:
                 random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
+            # 保留号段
+            pass_str = False
+            for strr in ["KN", "Kn", "kN", "kn", "KA", "Ka", "kA", "ka", "SG", "sg", "0",  "444",  "41",  "S1",  "S8",
+                         "SB", "250", "69", "79", "NC", "58",  "5B",  "64",  "63",  "SX",  "NT",  "n7"]:
+                if strr in random_str:
+                    # 重新选
+                    pass_str = True
+            if pass_str:
+                continue
+
             cursor.execute(f'SELECT * FROM "id_list" WHERE unity_id = "{random_str}"')
             data = cursor.fetchone()
 
@@ -883,7 +993,7 @@ def get_unity_user_data(unity_user_id: str):
         try:
             unity_user_data = json.loads(data)
         except Exception as e:
-            logger.error("读取json数据出错,json:data")
+            logger.error(f"读取json数据出错,json:{data}")
             unity_user_data = {}
 
     # 关闭数据库
@@ -904,12 +1014,7 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     :param unity_user_data:
     :return:
     """
-    unity_user_data_str = str(unity_user_data)
-    # 替换同义词
-    unity_user_data_str = unity_user_data_str.replace("'", '\\-code-replace-code-\\')
-    unity_user_data_str = unity_user_data_str.replace('"', "'")
-    unity_user_data_str = unity_user_data_str.replace("\\-code-replace-code-\\", '"')
-    unity_user_data_str = unity_user_data_str.replace("None", "null")
+    unity_user_data_str = json_to_str(unity_user_data)
 
     # 读取数据库列表
     if not os.path.exists(f"{basepath}db/"):
@@ -935,3 +1040,17 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     conn.close()
 
     return unity_user_data
+
+
+def json_to_str(json_data):
+    text = str(json_data)
+
+    # 替换同义词
+    text = text.replace("'", '\\-code-replace-code-\\')
+    text = text.replace('"', "'")
+    text = text.replace("\\-code-replace-code-\\", '"')
+    text = text.replace("None", "null")
+    text = text.replace("True", "true")
+    text = text.replace("False", "false")
+
+    return text

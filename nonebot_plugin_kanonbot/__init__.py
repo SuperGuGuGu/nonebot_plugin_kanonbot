@@ -12,10 +12,10 @@ from nonebot.adapters.qq import (
     MessageEvent
     )
 import time
-from .config import kn_config, command_list, _config_list
+from .config import command_list, _config_list
 from .bot_run import botrun
-from .tools import get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api, get_unity_user_id, \
-    get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face
+from .tools import (kn_config, get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api,
+                    get_unity_user_id, get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face)
 
 config = nonebot.get_driver().config
 # 读取配置
@@ -61,6 +61,11 @@ try:
     command_starts = config.COMMAND_START
 except Exception as e:
     command_starts = ["/"]
+# 配置test：
+try:
+    kanon_test = config.KanonBetaTest
+except Exception as e:
+    kanon_test = False
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -212,6 +217,7 @@ async def kanon(
         for cache_command in list(cache_commandlist):
             if command.startswith(cache_command):
                 commandname = cache_commandlist[cache_command]
+                msg = f"{cache_command} {command.removeprefix(cache_command)}"
                 run = True
                 break
 
@@ -263,6 +269,7 @@ async def kanon(
         if commandname in ["亲亲", "可爱", "咬咬", "摸摸", "贴贴", "逮捕"]:
             if len(command) >= 7:
                 run = False
+
     # 开始处理消息
     if run:
         # 创建变量内容
@@ -277,7 +284,7 @@ async def kanon(
         date_day = str(time.strftime("%d", time.localtime()))
         time_now = str(int(time.time()))
 
-        # 获取消息内容
+        # 获取用户信息
         unity_user_id = get_unity_user_id("qq_Official", user_id)
         unity_user_data = get_unity_user_data(unity_user_id)
 
@@ -385,6 +392,7 @@ async def kanon(
         # 获取成员名单
         friend_list = []
         group_member_list = []
+        channel_member_datas = {}
 
         msg = re.sub(u"<.*?>", "", msg)
         commands = get_command(msg)
@@ -401,7 +409,7 @@ async def kanon(
             "imgmsgs": imgmsgs,
             "event_name": event_name,
             "friend_list": friend_list,
-            "group_member_list": group_member_list
+            "channel_member_datas": channel_member_datas
         }
         logger.debug(msg_info)
         data = await botrun(msg_info)

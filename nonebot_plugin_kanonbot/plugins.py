@@ -6,9 +6,12 @@ from nonebot import logger
 import nonebot
 import os
 import sqlite3
-from .config import kn_config, _zhanbu_datas, _config_list
-from .tools import connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, circle_corner
+from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
+from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
+    circle_corner, \
+    get_command, get_unity_user_data, json_to_str
 from PIL import Image, ImageDraw, ImageFont
+import numpy
 
 config = nonebot.get_driver().config
 # 配置2：
@@ -106,7 +109,7 @@ async def plugin_zhanbu(user_id, cachepath):
                     zhanbu_message = zhanbu_data[ids]["message"]
                     break
 
-            message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
+            message = f"抽到这张牌哦：{zhanbu_name}\n{zhanbu_message}"
             if kn_config("kanon_api-state"):
                 # 如果开启了api，则从服务器下载占卜数据
                 returnpath = f"{basepath}image/占卜2/"
@@ -190,6 +193,419 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
         message = f"今天签到过啦，{point}根薯条还不够吃嘛…QAQ…"
 
     return state, message
+
+
+async def plugin_jellyfish_box(user_id: str, channel_id: str, msg: str, time_now: int):
+    """
+    群聊功能-水母箱
+    :return:
+    """
+    """
+    命令列表：
+    水母箱：总命令，输入可查看水母箱和相关指令列表
+    帮助: 指令说明
+    抓水母: 抓水母，并放入箱中
+    投喂: 往杠中添加饲料
+    换水: 恢复水质状态
+    丢弃: 丢弃指定水母
+    装饰: 开启装饰模式指令
+    结束: 关闭水母箱对话进程
+    """
+    # 指令解析
+    commands = get_command(msg)
+    command = commands[0]
+    if len(commands) > 1:
+        command2 = commands[1]
+    else:
+        command2 = None
+
+    # 添加必要参数
+    code = 0
+    message = None
+    returunpath = None
+    jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
+    event_datas = jellyfish_box_datas["event_datas"]  # 所有事件
+    jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
+    food_datas = jellyfish_box_datas["food_datas"]  # 所有事件
+    ornament_datas = jellyfish_box_datas["ornament_datas"]  # 所有装饰物
+    medal_datas = jellyfish_box_datas["medal_datas"]  # 所有事件
+
+    # 添加数据参数
+    news = []
+    new_jellyfish = []
+    command_prompt_list = []
+    """
+    示例：
+    :param news: 新增的水母列表
+    :param new_jellyfish: 新闻列表，显示最近的动态
+    :param prompt_list: 指令列表，建议可以输入的指令
+
+    nwes = [
+        {
+        "icon": file_path,  # 图片路径
+        "title": "标题",
+        "message": "事件介绍"
+        },
+        {
+        "icon": None,  # 没有图片
+        "title": "这是没有图标的消息事件",
+        "message": "这条消息没有图标，这是为什么呢？"
+        }
+    ]
+
+    new_jellyfish = [
+        {
+        "id": id,  # 水母的id
+        "icon": file_path,  # 一般会有图片
+        "name": "水母名称",
+        "message": "水母介绍"
+        },
+        {
+        "icon": file_path, 
+        "name": "一般来说会有图片",
+        "message": "这条消息没有图标，这是为什么呢？"
+        }
+    ]
+
+    prompt_list = [
+        {
+        "name": "/水母箱 抓水母",
+        "message": "发送指令来获取新水母"
+        }
+    ]
+    """
+
+    # 读取用户水母箱的状态
+    if not os.path.exists(f"{basepath}db/"):
+        os.makedirs(f"{basepath}db/")
+    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "jellyfish_box" not in tables:
+            cursor.execute(
+                'create table "jellyfish_box"'
+                '(user_id VARCHAR(10) primary key, data VARCHAR(10))')
+        cursor.execute(f'SELECT * FROM "jellyfish_box" WHERE user_id = "{user_id}"')
+        data = cursor.fetchone()
+        logger.info("水母箱读取用户数据成功")
+    except:
+        logger.error("水母箱读取用户数据出错")
+        data = "error"
+    cursor.close()
+    conn.close()
+
+    if data is None:
+        box_data = {
+            "info": {
+                "oner": user_id,
+                "oner_name": get_unity_user_data(user_id)["username"]
+            },
+            "sign_in_time": int(time_now / 3600 - 1) * 3600,  # 上次抓水母时间小时计算
+            "refresh_time": int(time_now / 3600) * 3600,  # 更新时间小时计算
+            "jellyfish": {"j1": {"number": 3}},
+            "ornament": {},
+            "salinity": 30,  # 千分盐度
+            "temperature": 25  # 温度
+        }
+    else:
+        box_data = json.loads(data[1])
+
+    # 更新水母箱状态，并写入
+    refresh: bool = False  # 判断是否更新
+    refresh_period: int = 0  # 要更新的周期
+    if (time_now - box_data["refresh_time"]) > 3600:
+        # 超过1小时，进行更新
+        refresh_period = int((time_now - box_data["refresh_time"]) / 3600)  # 要更新的周期数量，int
+        if refresh_period > 0:
+            refresh = True
+            box_data["refresh_time"] += refresh_period * 3600
+    if refresh:
+        # 更新数据
+        logger.info("正在刷新水母箱")
+        if len(box_data["jellyfish"]) == 0:
+            # 无水母，仅更新时间
+            box_data["refresh_time"] = int(time_now / 3600) * 3600
+        elif command not in ["水母箱", "抓水母"]:
+            pass  # 运行命令中，跳过更新
+        else:
+            # 更新时间并更新事件
+            box_data["refresh_time"] = int(time_now / 3600) * 3600
+            # 提取事件id与事件概率，用来选取事件
+            event_list = []
+            event_probability = []
+            for event_id in event_datas:
+                event_list.append(event_id)
+                event_probability.append(event_datas[event_id]["probability"] / 100000)
+            p_num = 1  # 数列总数需要等于1
+            for probability in event_probability:
+                p_num -= probability
+            event_list.append(None)
+            event_probability.append(p_num)
+
+            # 按周期更新数据
+            while refresh_period > 0:
+                refresh_period -= 1
+                # 随机发生的事件数
+                event_num = 5
+                while event_num > 0:
+                    event_num -= 1
+                    # 开始随机事件
+                    p = numpy.array(event_probability).ravel()
+                    event_id = numpy.random.choice(event_list, p=p)
+                    # event_id = "e2"
+                    if event_id is None or event_id not in ["e1"]:
+                        continue
+                    # 准备事件
+                    event_name = event_datas[event_id]["name"]
+                    event_message = event_datas[event_id]["message"]
+                    event_icon = await get_file_path(f"plugin-jellyfish_box-{event_id}")
+                    event_run = False
+                    if event_name in []:
+                        # 无变化中立事件
+                        news.append({"icon": event_icon, "title": event_icon, "message": event_message})
+                    elif event_id == "e1":
+                        # 判断事件是否成立
+                        # 计算未受保护的水母的数量
+                        jellyfish_list = []
+                        for jellyfish_id in box_data["jellyfish"]:
+                            if jellyfish_datas[jellyfish_id]["protected"] is False:
+                                num = box_data["jellyfish"][jellyfish_id]["number"]
+                                while num > 0:
+                                    num -= 1
+                                    jellyfish_list.append(jellyfish_id)
+                        if len(jellyfish_list) < 11:
+                            break  # 少于11条，跳过事件
+                        # 进行数据修改
+                        subtract_quantity = int(len(jellyfish_list) / 10)  # 要减去的数量
+                        # 挑选减去的列表
+                        choose_list = []
+                        while subtract_quantity > 0:
+                            subtract_quantity -= 1
+                            choose_list.append(random.choice(jellyfish_list))
+                        # 修改现有数据
+                        for jellyfish_id in choose_list:
+                            box_data["jellyfish"][jellyfish_id]["number"] -= 1
+                            if box_data["jellyfish"][jellyfish_id]["number"] == 0:
+                                box_data["jellyfish"].pop(jellyfish_id)
+                        # 总结事件
+                        event_message = event_message.replace("{num}", str(len(choose_list)))
+
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                    elif event_id == "":
+                        # 判断事件是否成立
+                        event_run = True
+                        if event_run:
+                            # 进行数据修改
+                            # 总结事件
+                            news.append({"icon": event_icon, "title": event_icon, "message": event_message})
+                    elif event_id == "":
+                        # 判断事件是否成立
+                        event_run = True
+                        if event_run:
+                            # 进行数据修改
+                            # 总结事件
+                            news.append({"icon": event_icon, "title": event_icon, "message": event_message})
+                    elif event_id == "":
+                        # 判断事件是否成立
+                        event_run = True
+                        if event_run:
+                            # 进行数据修改
+                            # 总结事件
+                            news.append({"icon": event_icon, "title": event_icon, "message": event_message})
+                    else:
+                        news.append(
+                            {"icon": event_icon, "title": "程序出错事件", "message": "什么都没发生，只是代码出现了问题"})
+
+        # 写入水母箱数据
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"replace into 'jellyfish_box' ('user_id','data') values('{user_id}','{json_to_str(box_data)}')")
+            conn.commit()
+            logger.info("水母箱保存用户数据成功")
+        except:
+            logger.error("水母箱保存用户数据出错")
+        cursor.close()
+        conn.close()
+
+    async def draw_jellyfish_box():
+        """
+        绘制状态图
+        :return: 图片路径
+        """
+        """
+        示例：
+        :param bd: 水母箱数据 user_box_data
+        :param news: 新增的水母列表
+        :param new_jellyfish: 新闻列表，显示最近的动态
+        :param command_list: 指令列表，建议可以输入的指令
+        """
+        print(f"draw:\nnews:{news}\nnew_jellyfish:{new_jellyfish}\ncommand_prompt_list:{command_prompt_list}")
+
+        async def draw_jellyfish(size=(910, 558)):
+            j_image = Image.new("RGBA", size, (0, 0, 0, 0))
+            x, y = size
+            for jellyfish_id in box_data["jellyfish"]:
+                # jellyfish_data = jellyfish_datas[jellyfish_id]
+                number = box_data["jellyfish"][jellyfish_id]["number"]
+                file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
+                paste_image = Image.open(file_path, "r")
+                paste_image = paste_image.resize((100, 100))
+                while number > 0:
+                    number -= 1
+
+                    paste_x = random.randint(0, (x - 100))
+                    paste_y = random.randint(0, (y - 100))
+                    direction = random.randint(-179, 180)
+                    paste_image = paste_image.rotate(direction)
+                    j_image.paste(paste_image, (paste_x, paste_y), mask=paste_image)
+
+            return j_image
+
+        # 计算长度
+        x = 1000
+        y = 600
+        # 添加基础高度（图片头）
+        # 添加水母箱高度
+        # 添加新水母高度
+        # 添加事件高度
+        # 添加指令介绍高度
+
+        # 创建底图
+        image = Image.new("RGBA", (x, y), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        paste_image = Image.new("RGB", (x, y), "#8fd4f6")
+        image.paste(paste_image, (0, 0))
+        # 绘制内容
+
+        # 添加标题
+
+        # 添加水母箱
+        paste_image = await draw_jellyfish((910, 558))
+        image.paste(paste_image, (45, 45), paste_image)
+
+        # 添加水母箱状态
+
+        # 添加新水母
+
+        # 添加事件
+
+        # 添加指令介绍
+
+        return save_image(image)
+
+    # 判断指令
+    if command == "水母箱":
+        returunpath = await draw_jellyfish_box()
+        code = 2
+    elif command == "抓水母":
+        # 抓水母 每2小时7200秒抓一次
+        time_difference = time_now - box_data["sign_in_time"]
+        if time_difference < 7200:
+            t_text = ""
+            if time_difference > 3600:
+                t_hour = int(time_difference / 3600)
+                time_difference -= t_hour * 3600
+                t_text += f"{t_hour}小时"
+            if time_difference > 60:
+                t_minute = int(time_difference / 60)
+                time_difference -= t_minute * 60
+                t_text += f"{t_minute}分钟"
+            t_text += f"{time_difference}秒"
+
+            code = 1
+            message = f"别抓啦，过{t_text}再来吧"
+        else:
+            box_data["sign_in_time"] = time_now
+            # 随机数量
+            jellyfish_num = 0
+            if len(box_data["jellyfish"]) == 0:
+                grab_quantity = random.randint(4, 6)
+            else:
+                for jellyfish_id in box_data["jellyfish"]:
+                    jellyfish_num += box_data["jellyfish"][jellyfish_id]["number"]
+                if jellyfish_num < 10:
+                    grab_quantity = random.randint(3, 4)
+                elif jellyfish_num < 20:
+                    grab_quantity = random.randint(2, 3)
+                elif jellyfish_num < 50:
+                    grab_quantity = random.randint(1, 2)
+                else:
+                    grab_quantity = 1
+            if jellyfish_num > 200:
+                code = 1
+                message = "别抓啦，水母箱已经满啦"
+            else:
+                # 随机水母类型
+                group = ["normal", "good", "great", "perfect", "ocean"]
+                group_probability = [0.90, 0.10, 0.00, 0.00, 0.00]
+                p = numpy.array(group_probability).ravel()
+                choose_group = numpy.random.choice(group, p=p)
+                choose_list = []
+                for jellyfish_id in jellyfish_datas:
+                    if jellyfish_datas[jellyfish_id]["group"] == choose_group:
+                        choose_list.append(jellyfish_id)
+                choose_jellyfish = random.choice(choose_list)
+                # 添加到水母箱数据库中
+                if choose_jellyfish not in list(box_data["jellyfish"]):
+                    # 新水母，添加数据
+                    box_data["jellyfish"][choose_jellyfish] = {"number": grab_quantity}
+                else:
+                    box_data["jellyfish"][choose_jellyfish]["number"] += grab_quantity
+
+                # 写入水母箱数据
+                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        f"replace into 'jellyfish_box' ('user_id','data') values('{user_id}','{json_to_str(box_data)}')")
+                    conn.commit()
+                    logger.info("水母箱保存用户数据成功")
+                except:
+                    logger.error("水母箱保存用户数据出错")
+                cursor.close()
+                conn.close()
+
+                file_path = await get_file_path(f"plugin-jellyfish_box-{choose_jellyfish}.png")
+                jellyfish_name = jellyfish_datas[choose_jellyfish]["name"]
+                message = f"抓到了{grab_quantity}只"
+                new_jellyfish.append(
+                    {"id": choose_jellyfish, "icon": file_path, "name": jellyfish_name, "message": message}
+                )
+
+                # 绘制
+                returunpath = await draw_jellyfish_box()
+                code = 2
+    elif command == "投喂":
+        # 投喂
+
+        # 保存
+
+        # 绘制
+        returunpath = await draw_jellyfish_box()
+        code = 2
+    elif command == "换水":
+        pass
+    elif command == "丢弃":
+        pass
+    elif command == "水母榜":
+        pass
+    elif command == "装饰":
+        pass
+    else:
+        code = 1
+        message = "错误命令"
+
+    # code = 1
+    # message = "水母箱指令"
+    return code, message, returunpath
 
 
 def plugin_config(command_name: str, config_name, groupcode: str):
@@ -327,11 +743,11 @@ async def plugin_emoji_xibao(command, command2, imgmsgs):
         else:
             try:
                 xibao_image = await connect_api("image", url)
-                image.save(file_path)
+                xibao_image.save(file_path)
             except Exception as e:
-                image = await draw_text("获取图片出错", 50, 10)
-                logger.error(f"获取图片出错:{e}")
-                return save_image(image)
+                xibao_image = await draw_text("获取图片出错", 50, 10)
+                logger.error(f"368-获取图片出错:{e}")
+                return save_image(xibao_image)
     else:
         xibao_image = Image.new("RGB", (600, 450), (0, 0, 0))
 
@@ -432,7 +848,7 @@ async def plugin_emoji_xibao(command, command2, imgmsgs):
     return save_image(xibao_image)
 
 
-async def plugin_emoji_yizhi(user_avatar:str):
+async def plugin_emoji_yizhi(user_avatar: str):
     try:
         if user_avatar in [None, "None", "none"]:
             user_image = await draw_text("图片", 50, 10)
@@ -460,9 +876,14 @@ async def plugin_emoji_yizhi(user_avatar:str):
     return save_image(imageyizhi)
 
 
-async def plugin_emoji_keai(user_avatar, user_name):
+async def plugin_emoji_keai(user_avatar: str, user_name: str):
     try:
-        user_image = await connect_api("image", user_avatar)
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = Image.open(user_avatar, "r")
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -492,39 +913,56 @@ async def plugin_emoji_keai(user_avatar, user_name):
     return save_image(image)
 
 
-async def plugin_emoji_jiehun(user_avatar, user_name):
+async def plugin_emoji_jiehun(user_avatar, name1, name2):
     try:
-        user_image = await connect_api("image", user_avatar)
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = Image.open(user_avatar, "r")
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
     user_image = image_resize2(user_image, (640, 640), overturn=False)
 
     image = Image.new("RGB", (640, 640), "#FFFFFF")
-    draw = ImageDraw.Draw(image)
     path = await get_file_path("plugin-jiehun-jiehun.png")
     paste_image = Image.open(path, mode="r")
+    image.paste(user_image, (0, 0), mask=user_image)
     image.paste(paste_image, (0, 0), mask=paste_image)
 
     # 添加名字1
-    textlen = len(user_name)
-    if textlen >= 10:
-        user_name = str(user_name[0:9])
-        user_name += "..."
+    if len(name1) >= 10:
+        name1 = name1[0:9] + "..."
 
     imagetext = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
-    paste_image = await draw_text(user_name, 17, 13)
+    paste_image = await draw_text(name1, 17, 13)
     imagetext.paste(paste_image, (0, 90), mask=paste_image)
-
     imagetext = imagetext.rotate(-18.5)
-    image.paste(imagetext, (0, 100), mask=imagetext)
+    image.paste(imagetext, (40, 443), mask=imagetext)
+
+    # 添加名字1
+    if len(name2) >= 10:
+        name2 = name2[0:9] + "..."
+
+    imagetext = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    paste_image = await draw_text(name2, 17, 13)
+    imagetext.paste(paste_image, (0, 90), mask=paste_image)
+    imagetext = imagetext.rotate(-18.5)
+    image.paste(imagetext, (210, 500), mask=imagetext)
 
     return save_image(image)
 
 
 async def plugin_emoji_momo(user_avatar):
     try:
-        user_image = await connect_api("image", user_avatar)
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = Image.open(user_avatar, "r")
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -832,7 +1270,7 @@ async def plugin_game_cck(command, channel_id):
                     else:
                         game_state = "exit"
                         code = 1
-                        message = "时间超时，请重新开始"
+                        message = f"{gamename}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
                 code = 1
@@ -1079,7 +1517,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                     else:
                         game_state = "exit"
                         code = 1
-                        message = "时间超时，请重新开始"
+                        message = f"{gamename}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
                 code = 1
@@ -1807,4 +2245,15 @@ async def plugin_game_blowplane(command: str, channel_id: str):
 
                     returnpath = save_image(image)
 
+    elif game_state == "exit":
+        # 手动退出game状态
+        # 将”结束游戏状态“写入到数据库
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f'"{channel_id}","none","0",False,"none")')
+        cursor.close()
+        conn.commit()
+        conn.close()
     return code, message, returnpath

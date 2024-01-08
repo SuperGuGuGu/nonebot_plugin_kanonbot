@@ -1,7 +1,8 @@
 # coding=utf-8
-import toml
+import json
 import nonebot
 import os
+from .tools import get_file_path
 
 config = nonebot.get_driver().config
 # 配置2：
@@ -20,110 +21,6 @@ except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 
 
-def kn_config(config_name: str):
-    """
-    获取配置。
-    获取"kanon_api-url"时，相当于获取"config["kanon_api"]["url"]"的配置项
-    :param config_name: 获取的配置名称
-    :return: 配置内容
-    """
-    path = basepath + "kanon_config.toml"
-
-    def save_config():
-        with open(path, 'w') as config_file:
-            toml.dump(config, config_file)
-
-    if not os.path.exists(path):
-        config = {
-            "Kanon_Config": {
-                "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
-            "knapi": {
-                "url": "http://cdn.kanon.ink"}}
-        save_config()
-        nonebot.logger.info("未存在KanonBot配置文件，正在创建")
-    config = toml.load(path)
-
-    # 下面这堆代码自己都快看不懂了，有空再重构一下
-    # 用“-”来分段
-    config_group = config_name
-    if config_name == "kanon_api-url":
-        if "kanon_api" in list(config):
-            if "url" not in list(config["kanon_api"]):
-                config["kanon_api"]["url"] = "http://cdn.kanon.ink"
-                save_config()
-        else:
-            config["kanon_api"] = {"url": "http://cdn.kanon.ink"}
-            save_config()
-        return config["kanon_api"]["url"]
-    elif config_name == "kanon_api-state":
-        if "kanon_api" in list(config):
-            if "state" not in list(config["kanon_api"]):
-                config["kanon_api"]["state"] = True
-                save_config()
-        else:
-            config["kanon_api"] = {"state": True}
-            save_config()
-        return config["kanon_api"]["state"]
-    elif config_name == "kanon_api-unity_key":
-        if "kanon_api" in list(config):
-            if "unity_key" not in list(config["kanon_api"]):
-                config["kanon_api"]["unity_key"] = "none"
-                save_config()
-        else:
-            config["kanon_api"] = {"unity_key": "none"}
-            save_config()
-        return config["kanon_api"]["unity_key"]
-    elif config_name == "emoji-state":
-        if "emoji" in list(config):
-            if "state" not in list(config["emoji"]):
-                config["emoji"]["state"] = True
-                save_config()
-        else:
-            config["emoji"] = {"state": True}
-            save_config()
-        return config["emoji"]["state"]
-    elif config_name == "emoji-mode":
-        if "emoji" in list(config):
-            if "mode" not in list(config["emoji"]):
-                config["emoji"]["mode"] = "file"
-                save_config()
-        else:
-            config["emoji"] = {"mode": "file"}
-            save_config()
-        return config["emoji"]["mode"]
-    elif config_name == "botswift-state":
-        if "botswift" in list(config):
-            if "state" not in list(config["botswift"]):
-                config["botswift"]["state"] = False
-                save_config()
-        else:
-            config["botswift"] = {"state": False}
-            save_config()
-        return config["botswift"]["state"]
-    elif config_name == "botswift-ignore_list":
-        if "botswift" in list(config):
-            if "ignore_list" not in list(config["botswift"]):
-                config["botswift"]["ignore_list"] = []
-                save_config()
-        else:
-            config["botswift"] = {"ignore_list": []}
-            save_config()
-        return config["botswift"]["ignore_list"]
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    return False
-
-
 def _config_list():
     """
     获取功能列表，可以对应地找命令名对应的功能。
@@ -131,16 +28,17 @@ def _config_list():
     """
     configs = {
         "zhanbu": {"state": True, "message": "抽卡牌 (发送：抽卡牌)", "group": "群聊功能", "name": "抽卡牌"},
+        "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
+        "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
+        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
         "喜报": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
         "一直": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
-        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
-        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
-        "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "摸摸": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
         "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
-        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
+        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
         "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
-        "jiehun": {"state": False, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
         "qinqin": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
         "tietie": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
         "daibu": {"state": False, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
@@ -179,13 +77,17 @@ def command_list():
             "一直": "表情功能-一直",
             "摸摸": "表情功能-摸摸",
             "可爱": "表情功能-可爱",
+            "结婚": "表情功能-结婚",
+            "合成": "表情功能-emoji",
             "cck": "小游戏-猜猜看",
             "bzd": "小游戏-猜猜看",
             "猜猜看": "小游戏-猜猜看",
             "是": "小游戏-猜猜看",
             "炸飞机": "小游戏-炸飞机",
             "签到": "群聊功能-签到",
-            "合成": "表情功能-emoji",
+            "水母箱": "群聊功能-水母箱",
+            "抓水母": "群聊功能-水母箱",
+            "塔罗牌": "群聊功能-zhanbu",
             "爬": "表情功能-pa",
             "洗": "表情功能-洗了",
             "洗了": "表情功能-洗了",
@@ -195,7 +97,6 @@ def command_list():
             "急": "表情功能-ji2",
             "我是谁": "表情功能-woshishei",
             "我老婆": "表情功能-wolaopo",
-            "结婚": "表情功能-jiehun",
             "结婚证": "表情功能-jiehunzheng",
             "👊": "表情功能-quanquan",
             "给你一拳": "表情功能-quanquan",
@@ -208,7 +109,6 @@ def command_list():
             "😡👊": "表情功能-quanquan",
             "买薯条": "群聊功能-chickin",
             "吃薯条": "群聊功能-chickin",
-            "抽卡牌": "群聊功能-zhanbu",
             "今日老婆": "群聊功能-jinrilaopo",
             "jrlp": "群聊功能-jinrilaopo",
             "wlp是谁": "图库功能-wlp",
@@ -400,3 +300,12 @@ def _zhanbu_datas():
                      "155": {"name": "星币骑士逆位", "message": "懈怠、思想保守、发展停滞不前"},
                      "156": {"name": "星币侍从逆位", "message": "知识贫乏、自我认知不足、金钱上面临损失、视野狭窄"}}}
     return datas
+
+
+async def _jellyfish_box_datas():
+    file_path = await get_file_path("plugin-jellyfish_box-box_data.json")
+    f = open(file_path)
+    data = f.read()
+    f.close()
+    json_data = json.loads(data)
+    return json_data
