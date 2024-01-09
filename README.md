@@ -8,6 +8,8 @@ KanonBot - nb2 插件版
 
 （以下方法三选一）
 
+默认为adapter-qq。如需其他适配器请下载文件，在adapters文件夹找到对应文件，更改名字为`__init__.py` 并覆盖插件文件中的文件
+
 一.命令行安装：
 
     nb plugin install nonebot-plugin-kanonbot
@@ -22,7 +24,7 @@ KanonBot - nb2 插件版
 
     plugins = [”nonebot-plugin-kanonbot“]
 
-三.使用插件文件安装：（不推荐）
+三.使用插件文件安装：
 
 1.下载插件文件，放到 plugins 文件夹。
 
@@ -40,7 +42,7 @@ KanonBot - nb2 插件版
 
     kanonbot_basepath="./KanonBot/"
 
-在 KanonBot 文件夹 的 kanon_config.toml 文件中选填配置
+在 KanonBot 文件夹 的 kanon\_config.toml 文件中选填配置
 
 ```
 [kanon_api]
@@ -70,22 +72,25 @@ ignore_list = ["123456"]
 
 ## 已移植内容：
 
-- [x] 占卜
+*   [x] 占卜
 
-- [ ] emoji
+*   [ ] emoji
 
-- [x] 喜报/悲报
+*   [x] 喜报/悲报
 
-- [x] 一直（仅频道）
+*   [x] 一直（仅频道）
 
-- [x] 猜猜看
-- 
-- [x] 炸飞机
+*   [x] 猜猜看
 
-- [x] 指令冷却
+*
+
+*   [x] 炸飞机
+
+*   [x] 指令冷却
 
 ## 交流
 
-- 交流群[鸽子窝里有鸽子（291788927）](https://qm.qq.com/cgi-bin/qm/qr?k=QhOk7Z2jaXBOnAFfRafEy9g5WoiETQhy&jump_from=webapi&authKey=fCvx/auG+QynlI8bcFNs4Csr2soR8UjzuwLqrDN9F8LDwJrwePKoe89psqpozg/m)
+*   交流群[鸽子窝里有鸽子（291788927）](https://qm.qq.com/cgi-bin/qm/qr?k=QhOk7Z2jaXBOnAFfRafEy9g5WoiETQhy\&jump_from=webapi\&authKey=fCvx/auG+QynlI8bcFNs4Csr2soR8UjzuwLqrDN9F8LDwJrwePKoe89psqpozg/m)
 
-- 有疑问或者建议都可以进群唠嗑唠嗑。
+*   有疑问或者建议都可以进群唠嗑唠嗑。
+
