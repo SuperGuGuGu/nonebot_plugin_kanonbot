@@ -4,22 +4,27 @@ import nonebot
 import os
 from .tools import get_file_path
 
-config = nonebot.get_driver().config
-# 配置2：
 try:
-    basepath = config.kanonbot_basepath
-    if "\\" in basepath:
-        basepath = basepath.replace("\\", "/")
-    if basepath.startswith("./"):
-        basepath = os.path.abspath('.') + basepath.removeprefix(".")
-        if not basepath.endswith("/"):
-            basepath += "/"
-    else:
-        if not basepath.endswith("/"):
-            basepath += "/"
+    config = nonebot.get_driver().config
+    # 配置2：
+    try:
+        basepath = config.kanonbot_basepath
+        if "\\" in basepath:
+            basepath = basepath.replace("\\", "/")
+        if basepath.startswith("./"):
+            basepath = os.path.abspath('.') + basepath.removeprefix(".")
+            if not basepath.endswith("/"):
+                basepath += "/"
+        else:
+            if not basepath.endswith("/"):
+                basepath += "/"
+    except Exception as e:
+        basepath = os.path.abspath('.') + "/KanonBot/"
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 
+if "\\" in basepath:
+    basepath = basepath.replace("\\", "/")
 
 def _config_list():
     """

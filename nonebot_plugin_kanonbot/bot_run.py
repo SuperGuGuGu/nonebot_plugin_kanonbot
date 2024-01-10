@@ -14,32 +14,39 @@ from nonebot import logger
 import os
 import sqlite3
 
-config = nonebot.get_driver().config
-# 配置1
 try:
-    adminqq = list(config.superusers)
+    config = nonebot.get_driver().config
+    # 配置1
+    try:
+        adminqq = list(config.superusers)
+    except Exception as e:
+        adminqq = []
+    # 配置2：
+    try:
+        basepath = config.kanonbot_basepath
+        if "\\" in basepath:
+            basepath = basepath.replace("\\", "/")
+        if basepath.startswith("./"):
+            basepath = os.path.abspath('.') + basepath.removeprefix(".")
+            if not basepath.endswith("/"):
+                basepath += "/"
+        else:
+            if not basepath.endswith("/"):
+                basepath += "/"
+    except Exception as e:
+        basepath = os.path.abspath('.') + "/KanonBot/"
 except Exception as e:
     adminqq = []
-# 配置2：
-try:
-    basepath = config.kanonbot_basepath
-    if "\\" in basepath:
-        basepath = basepath.replace("\\", "/")
-    if basepath.startswith("./"):
-        basepath = os.path.abspath('.') + basepath.removeprefix(".")
-        if not basepath.endswith("/"):
-            basepath += "/"
-    else:
-        if not basepath.endswith("/"):
-            basepath += "/"
-except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
 if not os.path.exists(basepath):
     os.makedirs(basepath)
 
+if "\\" in basepath:
+    basepath = basepath.replace("\\", "/")
+
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.0")
+    logger.info("KanonBot-0.3.1")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -66,9 +73,9 @@ async def botrun(msg_info):
     else:
         user_avatar = None
     if msg_info["user"]["nick_name"] is not None:
-        user_username: str = msg_info["user"]["nick_name"]
+        user_name: str = msg_info["user"]["nick_name"]
     else:
-        user_username: str = msg_info["user"]["username"]
+        user_name: str = msg_info["user"]["username"]
     commandname: str = msg_info["commandname"]
     guild_id: str = msg_info["guild_id"]
     channel_id: str = msg_info["channel_id"]
@@ -290,18 +297,20 @@ async def botrun(msg_info):
                 else:
                     logger.info(f"run-{commandname}")
                     code, message, returnpath = await plugin_jellyfish_box(
-                        user_id,
-                        channel_id,
-                        command,
-                        time_now
+                        user_id=user_id,
+                        user_name=user_name,
+                        channel_id=channel_id,
+                        msg=command,
+                        time_now=time_now
                     )
             else:
                 logger.info(f"run-{commandname}")
                 code, message, returnpath = await plugin_jellyfish_box(
-                    user_id,
-                    channel_id,
-                    command,
-                    time_now
+                    user_id=user_id,
+                    user_name=user_name,
+                    channel_id=channel_id,
+                    msg=command,
+                    time_now=time_now
                 )
 
     elif commandname.startswith("表情功能-"):
@@ -391,18 +400,18 @@ async def botrun(msg_info):
                 else:
                     logger.info(f"run-{commandname}")
                     if command2 is not None:
-                        user_username = command2
+                        user_name = command2
                     if imgmsgs:
-                        returnpath = await plugin_emoji_keai(imgmsgs[0], user_username)
+                        returnpath = await plugin_emoji_keai(imgmsgs[0], user_name)
                     else:
-                        returnpath = await plugin_emoji_keai(user_avatar, user_username)
+                        returnpath = await plugin_emoji_keai(user_avatar, user_name)
                     code = 2
             else:
                 logger.info(f"run-{commandname}")
                 if imgmsgs:
-                    returnpath = await plugin_emoji_keai(imgmsgs[0], user_username)
+                    returnpath = await plugin_emoji_keai(imgmsgs[0], user_name)
                 else:
-                    returnpath = await plugin_emoji_keai(user_avatar, user_username)
+                    returnpath = await plugin_emoji_keai(user_avatar, user_name)
                 code = 2
         elif "结婚" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
@@ -423,10 +432,10 @@ async def botrun(msg_info):
                             name1 = command2[0]
                             name2 = command2[1]
                         else:
-                            name1 = user_username
+                            name1 = user_name
                             name2 = command2
                     else:
-                        name1 = user_username
+                        name1 = user_name
                         name2 = " "
                     if imgmsgs:
                         returnpath = await plugin_emoji_jiehun(imgmsgs[0], name1, name2)
@@ -441,10 +450,10 @@ async def botrun(msg_info):
                         name1 = command2[0]
                         name2 = command2[1]
                     else:
-                        name1 = user_username
+                        name1 = user_name
                         name2 = command2
                 else:
-                    name1 = user_username
+                    name1 = user_name
                     name2 = " "
                 if imgmsgs:
                     returnpath = await plugin_emoji_jiehun(imgmsgs[0], name1, name2)

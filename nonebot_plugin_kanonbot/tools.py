@@ -17,27 +17,33 @@ import asyncio
 import time
 
 # 读取配置文件
-config = nonebot.get_driver().config
-# 配置2：
 try:
-    basepath = config.kanonbot_basepath
-    if "\\" in basepath:
-        basepath = basepath.replace("\\", "/")
-    if basepath.startswith("./"):
-        basepath = os.path.abspath('.') + basepath.removeprefix(".")
-        if not basepath.endswith("/"):
-            basepath += "/"
-    else:
-        if not basepath.endswith("/"):
-            basepath += "/"
+    config = nonebot.get_driver().config
+    # 配置2：
+    try:
+        basepath = config.kanonbot_basepath
+        if "\\" in basepath:
+            basepath = basepath.replace("\\", "/")
+        if basepath.startswith("./"):
+            basepath = os.path.abspath('.') + basepath.removeprefix(".")
+            if not basepath.endswith("/"):
+                basepath += "/"
+        else:
+            if not basepath.endswith("/"):
+                basepath += "/"
+    except Exception as e:
+        basepath = os.path.abspath('.') + "/KanonBot/"
+    # 配置3：
+    try:
+        command_starts = config.COMMAND_START
+    except Exception as e:
+        command_starts = ["/"]
 except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
-# 配置3：
-try:
-    command_starts = config.COMMAND_START
-except Exception as e:
     command_starts = ["/"]
 
+if "\\" in basepath:
+    basepath = basepath.replace("\\", "/")
 
 def get_command(msg: str) -> list:
     """
