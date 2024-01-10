@@ -46,7 +46,7 @@ if "\\" in basepath:
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.2")
+    logger.info("KanonBot-0.3.4")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):

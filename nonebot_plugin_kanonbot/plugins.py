@@ -358,23 +358,31 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             while refresh_period > 0:
                 refresh_period -= 1
                 # 随机发生的事件数
-                event_num = 5
+                event_num = 1
                 while event_num > 0:
                     event_num -= 1
                     # 开始随机事件
                     p = numpy.array(event_probability).ravel()
                     event_id = numpy.random.choice(event_list, p=p)
-                    # event_id = "e2"
-                    if event_id is None or event_id not in ["e1"]:
+                    if event_id is None or event_id not in ["e1", "e2", "e3", "e4"]:
                         continue
                     # 准备事件
                     event_name = event_datas[event_id]["name"]
                     event_message = event_datas[event_id]["message"]
-                    event_icon = await get_file_path(f"plugin-jellyfish_box-{event_id}")
-                    event_run = False
-                    if event_name in []:
+                    event_icon = None
+                    if event_id in ["e2"]:
                         # 无变化中立事件
-                        news.append({"icon": event_icon, "title": event_icon, "message": event_message})
+                        jellyfish_list = []
+                        for jellyfish_id in box_data["jellyfish"]:
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                        if len(jellyfish_list) < 1:
+                            break  # 没有水母，跳过事件
+                        if len(news) < 7:
+                            # 超过7条就不发中立事件的内容
+                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     elif event_id == "e1":
                         # 判断事件是否成立
                         # 计算未受保护的水母的数量
@@ -403,27 +411,102 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                         event_message = event_message.replace("{num}", str(len(choose_list)))
 
                         news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                    elif event_id == "e3":
+                        # 判断事件是否成立
+                        # 计算未受保护的水母的数量
+                        jellyfish_list = []
+                        for jellyfish_id in box_data["jellyfish"]:
+                            if int(jellyfish_datas[jellyfish_id]["reproductive_rate"]) > 0:
+                                num = box_data["jellyfish"][jellyfish_id]["number"]
+                                while num > 0:
+                                    num -= 1
+                                    jellyfish_list.append(jellyfish_id)
+                        if len(jellyfish_list) < 1:
+                            break  # 少于1条，跳过事件
+                        # 计算事件发生的内容
+                        new_jellyfish_list = []
+                        for jellyfish_id in jellyfish_list:
+                            reproductive_rate = int(jellyfish_datas[jellyfish_id]["reproductive_rate"])
+                            if random.randint(0, 30) < reproductive_rate:
+                                new_jellyfish_list.append(jellyfish_id)
+                        if len(new_jellyfish_list) > 1:
+                            # 总结事件
+                            event_message = f"新增了{len(new_jellyfish_list)}只水母，分别是:"
+                            # 统计各种水母的数量，转成json
+                            new_jellyfish_datas = {}
+                            for jellyfish_id in new_jellyfish_list:
+                                if jellyfish_id not in list(new_jellyfish_datas):
+                                    new_jellyfish_datas[jellyfish_id] = 1
+                                else:
+                                    new_jellyfish_datas[jellyfish_id] += 1
+                            # 进行数据修改
+                            for jellyfish_id in new_jellyfish_datas:
+                                number = new_jellyfish_datas[jellyfish_id]
+                                box_data["jellyfish"][jellyfish_id]["number"] += number
+
+                            # 读取水母名称并添加到列表
+                            for jellyfish_id in new_jellyfish_datas:
+                                jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
+                                jellyfish_number = new_jellyfish_datas[jellyfish_id]
+                                event_message += f"{jellyfish_name}{jellyfish_number}只、"
+                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                    elif event_id == "e4":
+                        # 判断事件是否成立
+                        # 计算未受保护的水母的数量
+                        jellyfish_list = []
+                        for jellyfish_id in box_data["jellyfish"]:
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                        if len(jellyfish_list) < 1:
+                            break  # 少于1条，跳过事件
+                        # 计算事件发生的内容
+                        new_jellyfish_list = []
+                        num = 5
+                        while num > 0:
+                            num -= 1
+                            new_jellyfish_list.append(random.choice(jellyfish_list))
+
+                        # 统计各种水母的数量，转成json
+                        new_jellyfish_datas = {}
+                        for jellyfish_id in new_jellyfish_list:
+                            if jellyfish_id not in list(new_jellyfish_datas):
+                                new_jellyfish_datas[jellyfish_id] = 1
+                            else:
+                                new_jellyfish_datas[jellyfish_id] += 1
+
+                        # 进行数据修改
+                        for jellyfish_id in new_jellyfish_datas:
+                            number = new_jellyfish_datas[jellyfish_id]
+                            box_data["jellyfish"][jellyfish_id]["number"] += number
+
+                        # 读取水母名称并添加到列表
+                        event_message += ":"
+                        for jellyfish_id in new_jellyfish_datas:
+                            jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
+                            jellyfish_number = new_jellyfish_datas[jellyfish_id]
+                            event_message += f"{jellyfish_name}{jellyfish_number}只、"
+                        # 总结事件
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     elif event_id == "":
                         # 判断事件是否成立
-                        event_run = True
-                        if event_run:
-                            # 进行数据修改
-                            # 总结事件
-                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                        # 计算事件发生的内容
+                        # 进行数据修改
+                        # 总结事件
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     elif event_id == "":
                         # 判断事件是否成立
-                        event_run = True
-                        if event_run:
-                            # 进行数据修改
-                            # 总结事件
-                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                        # 计算事件发生的内容
+                        # 进行数据修改
+                        # 总结事件
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     elif event_id == "":
                         # 判断事件是否成立
-                        event_run = True
-                        if event_run:
-                            # 进行数据修改
-                            # 总结事件
-                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                        # 计算事件发生的内容
+                        # 进行数据修改
+                        # 总结事件
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     else:
                         news.append(
                             {"icon": event_icon, "title": "程序出错事件", "message": "什么都没发生，只是代码出现了问题"})
@@ -463,18 +546,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         j_image = Image.new("RGBA", (x, y), (0, 0, 0, 0))
         for jellyfish_id in box_data["jellyfish"]:
             # 读取要绘制水母的数据
-            jellyfish_data = jellyfish_datas[jellyfish_id]
             number = box_data["jellyfish"][jellyfish_id]["number"]  # 绘制数量
             # 读取绘制的图片，并缩放
             file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
             paste_image = Image.open(file_path, "r")
             paste_image = paste_image.resize((j_size, j_size))
             w, h = paste_image.size
-            living_location = jellyfish_data["living_location"]
+            living_locations = jellyfish_datas[jellyfish_id]["living_location"]
             while number > 0:
                 number -= 1
                 # 判断水母所在区域
-                living_location = random.choice(living_location)
+                living_location = random.choice(living_locations)
                 if living_location == "中":
                     paste_x = random.randint(0, (x - w))
                     paste_y = random.randint(0, (y - h))
@@ -591,7 +673,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         font = ImageFont.truetype(font=font_shsk_M_path, size=40)
         draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=(54, 55, 57), font=font)
 
-        font = ImageFont.truetype(font=font_shsk_M_path, size=100)
+        font = ImageFont.truetype(font=font_shsk_M_path, size=70)
         draw.text(xy=(draw_x + 54, draw_y + 112), text=user_name, fill=(46, 130, 238), font=font)
 
         # 假装绘制头像
