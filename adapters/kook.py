@@ -17,55 +17,64 @@ from .bot_run import botrun
 from .tools import kn_config, get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api, get_unity_user_id, \
     get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face
 
-config = nonebot.get_driver().config
-# 读取配置
-# -》无需修改代码文件，请在“.env”文件中改。《-
-#
-# 配置1：
-# 管理员账号SUPERUSERS
-# 需要添加管理员权限，参考如下：
-# SUPERUSERS=["12345678"]
-#
-# 配置2：
-# 文件存放目录
-# 该目录是存放插件数据的目录，参考如下：
-# bilipush_basepath="./"
-# bilipush_basepath="C:/"
-#
-# 配置3：
-# 读取自定义的命令前缀
-# COMMAND_START=["/", ""]
-#
-
-# 配置1
 try:
-    adminqq = list(config.superusers)
+    config = nonebot.get_driver().config
+    # 读取配置
+    # -》无需修改代码文件，请在“.env”文件中改。《-
+    #
+    # 配置1：
+    # 管理员账号SUPERUSERS
+    # 需要添加管理员权限，参考如下：
+    # SUPERUSERS=["12345678"]
+    #
+    # 配置2：
+    # 文件存放目录
+    # 该目录是存放插件数据的目录，参考如下：
+    # bilipush_basepath="./"
+    # bilipush_basepath="C:/"
+    #
+    # 配置3：
+    # 读取自定义的命令前缀
+    # COMMAND_START=["/", ""]
+    #
+
+    # 配置1
+    try:
+        adminqq = list(config.superusers)
+    except Exception as e:
+        adminqq = []
+    # 配置2：
+    try:
+        basepath = config.kanonbot_basepath
+        if "\\" in basepath:
+            basepath = basepath.replace("\\", "/")
+        if basepath.startswith("./"):
+            basepath = os.path.abspath('.') + basepath.removeprefix(".")
+            if not basepath.endswith("/"):
+                basepath += "/"
+        else:
+            if not basepath.endswith("/"):
+                basepath += "/"
+    except Exception as e:
+        basepath = os.path.abspath('.') + "/KanonBot/"
+    # 配置3：
+    try:
+        command_starts = config.COMMAND_START
+    except Exception as e:
+        command_starts = ["/"]
+    # 配置test：
+    try:
+        kanon_test = config.KanonBetaTest
+    except Exception as e:
+        kanon_test = False
 except Exception as e:
     adminqq = []
-# 配置2：
-try:
-    basepath = config.kanonbot_basepath
-    if "\\" in basepath:
-        basepath = basepath.replace("\\", "/")
-    if basepath.startswith("./"):
-        basepath = os.path.abspath('.') + basepath.removeprefix(".")
-        if not basepath.endswith("/"):
-            basepath += "/"
-    else:
-        if not basepath.endswith("/"):
-            basepath += "/"
-except Exception as e:
     basepath = os.path.abspath('.') + "/KanonBot/"
-# 配置3：
-try:
-    command_starts = config.COMMAND_START
-except Exception as e:
     command_starts = ["/"]
-# 配置test：
-try:
-    kanon_test = config.KanonBetaTest
-except Exception as e:
     kanon_test = False
+
+if "\\" in basepath:
+    basepath = basepath.replace("\\", "/")
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -109,14 +118,18 @@ async def kanon(
     logger.info("bot run")
     botid = str(bot.self_id)
     user_id = message_event.get_user_id()
+    platform = "Kook"
 
     # 获取群号
     session_id = message_event.get_session_id()  # group_频道id_用户id 或 p*_用户id
     if session_id.startswith("group"):
-        channel_id = f"channel_{message_event.target_id}"
-        guild_id = f"channel_{message_event.extra.guild_id}"
+        channel_id = message_event.target_id
+        guild_id = message_event.extra.guild_id
+        unity_channel_id = f"channel_{platform}_{message_event.target_id}"
+        unity_guild_id = f"channel_{platform}_{message_event.extra.guild_id}"
     else:
-        guild_id = channel_id = f"private_{user_id}"
+        guild_id = channel_id = user_id
+        unity_guild_id = unity_channel_id = f"private_{platform}_{user_id}"
 
     msg = str(message_event.get_message())
     msg = msg.replace('"', "“").replace("'", "‘")
@@ -179,7 +192,7 @@ async def kanon(
     # 识别绑定
     if run is False:
         if command == "绑定" and len(commands) > 1:
-            unity_user_id = get_unity_user_id("Kook", user_id)
+            unity_user_id = get_unity_user_id(platform, user_id)
             if not os.path.exists(f"{basepath}db/"):
                 os.makedirs(f"{basepath}db/")
             conn = sqlite3.connect(f"{basepath}db/config.db")
@@ -303,10 +316,6 @@ async def kanon(
     if run:
         # 创建变量内容
         code = 0
-        dbpath = basepath + "db/"
-        configdb = dbpath + 'config.db'
-        autoreplydb = dbpath + 'autoreply.db'
-        userdatas_db = dbpath + "userdatas.db"
         date = str(time.strftime("%Y-%m-%d", time.localtime()))
         date_year = str(time.strftime("%Y", time.localtime()))
         date_month = str(time.strftime("%m", time.localtime()))
@@ -314,23 +323,23 @@ async def kanon(
         time_now = str(int(time.time()))
 
         # 获取用户信息
-        unity_user_id = get_unity_user_id("Kook", user_id)
+        unity_user_id = get_unity_user_id(platform, user_id)
         unity_user_data = get_unity_user_data(unity_user_id)
 
         # 获取用户信息
         save = False
         # q频道
         # try:
-        #     data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
+        #     data = await bot.get_channel_permissions(channel_id=channel_id, user_id=user_id)
         #     unity_user_data["permission"] = int(data.permissions)
         #     save = True
         # except:
-        #     logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id[8:]}， user_id：{user_id}")
+        #     logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id}， user_id：{user_id}")
         # 所有用户默认5普通用户权限
         unity_user_data["permission"] = 5
         if run:
             member_data = await bot.call_api(
-                "/api/v3/user/view", guild_id=guild_id[8:], user_id=user_id
+                "/api/v3/user/view", guild_id=guild_id, user_id=user_id
             )
             # print(f"member_data{member_data}")
 
@@ -341,8 +350,7 @@ async def kanon(
             unity_user_data["is_bot"] = member_data.bot
             save = True
         else:
-            logger.error(f"get_member API请求失败guild_id：{guild_id[8:]}， user_id：{user_id}")
-
+            logger.error(f"get_member API请求失败guild_id：{unity_guild_id}， user_id：{user_id}")
 
         # 同步unity数据
         if "user_id" not in list(unity_user_data):
@@ -406,7 +414,7 @@ async def kanon(
         at_datas = []
         for id in atmsgs:
             try:
-                data = await bot.get_member(guild_id=guild_id[8:], user_id=id)
+                data = await bot.get_member(guild_id=guild_id, user_id=id)
                 at_data = {
                     "id": id,
                     "username": data.user.username,
@@ -426,17 +434,15 @@ async def kanon(
         # 特定功能获取消息
         channel_member_datas = {}
         if commandname in ["jinrilaopo", "群聊功能-jinrilaopo", "reply"]:
-            allgroupmember_data = await bot.call_api("/api/v3/guild/user-list", guild_id=guild_id[8:])
+            allgroupmember_data = await bot.call_api("/api/v3/guild/user-list", guild_id=guild_id)
             print("allgroupmember_data")
             for data in allgroupmember_data.users:
                 user_id = data.id_
                 user_name = data.username
-                print(f"username{user_name}")
                 nickname = data.nickname
                 is_bot = data.bot
                 face_url = data.avatar
                 user_status = data.status  # 貌似是权限
-                print(f"user_status{user_status}")
 
                 channel_member_datas[user_id] = {
                     "user_id": user_id,
@@ -455,14 +461,15 @@ async def kanon(
             "commands": commands,
             "commandname": commandname,
             "bot_id": botid,
-            "channel_id": channel_id,
-            "guild_id": guild_id,
+            "channel_id": unity_channel_id,
+            "guild_id": unity_guild_id,
             "at_datas": at_datas,
             "user": unity_user_data,
             "imgmsgs": imgmsgs,
             "event_name": "message_event",
+            "platform": platform,
             "friend_list": friend_list,
-            "channel_member_datas": channel_member_datas
+            "channel_member_datas": channel_member_datas,
         }
         logger.info(msg_info)
         data = await botrun(msg_info)
@@ -481,7 +488,7 @@ async def kanon(
             else:
                 await bot.send_msg(
                     message_type="channel",
-                    channel_id=channel_id[8:],
+                    channel_id=channel_id,
                     message=msg
                 )
         if code in [2, 3, 4, 5]:
@@ -496,7 +503,7 @@ async def kanon(
             else:
                 await bot.send_msg(
                     message_type="channel",
-                    channel_id=channel_id[8:],
+                    channel_id=channel_id,
                     message=msg
                 )
         if code in [4, 5]:
@@ -511,7 +518,7 @@ async def kanon(
             else:
                 await bot.send_msg(
                     message_type="channel",
-                    channel_id=channel_id[8:],
+                    channel_id=channel_id,
                     message=msg
                 )
         if code in [5]:
@@ -526,7 +533,7 @@ async def kanon(
             else:
                 await bot.send_msg(
                     message_type="channel",
-                    channel_id=channel_id[8:],
+                    channel_id=channel_id,
                     message=msg
                 )
     await run_kanon.finish()

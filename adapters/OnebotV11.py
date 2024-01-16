@@ -114,17 +114,27 @@ run_kanon = on_message(priority=10, block=False)
 @run_kanon.handle()
 async def kanon(event: Event, bot: Bot):
     # 获取消息基础信息
-    logger.info("bot run")
     botid = str(bot.self_id)
     user_id = str(event.get_user_id())
+    platform = "qq"
 
     # 获取群号
     if isinstance(event, GroupMessageEvent):
         # 群消息
-        guild_id = channel_id = f"group_qq_{event.group_id}"
+        unity_guild_id = unity_channel_id = f"group_{platform}_{event.group_id}"
+        guild_id = channel_id = event.group_id
     else:
         # 私聊
-        guild_id = channel_id = f"private_qq_{user_id}"
+        unity_guild_id = unity_channel_id = f"private_{platform}_{user_id}"
+        guild_id = channel_id = user_id
+
+    # 黑白名单
+    if unity_channel_id in kn_config("plugin-channel_black_list"):
+        await run_kanon.finish()  # 黑名单直接退出
+    elif unity_channel_id in kn_config("plugin-channel_white_list"):
+        pass  # 白名单继续运行
+    else:
+        pass  # 继续运行
 
     msg = str(event.get_message())
     msg = re.sub(u"\\[.*?]", "", msg)  # 去除cq码
@@ -280,9 +290,16 @@ async def kanon(event: Event, bot: Bot):
         code = 0
 
         # 获取用户信息
-        unity_user_id = get_unity_user_id("qq", user_id)
+        unity_user_id = get_unity_user_id(platform, user_id)
         unity_user_data = get_unity_user_data(unity_user_id)
         save = False
+
+        if unity_user_id in kn_config("plugin-user_black_list"):
+            await run_kanon.finish()  # 黑名单直接退出
+        elif unity_user_id in kn_config("plugin-user_white_list"):
+            pass  # 白名单继续运行
+        else:
+            pass  # 继续运行
 
         try:
             data = await bot.get_stranger_info(user_id=int(user_id), no_cache=False)
@@ -337,7 +354,7 @@ async def kanon(event: Event, bot: Bot):
             commandname_list = ["jinrilaopo"]
             if commandname in commandname_list:
                 try:
-                    group_member_list = await bot.get_group_member_list(group_id=int(channel_id[9:]))
+                    group_member_list = await bot.get_group_member_list(group_id=int(channel_id))
                 except Exception as e:
                     logger.error("获取群成员列表出错")
                     group_member_list = []
@@ -355,7 +372,7 @@ async def kanon(event: Event, bot: Bot):
                 info_premission = '0'  # 群员
             # 如果群聊内at机器人，则添加at信息。
             if event.is_tome():
-                at_datas.append({"id": botid, "platform": "qq"})
+                at_datas.append({"id": botid, "platform": platform})
         else:
             # 私聊
             pass
@@ -376,12 +393,13 @@ async def kanon(event: Event, bot: Bot):
             "commands": commands,
             "commandname": commandname,
             "bot_id": botid,
-            "channel_id": channel_id,
-            "guild_id": guild_id,
+            "channel_id": unity_channel_id,
+            "guild_id": unity_guild_id,
             "at_datas": at_datas,
             "user": unity_user_data,
             "imgmsgs": imgmsgs,
             "event_name": "message_event",
+            "platform": platform,
             "friend_list": friend_list,
             "channel_member_datas": channel_member_datas
         }

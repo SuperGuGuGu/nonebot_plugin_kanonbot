@@ -109,16 +109,20 @@ async def kanon(
     botid = str(bot.self_id)
     event_name = message_event.get_event_name()
     user_id = message_event.get_user_id()
+    platform = "qq_Official"
 
     # 获取群号
     if event_name == "GROUP_AT_MESSAGE_CREATE":
-        guild_id = channel_id = f"group_{message_event.group_id}"
+        guild_id = channel_id = message_event.group_id
+        unity_guild_id = unity_channel_id = f"group_{platform}_{message_event.group_id}"
     elif event_name == "AT_MESSAGE_CREATE":
-        channel_id = f"channel_{message_event.channel_id}"
-        guild_id = f"channel_{message_event.guild_id}"
+        channel_id = message_event.channel_id
+        guild_id = message_event.guild_id
+        unity_channel_id = f"channel_{platform}_{message_event.channel_id}"
+        unity_guild_id = f"channel_{platform}_{message_event.guild_id}"
     else:
-        channel_id = f"error_{user_id}"
-        guild_id = f"error_{user_id}"
+        channel_id = guild_id = user_id
+        unity_channel_id = unity_guild_id = f"else_{platform}_{user_id}"
 
     msg = str(message_event.get_message())
     msg = msg.replace('"', "“").replace("'", "‘")
@@ -285,22 +289,22 @@ async def kanon(
         time_now = str(int(time.time()))
 
         # 获取用户信息
-        unity_user_id = get_unity_user_id("qq_Official", user_id)
+        unity_user_id = get_unity_user_id(platform, user_id)
         unity_user_data = get_unity_user_data(unity_user_id)
 
         # 获取用户信息
         save = False
         if event_name == "AT_MESSAGE_CREATE":
             # q频道
+            # try:
+            #     data = await bot.get_channel_permissions(channel_id=channel_id, user_id=user_id)
+            #     unity_user_data["permission"] = int(data.permissions)
+            #     save = True
+            # except:
+            #     logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id}， user_id：{user_id}")
+            #     unity_user_data["permission"] = 5
             try:
-                data = await bot.get_channel_permissions(channel_id=channel_id[8:], user_id=user_id)
-                unity_user_data["permission"] = int(data.permissions)
-                save = True
-            except:
-                logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id[8:]}， user_id：{user_id}")
-                unity_user_data["permission"] = 5
-            try:
-                data = await bot.get_member(guild_id=guild_id[8:], user_id=user_id)
+                data = await bot.get_member(guild_id=guild_id, user_id=user_id)
                 unity_user_data["avatar"] = data.user.avatar
                 unity_user_data["username"] = data.user.username
                 unity_user_data["nick_name"] = data.nick
@@ -308,7 +312,7 @@ async def kanon(
                 unity_user_data["is_bot"] = data.user.bot
                 save = True
             except:
-                logger.error(f"get_member API请求失败guild_id：{guild_id[8:]}， user_id：{user_id}")
+                logger.error(f"get_member API请求失败guild_id：{guild_id}， user_id：{user_id}")
         else:
             # event_name == "GROUP_AT_MESSAGE_CREATE":
             # q群无api
@@ -376,7 +380,7 @@ async def kanon(
         at_datas = []
         for id in atmsgs:
             try:
-                data = await bot.get_member(guild_id=guild_id[8:], user_id=id)
+                data = await bot.get_member(guild_id=guild_id, user_id=id)
                 at_data = {
                     "id": id,
                     "username": data.user.username,
@@ -402,12 +406,13 @@ async def kanon(
             "commands": commands,
             "commandname": commandname,
             "bot_id": botid,
-            "channel_id": channel_id,
-            "guild_id": guild_id,
+            "channel_id": unity_channel_id,
+            "guild_id": unity_guild_id,
             "at_datas": at_datas,
             "user": unity_user_data,
             "imgmsgs": imgmsgs,
             "event_name": event_name,
+            "platform": platform,
             "friend_list": friend_list,
             "channel_member_datas": channel_member_datas
         }

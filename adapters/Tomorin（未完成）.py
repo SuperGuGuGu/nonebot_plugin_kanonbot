@@ -15,6 +15,7 @@ def kanon_xibao_created(session: SessionExtension):
 async def kanon(session: SessionExtension):
     print("name插件")
     # 读取消息内容
+    platform = "Tomorin"
     msg = session.message.command.text
     commands = get_command(msg)
     command = commands[0]
@@ -52,6 +53,7 @@ async def kanon(session: SessionExtension):
         "at_datas": [],
         "user": unity_user_data,
         "imgmsgs": [],
+        "platform": platform,
         "event_name": "message_event",
         "friend_list": [],
         "channel_member_datas": {}
