@@ -68,6 +68,18 @@ state = false
 # 忽略该功能的群号/子频道号
 ignore_list = ["123456"]
 
+[plugin]
+# 频道黑白名单
+# 不在名单内则继续，同时在名单内不会运行
+channel_white_list = []  # 
+channel_black_list = []  # 
+# 用户id，为unity_id，并非真实id。对应id在config.db的id_list表中查看。
+# 不在名单内则继续，同时在名单内不会运行
+user_black_list = []  # 用户白名单
+user_white_list = []  # 用户黑名单
+# at消息包含有机器人列表的机器人话，则不运行
+bot_list = []  # 
+
 ```
 
 ## 已移植内容：
