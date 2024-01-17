@@ -46,7 +46,7 @@ if "\\" in basepath:
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.4")
+    logger.info("KanonBot-0.3.7")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -84,9 +84,32 @@ async def botrun(msg_info):
     friend_list: list = msg_info["friend_list"]
     group_member_datas = msg_info["channel_member_datas"]
     event_name: str = msg_info["event_name"]
+    platform: str = msg_info["platform"]
 
     username = None
     qq2name = None
+
+    # 黑白名单
+    # 频道黑白名单
+    if channel_id in kn_config("plugin-channel_black_list"):
+        return {"code": 0}  # 结束运行
+    elif channel_id in kn_config("plugin-channel_white_list"):
+        pass
+    else:
+        return {"code": 0}  # 结束运行
+
+    # 用户黑白名单
+    if user_id in kn_config("plugin-user_black_list"):
+        return {"code": 0}  # 结束运行
+    elif user_id in kn_config("plugin-user_white_list"):
+        pass
+    else:
+        pass
+
+    # 跳过at其他bot的消息
+    for at_data in at_datas:
+        if str(at_data["id"]) in kn_config("plugin-bot_list"):
+            return {"code": 0}  # 结束运行
 
     # ## 变量初始化 ##
     date: str = time.strftime("%Y-%m-%d", time.localtime())
@@ -97,6 +120,7 @@ async def botrun(msg_info):
     time_m: str = time.strftime("%M", time.localtime())
     time_s: str = time.strftime("%S", time.localtime())
     time_now: int = int(time.time())
+    config_list = _config_list()
 
     cachepath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
@@ -157,47 +181,40 @@ async def botrun(msg_info):
         try:
             if not os.path.exists(f"{basepath}db/config.db"):
                 # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                cursor.execute(f"create table {guild_id}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+                cursor.execute(
+                    f"create table command_state(command VARCHAR(10) primary key, "
+                    f"state BOOLEAN(10), VARCHAR(10))")
             cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
             datas = cursor.fetchall()
             tables = []
             for data in datas:
                 if data[1] != "sqlite_sequence":
                     tables.append(data[1])
-            if guild_id not in tables:
-                cursor.execute(f"create table {guild_id}(command VARCHAR(10) primary key, state BOOLEAN(20))")
-            cursor.execute(f'SELECT * FROM {guild_id} WHERE command = "{channel_id}-{commandname}"')
+            if "command_state" not in tables:
+                cursor.execute(
+                    f"create table command_state(command VARCHAR(10) primary key, "
+                    f"state BOOLEAN(10), channel_id VARCHAR(10))")
+            cursor.execute(
+                f'SELECT * FROM command_state WHERE "command" = "{commandname}" AND "channel_id" = "{channel_id}"')
             data = cursor.fetchone()
             if data is not None:
                 state = data[1]
             else:
-                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-                datas = cursor.fetchall()
-                # 数据库列表转为序列
-                tables = []
-                for data in datas:
-                    if data[1] != "sqlite_sequence":
-                        tables.append(data[1])
-                if "list" not in tables:
-                    cursor.execute("create table list(command VARCHAR(10) primary key, state BOOLEAN(20), "
-                                   "message VARCHAR(20), 'group' VARCHAR(20), name VARCHAR(20))")
-                cursor.execute(f'SELECT * FROM list WHERE command="{channel_id}-{commandname}"')
-                data = cursor.fetchone()
-                if data is not None:
-                    state = data[1]
-                    cursor.execute(
-                        f'replace into {guild_id} ("command","state") values("{channel_id}-{commandname}",{state})')
-                    conn.commit()
+                if commandname in list(config_list):
+                    state = config_list[commandname]["state"]
                 else:
-                    config_list = _config_list()
-                    if commandname in list(config_list):
-                        state = config_list[commandname]["state"]
-                    else:
-                        state = False
-        finally:
-            pass
+                    state = False
+        except Exception as e:
+            logger.error(f"插件设置数据库出错，{e}")
+            state = False
         cursor.close()
         conn.close()
+
+        if state == 1:
+            state = True
+        else:
+            state = False
+        logger.debug(f"commandname:{commandname}, state:{state}")
         return state
 
     # ## 心跳服务相关 ##
@@ -223,7 +240,7 @@ async def botrun(msg_info):
                 config_name = get_command(command2)[0]
             else:
                 config_name = None
-            message, returnpath = plugin_config(commandname, config_name, channel_id)
+            message, returnpath = plugin_config(commandname, config_name, guild_id, channel_id)
             if message is not None:
                 code = 1
             else:
@@ -235,7 +252,7 @@ async def botrun(msg_info):
 
     elif commandname.startswith("群聊功能-"):
         commandname = commandname.removeprefix("群聊功能-")
-        if "zhanbu" == commandname and getconfig(commandname):
+        if "塔罗牌" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
                 cooling = command_cd(
                     user_id=user_id,
@@ -853,5 +870,6 @@ async def botrun(msg_info):
             "message": message,
             "returnpath": returnpath,
             "returnpath2": returnpath2,
-            "returnpath3": returnpath3
+            "returnpath3": returnpath3,
+            "at": False,
             }

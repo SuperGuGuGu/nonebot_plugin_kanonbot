@@ -32,7 +32,7 @@ def _config_list():
     commandname: {默认状态, "'帮助'命令中显示的内容", 该功能的群组, 用于设置功能开关所识别的名字}
     """
     configs = {
-        "zhanbu": {"state": True, "message": "抽卡牌 (发送：抽卡牌)", "group": "群聊功能", "name": "抽卡牌"},
+        "塔罗牌": {"state": True, "message": "塔罗牌 (发送：塔罗牌)", "group": "群聊功能", "name": "塔罗牌"},
         "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
         "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
@@ -92,7 +92,7 @@ def command_list():
             "签到": "群聊功能-签到",
             "水母箱": "群聊功能-水母箱",
             "抓水母": "群聊功能-水母箱",
-            "塔罗牌": "群聊功能-zhanbu",
+            "塔罗牌": "群聊功能-塔罗牌",
             "爬": "表情功能-pa",
             "洗": "表情功能-洗了",
             "洗了": "表情功能-洗了",

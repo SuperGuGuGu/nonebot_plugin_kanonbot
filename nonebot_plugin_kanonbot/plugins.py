@@ -91,11 +91,11 @@ async def plugin_zhanbu(user_id, cachepath):
                         image = await draw_text("获取图片出错", 50, 10)
                         logger.error(f"获取图片出错:{e}")
                         returnpath = save_image(image)
-                    message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
+                    message = f"抽到了一张塔罗牌：{zhanbu_name}\n{zhanbu_message}"
             else:
                 # 使用本地数据
-                # message = f"抽到了一张牌子：{zhanbu_data['title']}\n{zhanbu_data['message']}"
-                message = f"抽到了一张牌子：{zhanbu_name}\n{zhanbu_message}"
+                # message = f"抽到了一张塔罗牌：{zhanbu_data['title']}\n{zhanbu_data['message']}"
+                message = f"抽到了一张塔罗牌：{zhanbu_name}\n{zhanbu_message}"
         else:
             zhanbu_name = ""
             zhanbu_message = ""
@@ -114,7 +114,7 @@ async def plugin_zhanbu(user_id, cachepath):
                     zhanbu_message = zhanbu_data[ids]["message"]
                     break
 
-            message = f"抽到这张牌哦：{zhanbu_name}\n{zhanbu_message}"
+            message = f"抽到这张塔罗牌哦：{zhanbu_name}\n{zhanbu_message}"
             if kn_config("kanon_api-state"):
                 # 如果开启了api，则从服务器下载占卜数据
                 returnpath = f"{basepath}image/占卜2/"

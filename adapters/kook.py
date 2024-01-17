@@ -329,12 +329,6 @@ async def kanon(
         # 获取用户信息
         save = False
         # q频道
-        # try:
-        #     data = await bot.get_channel_permissions(channel_id=channel_id, user_id=user_id)
-        #     unity_user_data["permission"] = int(data.permissions)
-        #     save = True
-        # except:
-        #     logger.error(f"get_channel_permissions API请求失败channel_id：{channel_id}， user_id：{user_id}")
         # 所有用户默认5普通用户权限
         unity_user_data["permission"] = 5
         if run:

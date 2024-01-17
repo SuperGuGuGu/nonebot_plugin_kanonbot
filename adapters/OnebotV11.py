@@ -128,14 +128,6 @@ async def kanon(event: Event, bot: Bot):
         unity_guild_id = unity_channel_id = f"private_{platform}_{user_id}"
         guild_id = channel_id = user_id
 
-    # 频道黑白名单
-    if unity_channel_id in kn_config("plugin-channel_black_list"):
-        await run_kanon.finish()  # 直接退出
-    elif unity_channel_id in kn_config("plugin-channel_white_list"):
-        pass
-    else:
-        pass  # 继续运行
-
     msg = str(event.get_message())
     msg = re.sub(u"\\[.*?]", "", msg)  # 去除cq码
     msg = msg.replace('"', "“").replace("'", "‘")  # 转换同义符
@@ -294,13 +286,6 @@ async def kanon(event: Event, bot: Bot):
         unity_user_data = get_unity_user_data(unity_user_id)
         save = False
 
-        if unity_user_id in kn_config("plugin-user_black_list"):
-            await run_kanon.finish()  # 直接退出
-        elif unity_user_id in kn_config("plugin-user_white_list"):
-            pass  # 白名单继续运行
-        else:
-            pass  # 继续运行
-
         try:
             data = await bot.get_stranger_info(user_id=int(user_id), no_cache=False)
             unity_user_data["username"] = data["nickname"]
@@ -344,14 +329,6 @@ async def kanon(event: Event, bot: Bot):
                 atmsgg.removeprefix('[CQ:at,qq=')
                 atmsgg.removesuffix(']')
                 at_datas.append({"id": atmsgg, "platform": "qq"})
-
-        jump = False
-        for at_data in at_datas:
-            if str(at_data["id"]) in kn_config("plugin-bot_list"):
-                jump = True
-                break
-        if jump is True:
-            await run_kanon.finish()  # 直接退出
 
         # 获取消息内容
         friend_list = []
