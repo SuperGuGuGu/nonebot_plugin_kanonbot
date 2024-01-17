@@ -128,11 +128,11 @@ async def kanon(event: Event, bot: Bot):
         unity_guild_id = unity_channel_id = f"private_{platform}_{user_id}"
         guild_id = channel_id = user_id
 
-    # 黑白名单
+    # 频道黑白名单
     if unity_channel_id in kn_config("plugin-channel_black_list"):
-        await run_kanon.finish()  # 黑名单直接退出
+        await run_kanon.finish()  # 直接退出
     elif unity_channel_id in kn_config("plugin-channel_white_list"):
-        pass  # 白名单继续运行
+        pass
     else:
         pass  # 继续运行
 
@@ -269,7 +269,7 @@ async def kanon(event: Event, bot: Bot):
         cursor.close()
         conn.close()
         if data is not None:
-            commandname = "emoji"
+            commandname = "表情功能-emoji"
             run = True
 
     # 排除部分相应词
@@ -295,7 +295,7 @@ async def kanon(event: Event, bot: Bot):
         save = False
 
         if unity_user_id in kn_config("plugin-user_black_list"):
-            await run_kanon.finish()  # 黑名单直接退出
+            await run_kanon.finish()  # 直接退出
         elif unity_user_id in kn_config("plugin-user_white_list"):
             pass  # 白名单继续运行
         else:
@@ -344,6 +344,14 @@ async def kanon(event: Event, bot: Bot):
                 atmsgg.removeprefix('[CQ:at,qq=')
                 atmsgg.removesuffix(']')
                 at_datas.append({"id": atmsgg, "platform": "qq"})
+
+        jump = False
+        for at_data in at_datas:
+            if str(at_data["id"]) in kn_config("plugin-bot_list"):
+                jump = True
+                break
+        if jump is True:
+            await run_kanon.finish()  # 直接退出
 
         # 获取消息内容
         friend_list = []
