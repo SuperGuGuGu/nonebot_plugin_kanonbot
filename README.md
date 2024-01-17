@@ -71,6 +71,7 @@ ignore_list = ["123456"]
 [plugin]
 # 频道黑白名单
 # 不在名单内则继续，同时在名单内不会运行
+# 名单规则：[f"channel_{platform}_{channel_id}", f"group_{platform}_{group_id}", f"private_{platform}_{user_id}"]
 channel_white_list = []  # 
 channel_black_list = []  # 
 # 用户id，为unity_id，并非真实id。对应id在config.db的id_list表中查看。
