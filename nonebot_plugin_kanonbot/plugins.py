@@ -357,6 +357,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             # 按周期更新数据
             while refresh_period > 0:
                 refresh_period -= 1
+                if len(news) > 9:
+                    # 单次最多更新10条消息
+                    break
                 # 随机发生的事件数
                 event_num = 1
                 while event_num > 0:
@@ -844,7 +847,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if len(command_prompt_list) > 0:
             draw_y += 36  # 空行
             card_x = 914  # 卡片宽度
-            card_y = 20  # 卡片长度 标题
+            card_y = 69  # 卡片长度 标题
             for data in command_prompt_list:
                 card_y += 20  # 空行
                 card_y += 64  # 事件标题
@@ -865,11 +868,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             paste_card_image = Image.new("RGB", (card_x, card_y), "#FFFFFF")
             draw = ImageDraw.Draw(paste_card_image)
 
-            # 添加事件
+            # 添加标题
             draw_event_y += 20
+            font = ImageFont.truetype(font=font_shsk_B_path, size=50)
+            draw.text(xy=(32, 20), text="指令提示", fill=(46, 130, 238), font=font)
+
+            # 添加事件
+            draw_event_y += 60
             event_num = -1
             for data in command_prompt_list:
                 event_num += 1
+                # icon = data["icon"]  # 暂时用不上
                 title = data["title"]
                 message = data["message"]
 
@@ -905,6 +914,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         returunpath = save_image(image)
         code = 2
     elif command == "水母箱":
+        command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令列表"})
+        command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         returunpath = await draw_jellyfish_box()
         code = 2
     elif command == "抓水母":
@@ -982,10 +993,12 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     logger.info("水母箱保存用户数据成功")
                 except:
                     logger.error("水母箱保存用户数据出错")
+                    news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
                 cursor.close()
                 conn.close()
 
                 # 绘制
+                command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱相关帮助"})
                 returunpath = await draw_jellyfish_box()
                 code = 2
     elif command == "投喂":
@@ -998,12 +1011,74 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         code = 2
     elif command == "换水":
         pass
-    elif command == "丢弃":
-        pass
+    elif command == "放生":
+        if command2 is None:
+            code = 1
+            message = "请添加水母名称以及数量"
+        else:
+            commands = get_command(command2)
+            jellyfish_name = commands[0]
+            if len(commands) > 1:
+                number = commands[1]
+            else:
+                number = 1
+            try:
+                number = int(number)
+            except Exception as e:
+                number = None
+            if number is None:
+                code = 1
+                message = "数量错误，请检查填写数量"
+            else:
+                jellyfish_id = None
+                for jellyfish_id in jellyfish_datas:
+                    if jellyfish_name == jellyfish_datas[jellyfish_id]["name"]:
+                        break
+                if jellyfish_id is None:
+                    code = 1
+                    message = f"错误，找不到相关水母"
+                else:
+                    if jellyfish_id not in list(box_data["jellyfish"]):
+                        code = 1
+                        message = "水母箱没有这只水母哦"
+                    else:
+                        if box_data["jellyfish"][jellyfish_id]["number"] < number:
+                            code = 1
+                            message = "水母箱里没这么多水母哦"
+                        else:
+                            if box_data["jellyfish"][jellyfish_id]["number"] == number:
+                                box_data["jellyfish"].pop(jellyfish_id)
+                            else:
+                                box_data["jellyfish"][jellyfish_id]["number"] -= number
+                            code = 1
+                            message = f"成功放生了{number}只{jellyfish_name}"
+
+                            # 写入水母箱数据
+                            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                            cursor = conn.cursor()
+                            try:
+                                cursor.execute(
+                                    f"replace into 'jellyfish_box' ('user_id','data') "
+                                    f"values('{user_id}','{json_to_str(box_data)}')")
+                                conn.commit()
+                                logger.info("水母箱保存用户数据成功")
+                            except:
+                                logger.error("水母箱保存用户数据出错")
+                                news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                            cursor.close()
+                            conn.close()
+
     elif command == "水母榜":
         pass
     elif command == "装饰":
         pass
+    elif command == "帮助":
+        command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
+        # command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
+        command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
+        command_prompt_list.append({"title": "/水母箱 放生 普通水母 5", "message": "将5只普通水母放生"})
+        returunpath = await draw_jellyfish_box()
+        code = 2
     else:
         code = 1
         message = "错误命令"
@@ -1013,7 +1088,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     return code, message, returunpath
 
 
-def plugin_config(command_name: str, config_name, groupcode: str):
+def plugin_config(command_name: str, config_name, guild_id: str, channel_id: str):
     message = ""
     returnpath = None
     command_name = command_name.removeprefix("config")
@@ -1044,36 +1119,43 @@ def plugin_config(command_name: str, config_name, groupcode: str):
     cursor = conn.cursor()
     if not os.path.exists(db_path):
         # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+        cursor.execute(
+            f"create table command_state(command VARCHAR(10) primary key, state BOOLEAN(10), channel_id VARCHAR(10))")
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
     tables = []
     for data in datas:
         if data[1] != "sqlite_sequence":
             tables.append(data[1])
-    if groupcode not in tables:
-        cursor.execute(f"create table {groupcode}(command VARCHAR(10) primary key, state BOOLEAN(20))")
+    if "command_state" not in tables:
+        cursor.execute(
+            f"create table command_state(command VARCHAR(10) primary key, state BOOLEAN(10), channel_id VARCHAR(10))")
 
     # 检查开关状态
     if command_name is None:
         message = f"未添加功能名。请输入“{command_name}+功能名来开启与关闭对应功能”"
+    elif config_real_name == "":
+        message = f"找不到功能名。请输入“{command_name}+功能名来开启与关闭对应功能”"
     elif command_state is True or command_state is False:
         # 开启或关闭功能
-        cursor.execute(f'SELECT * FROM {groupcode} WHERE command = "{config_real_name}"')
+        cursor.execute(
+            f'SELECT * FROM command_state WHERE "command" = "{config_real_name}" AND "channel_id" = "{channel_id}"')
         data = cursor.fetchone()
         if data is not None:
             state = data[1]
             if state == command_state:
-                message = f"{config_name}已{command_name}"
+                pass
             else:
                 cursor.execute(
-                    f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
+                    f'replace into command_state ("command","state","channel_id") '
+                    f'values("{config_real_name}",{command_state},"{channel_id}")')
                 conn.commit()
-            message = f"{config_name}已{command_name}"
         else:
-            cursor.execute(f'replace into {groupcode} ("command","state") values("{config_real_name}",{command_state})')
+            cursor.execute(
+                f'replace into command_state ("command","state","channel_id") '
+                f'values("{config_real_name}",{command_state},"{channel_id}")')
             conn.commit()
-            message = f"{config_name}已{command_name}"
+        message = f"{config_name}已{command_name}"
     else:
         # 查询开启的功能
         message = ("功能列表："
@@ -1081,7 +1163,7 @@ def plugin_config(command_name: str, config_name, groupcode: str):
                    "\n1.合成emoji"
                    "\n2.一直"
                    "\n3.猜猜看"
-                   "\n4.炸飞机"
+                   "\n4.水母箱"
                    "\n5.签到"
                    " ")
 
