@@ -185,6 +185,42 @@ def kn_config(config_name: str):
             config["botswift"] = {"ignore_list": []}
             save_config()
         return config["botswift"]["ignore_list"]
+    elif config_name == "plugin-channel_white_list":
+        if "plugin" in list(config):
+            if "channel_white_list" not in list(config["plugin"]):
+                config["plugin"]["channel_white_list"] = []
+                save_config()
+        else:
+            config["plugin"] = {"channel_white_list": []}
+            save_config()
+        return config["plugin"]["channel_white_list"]
+    elif config_name == "plugin-channel_black_list":
+        if "plugin" in list(config):
+            if "channel_black_list" not in list(config["plugin"]):
+                config["plugin"]["channel_black_list"] = []
+                save_config()
+        else:
+            config["plugin"] = {"channel_black_list": []}
+            save_config()
+        return config["plugin"]["channel_black_list"]
+    elif config_name == "plugin-user_white_list":
+        if "plugin" in list(config):
+            if "user_white_list" not in list(config["plugin"]):
+                config["plugin"]["user_white_list"] = []
+                save_config()
+        else:
+            config["plugin"] = {"user_white_list": []}
+            save_config()
+        return config["plugin"]["user_white_list"]
+    elif config_name == "plugin-user_black_list":
+        if "plugin" in list(config):
+            if "user_black_list" not in list(config["plugin"]):
+                config["plugin"]["user_black_list"] = []
+                save_config()
+        else:
+            config["plugin"] = {"user_black_list": []}
+            save_config()
+        return config["plugin"]["user_black_list"]
     elif config_name == "":
         return
     elif config_name == "":
