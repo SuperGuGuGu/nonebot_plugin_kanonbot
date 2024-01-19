@@ -590,7 +590,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         j_image = j_image.resize(size)
         return j_image
 
-    async def draw_jellyfish_box():
+    async def draw_jellyfish_box(no_draw_box=False):
         """
         绘制状态图
         :return: 图片路径
@@ -602,7 +602,42 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         :param new_jellyfish: 新闻列表，显示最近的动态
         :param command_list: 指令列表，建议可以输入的指令
         """
-        # print(f"draw:\nnews:{news}\nnew_jellyfish:{new_jellyfish}\ncommand_prompt_list:{command_prompt_list}")
+        font_shsk_H_path = await get_file_path("SourceHanSansK-Heavy.ttf")
+        font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
+        font_shsk_B_path = await get_file_path("SourceHanSansK-Bold.ttf")
+        draw_config = {
+            "bright": {
+                "bg": "#EAEBEE",
+                "水母箱": "#D5DADF",
+                "box_bg": "#17547b",
+                "box_outline": "#002237",
+                "card": "#FFFFFF",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+            },
+            "dark": {
+                "bg": "#18171C",
+                "水母箱": "#232741",
+                "box_bg": "#17547b",
+                "box_outline": "#002237",
+                "card": "#2F2F37",
+                "date": "#536DED",
+                "name": "#E0E0E0",
+                "title": "#EFEFEF",
+                "event_title": "#EFEFEF",
+                "event_message": "#E0E0E0",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+            }
+        }
+
+        time_h = int(time.strftime("%H", time.localtime()))
+        draw_model = "bright" if 5 <= time_h <= 20 else "dark"
 
         # 计算长度
         x = 1000
@@ -610,7 +645,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         # 添加基础高度（图片头）
         y += 258
         # 添加水母箱高度
-        y += 563
+        if no_draw_box is False:
+            y += 563
         # 添加新水母高度
         if len(new_jellyfish) > 0:
             y += 36  # 空行
@@ -620,66 +656,62 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             y += 14  # 结尾
         # 添加事件高度
         if len(news) > 0:
-            y += 36  # 空行
-            y += 69  # 标题
+            y += 20  # 空行
+            y += 60  # 标题
             for data in news:
                 y += 20  # 空行
-                y += 64  # 事件标题
+                y += 22  # 事件标题
                 paste_image = await draw_text(
                     data["message"],
-                    size=50,
+                    size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color="#000000",
+                    text_color=draw_config[draw_model]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
-                y += h  # 事件介绍
+                y += h + 15  # 事件介绍
             y += 20  # 结尾
         # 添加指令提示高度
         if len(command_prompt_list) > 0:
-            y += 36  # 空行
-            y += 20  # 事件标题
+            y += 20  # 空行
+            y += 60  # 事件标题
             for data in command_prompt_list:
                 y += 20  # 空行
-                y += 64  # 事件标题
+                y += 22  # 事件标题
                 paste_image = await draw_text(
                     data["message"],
-                    size=40,
+                    size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color="#000000",
+                    text_color=draw_config[draw_model]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
-                y += h  # 事件介绍
+                y += h + 15  # 事件介绍
             y += 20  # 结尾
         # 添加图片尾
         y += 43
 
         # 创建底图
-        image = Image.new("RGB", (x, y), "#eaebee")
+        image = Image.new("RGB", (x, y), draw_config[draw_model]["bg"])
         draw = ImageDraw.Draw(image)
 
         # 绘制内容
-        font_shsk_H_path = await get_file_path("SourceHanSansK-Heavy.ttf")
-        font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
-        font_shsk_B_path = await get_file_path("SourceHanSansK-Bold.ttf")
         # 添加标题
         draw_x = 0
         draw_y = 0
         font = ImageFont.truetype(font=font_shsk_H_path, size=300)
-        draw.text(xy=(draw_x + 136, draw_y + 28), text="水母箱", fill=(213, 218, 223), font=font)
+        draw.text(xy=(draw_x + 136, draw_y + 28), text="水母箱", fill=draw_config[draw_model]["水母箱"], font=font)
 
-        font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
         text = f"{datetime.fromtimestamp(time_now)}"[0:10]
         font = ImageFont.truetype(font=font_shsk_M_path, size=40)
-        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=(54, 55, 57), font=font)
+        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config[draw_model]["date"], font=font)
 
         font = ImageFont.truetype(font=font_shsk_M_path, size=70)
-        draw.text(xy=(draw_x + 54, draw_y + 112), text=user_name, fill=(46, 130, 238), font=font)
+        draw.text(xy=(draw_x + 54, draw_y + 112), text=user_name, fill=draw_config[draw_model]["name"], font=font)
 
-        # 假装绘制头像
+        # 绘制头像
         if "face_image" in list(user_data):
             user_avatar = user_data["face_image"]
             try:
@@ -690,7 +722,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 else:
                     user_image = Image.open(user_avatar, "r")
             except Exception as e:
-                user_image = await draw_text("图片", 50, 10)
+                user_image = await draw_text("头像", 50, 10)
                 logger.error(f"获取图片出错:{e}")
             user_image = user_image.resize((158, 158))
             user_image = circle_corner(user_image, 79)
@@ -702,23 +734,25 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         draw_x += 43
         draw_y += 258
         # 添加水母箱
-        x = 914  # 卡片宽度
-        y = 563  # 卡片长度
-        paste_image = Image.new("RGB", (x, y), "#002237")
-        paste_image = circle_corner(paste_image, 30)  # 圆角
-        image.paste(paste_image, (draw_x, draw_y), paste_image)
-        paste_image = Image.new("RGB", (x - 6, y - 6), "#17547b")
-        paste_image = circle_corner(paste_image, 28)  # 圆角
-        image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
-        paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
-        image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
+        if no_draw_box is False:
+            x = 914  # 卡片宽度
+            y = 563  # 卡片长度
+            paste_image = Image.new("RGB", (x, y), draw_config[draw_model]["box_outline"])
+            paste_image = circle_corner(paste_image, 30)  # 圆角
+            image.paste(paste_image, (draw_x, draw_y), paste_image)
+            paste_image = Image.new("RGB", (x - 6, y - 6), draw_config[draw_model]["box_bg"])
+            paste_image = circle_corner(paste_image, 28)  # 圆角
+            image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
+            paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
+            image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
 
-        draw_x += 754
-        draw_y += 0
-        # 添加水母箱状态
+            draw_x += 754
+            draw_y += 0
+            # 添加水母箱状态
 
-        draw_x -= 754
-        draw_y += 563
+            draw_x -= 754
+            draw_y += 563
+
         # 添加新水母
         if len(new_jellyfish) > 0:
             draw_y += 36  # 空行
@@ -729,7 +763,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             card_y += 14  # 卡片长度 结尾
 
             # 开始绘制卡片
-            paste_card_image = Image.new("RGB", (card_x, card_y), "#FFFFFF")
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
             draw = ImageDraw.Draw(paste_card_image)
             # 添加标题
             font = ImageFont.truetype(font=font_shsk_B_path, size=50)
@@ -742,12 +776,11 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 j_number = data["number"]
                 j_message = data["message"]
                 card_num += 1
-                # paste_image = Image.new("RGB", (914, 261), "#FFFFFF")
                 # 添加水母图标
-                paste_image = Image.new("RGB", (248, 248), "#76c9ec")
+                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["icon_outline"])
                 paste_image = circle_corner(paste_image, 24)
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
-                paste_image = Image.new("RGB", (234, 234), "#def8ff")
+                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7),paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
@@ -766,7 +799,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
-                draw.text(xy=(278, 95 + (card_num * 261)), text=j_name, fill=(0, 0, 0), font=font)
+                draw.text(xy=(278, 95 + (card_num * 261)), text=j_name, fill=draw_config[draw_model]["event_title"],
+                          font=font)
 
                 # 添加水母数量
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
@@ -774,7 +808,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加消息
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
-                draw.text(xy=(278, 200 + (card_num * 261)), text=j_message, fill=(60, 60, 60), font=font)
+                draw.text(xy=(278, 200 + (card_num * 261)), text=j_message,
+                          fill=draw_config[draw_model]["event_message"], font=font)
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
@@ -784,36 +819,36 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
         # 添加事件
         if len(news) > 0:
-            draw_y += 36  # 空行
+            draw_y += 20  # 空行
             card_x = 914  # 卡片宽度
-            card_y = 69  # 卡片长度 标题
+            card_y = 60  # 卡片长度 标题
             for data in news:
                 card_y += 20  # 空行
-                card_y += 64  # 事件标题
+                card_y += 22  # 事件标题
                 paste_image = await draw_text(
                     data["message"],
-                    size=40,
+                    size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color="#000000",
+                    text_color=draw_config[draw_model]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
-                card_y += h  # 事件介绍
-            card_y += 20  # 结尾
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), "#FFFFFF")
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
             draw = ImageDraw.Draw(paste_card_image)
 
             # 添加标题
             draw_event_y += 20
-            font = ImageFont.truetype(font=font_shsk_B_path, size=50)
-            draw.text(xy=(32, 20), text="事件列表", fill=(46, 130, 238), font=font)
+            font = ImageFont.truetype(font=font_shsk_B_path, size=45)
+            draw.text(xy=(32, draw_event_y), text="事件列表", fill=(46, 130, 238), font=font)
 
             # 添加事件
-            draw_event_y += 60
+            draw_event_y += 55
             event_num = -1
             for data in news:
                 event_num += 1
@@ -822,59 +857,60 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 message = data["message"]
 
                 # 添加标题
-                font = ImageFont.truetype(font=font_shsk_M_path, size=50)
-                draw.text(xy=(23, draw_event_y), text=title, fill=(0, 0, 0), font=font)
-                draw_event_y += 68  # 标题高度
+                font = ImageFont.truetype(font=font_shsk_M_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["event_title"], font=font)
+                draw_event_y += 52  # 标题高度
 
+                # 添加消息
                 paste_image = await draw_text(
                     message,
-                    size=40,
+                    size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color="#333333"
+                    text_color=draw_config[draw_model]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
-                draw_event_y += paste_image.size[1]
+                draw_event_y += paste_image.size[1] + 15
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (43, draw_y), paste_card_image)
-            draw_event_y += 14  # 卡片结尾高度
+            draw_event_y += 20  # 卡片结尾高度
 
             draw_x += 0
             draw_y += draw_event_y  # 卡片高度
 
         # 添加指令介绍
         if len(command_prompt_list) > 0:
-            draw_y += 36  # 空行
+            draw_y += 20  # 空行
             card_x = 914  # 卡片宽度
-            card_y = 69  # 卡片长度 标题
+            card_y = 60  # 卡片长度 标题
             for data in command_prompt_list:
                 card_y += 20  # 空行
-                card_y += 64  # 事件标题
+                card_y += 22  # 事件标题
                 paste_image = await draw_text(
                     data["message"],
-                    size=40,
+                    size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color="#000000",
+                    text_color=draw_config[draw_model]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
-                card_y += h  # 事件介绍
-            card_y += 20  # 结尾
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), "#FFFFFF")
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
             draw = ImageDraw.Draw(paste_card_image)
 
             # 添加标题
             draw_event_y += 20
-            font = ImageFont.truetype(font=font_shsk_B_path, size=50)
-            draw.text(xy=(32, 20), text="指令提示", fill=(46, 130, 238), font=font)
+            font = ImageFont.truetype(font=font_shsk_B_path, size=45)
+            draw.text(xy=(32, draw_event_y), text="指令提示", fill=(46, 130, 238), font=font)
 
             # 添加事件
-            draw_event_y += 60
+            draw_event_y += 55
             event_num = -1
             for data in command_prompt_list:
                 event_num += 1
@@ -883,23 +919,23 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 message = data["message"]
 
                 # 添加标题
-                font = ImageFont.truetype(font=font_shsk_M_path, size=50)
-                draw.text(xy=(23, draw_event_y), text=title, fill=(0, 0, 0), font=font)
-                draw_event_y += 68  # 标题高度
+                font = ImageFont.truetype(font=font_shsk_M_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["event_title"], font=font)
+                draw_event_y += 52  # 标题高度
 
                 paste_image = await draw_text(
                     message,
-                    size=40,
+                    size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color="#333333"
+                    text_color=draw_config[draw_model]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
-                draw_event_y += paste_image.size[1]
+                draw_event_y += paste_image.size[1] + 15
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (43, draw_y), paste_card_image)
-            draw_event_y += 14  # 卡片结尾高度
+            draw_event_y += 20  # 卡片结尾高度
 
             draw_x += 0
             draw_y += draw_event_y  # 卡片高度
@@ -1067,24 +1103,21 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                                 news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
                             cursor.close()
                             conn.close()
-
     elif command == "水母榜":
         pass
     elif command == "装饰":
         pass
     elif command == "帮助":
         command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
-        # command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
+        command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         command_prompt_list.append({"title": "/水母箱 放生 普通水母 5", "message": "将5只普通水母放生"})
-        returunpath = await draw_jellyfish_box()
+        returunpath = await draw_jellyfish_box(no_draw_box=True)
         code = 2
     else:
         code = 1
         message = "错误命令"
 
-    # code = 1
-    # message = "水母箱指令"
     return code, message, returunpath
 
 

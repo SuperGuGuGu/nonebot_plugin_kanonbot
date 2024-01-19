@@ -46,7 +46,7 @@ if "\\" in basepath:
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.7")
+    logger.info("KanonBot-0.3.8")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -85,6 +85,7 @@ async def botrun(msg_info):
     group_member_datas = msg_info["channel_member_datas"]
     event_name: str = msg_info["event_name"]
     platform: str = msg_info["platform"]
+    keyboard = None  # 按钮
 
     username = None
     qq2name = None
@@ -205,7 +206,6 @@ async def botrun(msg_info):
                 else:
                     state = False
         except Exception as e:
-            logger.error(f"插件设置数据库出错，{e}")
             state = False
         cursor.close()
         conn.close()
@@ -214,7 +214,7 @@ async def botrun(msg_info):
             state = True
         else:
             state = False
-        logger.debug(f"commandname:{commandname}, state:{state}")
+        logger.info(f"commandname:{commandname}, state:{state}")
         return state
 
     # ## 心跳服务相关 ##
@@ -872,4 +872,5 @@ async def botrun(msg_info):
             "returnpath2": returnpath2,
             "returnpath3": returnpath3,
             "at": False,
+            "keyboard": keyboard,
             }

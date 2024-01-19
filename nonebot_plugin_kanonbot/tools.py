@@ -45,6 +45,7 @@ except Exception as e:
 if "\\" in basepath:
     basepath = basepath.replace("\\", "/")
 
+
 def get_command(msg: str) -> list:
     """
     使用空格和换行进行切分1次
@@ -221,8 +222,15 @@ def kn_config(config_name: str):
             config["plugin"] = {"user_black_list": []}
             save_config()
         return config["plugin"]["user_black_list"]
-    elif config_name == "":
-        return
+    elif config_name == "plugin-bot_list":
+        if "plugin" in list(config):
+            if "bot_list" not in list(config["plugin"]):
+                config["plugin"]["bot_list"] = []
+                save_config()
+        else:
+            config["plugin"] = {"bot_list": []}
+            save_config()
+        return config["plugin"]["bot_list"]
     elif config_name == "":
         return
     elif config_name == "":
