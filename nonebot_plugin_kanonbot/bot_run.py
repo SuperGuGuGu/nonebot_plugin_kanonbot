@@ -2,7 +2,7 @@
 import re
 
 from .config import _config_list
-from .tools import kn_config, lockst, locked, command_cd, get_command
+from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
@@ -86,9 +86,6 @@ async def botrun(msg_info):
     event_name: str = msg_info["event_name"]
     platform: str = msg_info["platform"]
     keyboard = None  # 按钮
-
-    username = None
-    qq2name = None
 
     # 黑白名单
     # 频道黑白名单
@@ -217,19 +214,111 @@ async def botrun(msg_info):
         logger.info(f"commandname:{commandname}, state:{state}")
         return state
 
-    # ## 心跳服务相关 ##
-    # 判断心跳服务是否开启。
+    # ## 心跳服务相关1/2 ##
+    # 查询bot是否需要运行
     if kn_config("botswift-state"):
+        botswitch = False
         # 读取忽略该功能的群聊
-        ignore_list = kn_config("botswift-ignore_list")
-        if guild_id.startswith("channel-"):
-            if guild_id[8:] in kn_config("botswift-ignore_list"):
-                run = True
-        elif guild_id.startswith("group-"):
-            if guild_id[6:] in kn_config("botswift-ignore_list"):
-                run = True
+        if channel_id in kn_config("botswift-ignore_list") or channel_id.startswith("private"):
+            botswitch = True
+        else:
+            conn = sqlite3.connect(f"{basepath}db/botswift.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+            datas = cursor.fetchall()
+            tables = []
+            for data in datas:
+                if data[1] != "sqlite_sequence":
+                    tables.append(data[1])
+            if "heart" not in tables:
+                cursor.execute(f'create table "heart"'
+                               f'("botid" VARCHAR(10) primary key, times VARCHAR(10), hearttime VARCHAR(10))')
+            if "channel" not in tables:
+                cursor.execute(f'create table "channel"(id INTEGER primary key AUTOINCREMENT, '
+                               f'channel VARCHAR(10), botid VARCHAR(10), priority VARCHAR(10))')
 
-    # 处理消息
+            # 读取群bot设置
+            cursor.execute(f'select * from "channel" WHERE channel = "{channel_id}"')
+            datas = cursor.fetchall()
+            for data in datas:
+                print(data)
+            if not datas:
+                # 没有数据，将本bot记为第一个bot
+                cursor.execute(
+                    f'replace into channel ("channel","botid","priority") '
+                    f'values("{channel_id}",{botid},0)')
+                botswitch = True
+            else:
+                # 提取优先级列表
+                priority_list = []
+                for data in datas:
+                    data_id = data[0]
+                    data_botid = data[2]
+                    priority = int(data[3])
+                    priority_list.append(priority)
+                # 排序bot列表
+                channel_bots_list = []
+                num = len(datas)
+                while num >= 1:
+                    num -= 1
+                    min_bot = min(priority_list)
+                    for data in datas:
+                        priority = int(data[3])
+                        if min_bot == priority:
+                            data_botid = data[2]
+                            channel_bots_list.append(data_botid)
+                            priority_list.remove(min_bot)
+                            break
+                # 检测本bot是否在群内bot列表内
+                if botid not in channel_bots_list:
+                    channel_bots_list.append(botid)
+                    cursor.execute(
+                        f'replace into channel ("channel","botid","priority") '
+                        f'values("{channel_id}",{botid},{max(priority_list) + 1})')
+                # 顺序检查bot列表
+                for channel_botid in channel_bots_list:
+                    if channel_botid == botid:
+                        botswitch = True
+                        cursor.execute(f'select * from "heart" WHERE botid = "{channel_botid}"')
+                        data = cursor.fetchone()
+                        if data is None:
+                            cursor.execute(
+                                f'replace into heart ("botid","times","hearttime") values("{channel_botid}",0,0)')
+                        break
+                    else:
+                        cursor.execute(f'select * from "heart" WHERE botid = "{channel_botid}"')
+                        data = cursor.fetchone()
+                        if data is None:
+                            continue
+                        else:
+                            times = int(data[1])  # 未检测到bot发消息的次数
+                            hearttime = int(data[2])
+                            cache = commandname
+                            config_gruop_list = []
+                            for config_id in config_list:
+                                if config_list[config_id]["group"] not in config_gruop_list:
+                                    config_gruop_list.append(config_list[config_id]["group"] )
+                            for config_group in config_gruop_list:
+                                commandname = commandname.removeprefix(f"{config_group}-")
+                            if getconfig(cache) and commandname not in ["小游戏-猜猜看"]:
+                                # cck功能会有大量不回复消息，进行排除
+                                cursor.execute(
+                                    f'replace into heart ("botid","times","hearttime") '
+                                    f'values("{channel_botid}",{times + 1},{hearttime})')
+                            if (time_now - hearttime) >= 900 and times >= 20:
+                                # 15分钟内连续20次没有相应，
+                                continue
+                            else:
+                                break
+
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+    else:
+        botswitch = True
+
+    # ## 处理消息 ##
     if commandname.startswith("config"):
         if user_permission == 7 or user_id in adminqq or commandname == "config查询":
             pass
@@ -250,7 +339,7 @@ async def botrun(msg_info):
             code = 1
             message = "权限不足"
 
-    elif commandname.startswith("群聊功能-"):
+    elif commandname.startswith("群聊功能-") and botswitch is True:
         commandname = commandname.removeprefix("群聊功能-")
         if "塔罗牌" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
@@ -330,7 +419,7 @@ async def botrun(msg_info):
                     time_now=time_now
                 )
 
-    elif commandname.startswith("表情功能-"):
+    elif commandname.startswith("表情功能-") and botswitch is True:
         commandname = commandname.removeprefix("表情功能-")
         if "emoji" == commandname and getconfig(commandname):
             if command == "合成":
@@ -803,7 +892,7 @@ async def botrun(msg_info):
                     returnpath = await plugin_emoji_ji2(user_avatar)
                 code = 2
 
-    elif commandname.startswith("小游戏"):
+    elif commandname.startswith("小游戏") and botswitch is True:
         commandname = commandname.removeprefix("小游戏-")
         if "猜猜看" == commandname and getconfig(commandname):
             # 转换命令名
@@ -856,10 +945,6 @@ async def botrun(msg_info):
 
     elif "###" == commandname:
         pass
-
-    # 这两位置是放心跳服务相关代码，待后续完善
-    # 本bot存入mainbot数据库
-    # 保活
 
     # log记录
     # 目前还不需要这个功能吧，先放着先
