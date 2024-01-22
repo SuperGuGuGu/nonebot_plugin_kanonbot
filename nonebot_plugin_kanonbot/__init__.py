@@ -503,4 +503,11 @@ async def kanon(
 
         else:
             pass
+
+        if "markdown" in list(data) and data["markdown"] is not None:
+            msg = MessageSegment.markdown(data["markdown"])
+            await run_kanon.send(msg)
+        if "keyboard" in list(data) and data["keyboard"] is not None:
+            msg = MessageSegment.keyboard(data["keyboard"])
+            await run_kanon.send(msg)
     await run_kanon.finish()
