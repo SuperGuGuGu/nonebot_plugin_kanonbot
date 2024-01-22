@@ -1,28 +1,121 @@
 import asyncio
 import os
+import sqlite3
 
-from bridge.tomorin import on_event, SessionExtension
+from PIL import Image
+
+from bridge.tomorin import on_event, SessionExtension, h
 from bot_run import botrun
-from tools import get_command, get_unity_user_id, get_unity_user_data, connect_api
+from tools import get_command, get_unity_user_id, get_unity_user_data, connect_api, kn_config, get_file_path
+from config import command_list
 
 
 @on_event.message_created
-def kanon_xibao_created(session: SessionExtension):
-    session.function.register(["喜报"])
+def kanon_created(session: SessionExtension):
+    command_data = command_list()
+    commandlist = []
+    for command in command_data["精准"]:
+        commandlist.append(command)
+    session.function.register(commandlist)
+    session.function.description = "Tomorin_plugin_Kanonbot"  # 功能描述
     session.action(kanon)
 
 
 async def kanon(session: SessionExtension):
-    print("name插件")
-    # 读取消息内容
+    # 读取默认配置
+    basepath = "./Kanobot/"
+    commandlist = command_list()
+    # 添加插件参数
     platform = "Tomorin"
+    commandname = ""
+    # 读取消息内容
     msg = session.message.command.text
     commands = get_command(msg)
     command = commands[0]
-    if len(commands) == 1:
-        command2 = ""
-    else:
-        command2 = commands[1]
+    unity_channel_id = f"channel_{platform}_{session.message.channel}"
+    unity_guild_id = f"channel_{platform}_{session.message.guild}"
+    bot_id = session.self_id
+
+    run = False
+    # 识别对话
+    if run is False:
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "gameinglist" not in tables:
+            cursor.execute(
+                'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+                'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+        cursor.execute(f'select * from gameinglist where channelid = "{unity_channel_id}"')
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if data is not None:
+            # 有聊天数据
+            gameing = data[3]
+            if gameing == 1:
+                # 有正在进行的聊天
+                commandname = data[1]
+                run = True
+
+    # 识别精准
+    if run is False:
+        cache_commandlist = commandlist["精准"]
+        if command in list(cache_commandlist):
+            commandname = cache_commandlist[command]
+            run = True
+
+    # 识别开头
+    if run is False:
+        cache_commandlist = commandlist["开头"]
+        for cache_command in list(cache_commandlist):
+            if command.startswith(cache_command):
+                commandname = cache_commandlist[cache_command]
+                msg = f"{cache_command} {command.removeprefix(cache_command)}"
+                run = True
+                break
+
+    # 识别结尾
+    if run is False:
+        cache_commandlist = commandlist["结尾"]
+        for cache_command in list(cache_commandlist):
+            if command.endswith(cache_command):
+                commandname = cache_commandlist[cache_command]
+                run = True
+                break
+
+    # 识别模糊
+    if run is False:
+        cache_commandlist = commandlist["模糊"]
+        for cache_command in list(cache_commandlist):
+            if cache_command in command:
+                commandname = cache_commandlist[command]
+                run = True
+                break
+
+    # 识别精准2
+    if run is False:
+        cache_commandlist = commandlist["精准2"]
+        if command in list(cache_commandlist):
+            commandname = cache_commandlist[command]
+            run = True
+
+    # 识别emoji
+    if run is False and kn_config("emoji-state"):
+        conn = sqlite3.connect(await get_file_path("emoji_1.db"))
+        cursor = conn.cursor()
+        cursor.execute(f'select * from emoji where emoji = "{command}"')
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if data is not None:
+            commandname = "表情功能-emoji"
+            run = True
 
     user_id = session.user.id
     unity_user_id = get_unity_user_id("tomorin", user_id)
@@ -47,9 +140,9 @@ async def kanon(session: SessionExtension):
         "msg": msg,
         "commands": commands,
         "commandname": commandname,
-        "bot_id": session.self_id,
-        "channel_id": session.message.channel,
-        "guild_id": session.message.guild,
+        "bot_id": bot_id,
+        "channel_id": unity_channel_id,
+        "guild_id": unity_channel_id,
         "at_datas": [],
         "user": unity_user_data,
         "imgmsgs": [],
@@ -60,12 +153,12 @@ async def kanon(session: SessionExtension):
     }
 
     # 全局默认变量
-    return_data = {"code": 0,
-            "message": "None",
-            "returnpath": "None",
-            "returnpath2": "None",
-            "returnpath3": "None"
-            }
+    # return_data = {"code": 0,
+    #         "message": "None",
+    #         "returnpath": "None",
+    #         "returnpath2": "None",
+    #         "returnpath3": "None"
+    #         }
 
     return_data = await botrun(msg_info)
 
@@ -84,6 +177,30 @@ async def kanon(session: SessionExtension):
     # 总结与发送
     print(return_data)
     code = int(return_data["code"])
-    if code in [1, 3, 4, 5]:
+    if code == 1:
         msg = return_data["message"]
         session.send(msg)
+    elif code == 2:
+        image = Image.open(return_data["returnpath"], "r")
+        session.send(h.image(image))
+    elif code == 3:
+        msg = return_data["message"]
+        session.send(msg)
+        image = Image.open(return_data["returnpath"], "r")
+        session.send(h.image(image))
+    elif code == 4:
+        msg = return_data["message"]
+        session.send(msg)
+        image = Image.open(return_data["returnpath"], "r")
+        session.send(h.image(image))
+        image = Image.open(return_data["returnpath2"], "r")
+        session.send(h.image(image))
+    elif code == 5:
+        msg = return_data["message"]
+        session.send(msg)
+        image = Image.open(return_data["returnpath"], "r")
+        session.send(h.image(image))
+        image = Image.open(return_data["returnpath2"], "r")
+        session.send(h.image(image))
+        image = Image.open(return_data["returnpath3"], "r")
+        session.send(h.image(image))
