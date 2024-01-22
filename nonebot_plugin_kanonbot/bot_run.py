@@ -216,7 +216,7 @@ async def botrun(msg_info):
 
     # ## 心跳服务相关1/2 ##
     # 查询bot是否需要运行
-    if kn_config("botswift-state"):
+    if kn_config("botswift-state") and channel_id not in kn_config("botswift-ignore_list"):
         botswitch = False
         # 读取忽略该功能的群聊
         if channel_id in kn_config("botswift-ignore_list") or channel_id.startswith("private"):
@@ -240,41 +240,37 @@ async def botrun(msg_info):
             # 读取群bot设置
             cursor.execute(f'select * from "channel" WHERE channel = "{channel_id}"')
             datas = cursor.fetchall()
-            for data in datas:
-                print(data)
             if not datas:
                 # 没有数据，将本bot记为第一个bot
                 cursor.execute(
                     f'replace into channel ("channel","botid","priority") '
-                    f'values("{channel_id}",{botid},0)')
+                    f'values("{channel_id}",{botid},1)')
                 botswitch = True
             else:
                 # 提取优先级列表
                 priority_list = []
                 for data in datas:
-                    data_id = data[0]
-                    data_botid = data[2]
-                    priority = int(data[3])
-                    priority_list.append(priority)
+                    priority_list.append(int(data[3]))
                 # 排序bot列表
                 channel_bots_list = []
                 num = len(datas)
+                cache_priority_list = priority_list.copy()
                 while num >= 1:
                     num -= 1
-                    min_bot = min(priority_list)
+                    min_bot = min(cache_priority_list)
                     for data in datas:
                         priority = int(data[3])
                         if min_bot == priority:
                             data_botid = data[2]
                             channel_bots_list.append(data_botid)
-                            priority_list.remove(min_bot)
+                            cache_priority_list.remove(min_bot)
                             break
                 # 检测本bot是否在群内bot列表内
                 if botid not in channel_bots_list:
                     channel_bots_list.append(botid)
                     cursor.execute(
                         f'replace into channel ("channel","botid","priority") '
-                        f'values("{channel_id}",{botid},{max(priority_list) + 1})')
+                        f'values("{channel_id}",{botid},{int(max(priority_list)) + 1})')
                 # 顺序检查bot列表
                 for channel_botid in channel_bots_list:
                     if channel_botid == botid:
