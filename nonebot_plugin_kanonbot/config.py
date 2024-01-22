@@ -42,8 +42,10 @@ def _config_list():
         "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
         "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
         "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
-        "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
         "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        }
+    configs_none = {
+        "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
         "qinqin": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
         "tietie": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
         "daibu": {"state": False, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
