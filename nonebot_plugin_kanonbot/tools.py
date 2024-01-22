@@ -269,6 +269,13 @@ def list_in_list(list_1: list, list_2: list):
     return False
 
 
+def start_with_list(msg: str, texts: list)  -> bool:
+    for text in texts:
+        if msg.startswith(text):
+            return True
+    return False
+
+
 async def connect_api(
         type: str,
         url: str,
@@ -1036,6 +1043,7 @@ def get_unity_user_data(unity_user_id: str):
     cursor.execute(f'SELECT * FROM "user_data" WHERE unity_id = "{unity_user_id}"')
     data = cursor.fetchone()
     if data is None:
+        # 默认数据
         unity_user_data = {}
     else:
         data: str = data[1]

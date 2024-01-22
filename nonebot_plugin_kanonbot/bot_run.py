@@ -325,11 +325,7 @@ async def botrun(msg_info):
         run = True
         if run:
             logger.info(f"run-{commandname}")
-            if command2 is not None:
-                config_name = get_command(command2)[0]
-            else:
-                config_name = None
-            message, returnpath = plugin_config(commandname, config_name, guild_id, channel_id)
+            message, returnpath = plugin_config(command, command2, guild_id, channel_id)
             if message is not None:
                 code = 1
             else:

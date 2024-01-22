@@ -9,7 +9,7 @@ import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
     circle_corner, \
-    get_command, get_unity_user_data, json_to_str
+    get_command, get_unity_user_data, json_to_str, start_with_list
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
@@ -1121,27 +1121,54 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     return code, message, returunpath
 
 
-def plugin_config(command_name: str, config_name, guild_id: str, channel_id: str):
+def plugin_config(command: str, command2, guild_id: str, channel_id: str):
+    # 默认变量 & 插件数据
     message = ""
     returnpath = None
-    command_name = command_name.removeprefix("config")
-    if command_name == "开启":
+    config_list = _config_list()
+
+    # 重解析命令，
+    command_help = ["帮助 ", "菜单 ", "使用说明 ", "help ", "查询 ", "查询功能 ", "列表 ", "功能列表 "]
+    if command2 is not None and command == "菜单" and (
+            start_with_list(command2, command_help) or
+            start_with_list(command2, ["开启", "关闭"])):
+        print("重解析")
+        commands = get_command(command2)
+        command = commands[0]
+        command2 = commands[1] if len(commands) > 1 else None
+
+    # 同义命令转换
+    if command in ["帮助", "菜单", "使用说明", "help", "查询", "查询功能", "列表", "功能列表"]:
+        command = "菜单"
+
+    # 不匹配任何命令
+    if command not in ["菜单", "开启", "关闭"]:
+        command2 = command if command2 is None else f"{command} {command2}"
+
+    # 解析参数中的实际命令名称（命令id）
+    command_id = None
+    if command2 is not None:
+        for name in config_list:
+            config = config_list[name]
+            if command2 == config["name"]:
+                command_id = name
+                break
+
+    # 判断格式是否正确
+    if command == "开启":
         command_state = True
-        if config_name is None:
+        if command2 is None:
             return "请添加要关闭的功能名字，例：“开启 猜猜看”", None
-    elif command_name == "关闭":
+        if command_id is None:
+            return f"无法找到命令“{command2}”，请检查命令名是否正确", None
+    elif command == "关闭":
         command_state = False
-        if config_name is None:
+        if command2 is None:
             return "请添加要关闭的功能名字，例：“关闭 猜猜看”", None
+        if command_id is None:
+            return f"无法找到命令“{command2}”，请检查命令名是否正确", None
     else:
         command_state = "查询"
-    config_list = _config_list()
-    config_real_name = ""
-    for name in config_list:
-        config = config_list[name]
-        if config_name == config["name"]:
-            config_real_name = name
-            break
 
     # 初始化数据库
     dbpath = basepath + "db/"
@@ -1164,34 +1191,58 @@ def plugin_config(command_name: str, config_name, guild_id: str, channel_id: str
         cursor.execute(
             f"create table command_state(command VARCHAR(10) primary key, state BOOLEAN(10), channel_id VARCHAR(10))")
 
-    # 检查开关状态
-    if command_name is None:
-        message = f"未添加功能名。请输入“{command_name}+功能名来开启与关闭对应功能”"
-    elif config_real_name == "":
-        message = f"找不到功能名。请输入“{command_name}+功能名来开启与关闭对应功能”"
-    elif command_state is True or command_state is False:
+    # 判断要运行的命令
+    if command in ["开启", "关闭"]:
         # 开启或关闭功能
         cursor.execute(
-            f'SELECT * FROM command_state WHERE "command" = "{config_real_name}" AND "channel_id" = "{channel_id}"')
+            f'SELECT * FROM command_state WHERE "command" = "{command_id}" AND "channel_id" = "{channel_id}"')
         data = cursor.fetchone()
         if data is not None:
-            state = data[1]
+            state = True if data[1] == 1 else False
             if state == command_state:
                 pass
             else:
                 cursor.execute(
                     f'replace into command_state ("command","state","channel_id") '
-                    f'values("{config_real_name}",{command_state},"{channel_id}")')
+                    f'values("{command_id}",{command_state},"{channel_id}")')
                 conn.commit()
         else:
             cursor.execute(
                 f'replace into command_state ("command","state","channel_id") '
-                f'values("{config_real_name}",{command_state},"{channel_id}")')
+                f'values("{command_id}",{command_state},"{channel_id}")')
             conn.commit()
-        message = f"{config_name}已{command_name}"
+        message = f"{command2}已{command}"
     else:
         # 查询开启的功能
-        message = ("功能列表："
+        state = {
+            "开启": [],
+            "关闭": []
+        }
+        for command_id in config_list:
+            cursor.execute(
+                f'SELECT * FROM command_state WHERE "command" = "{command_id}" AND "channel_id" = "{channel_id}"')
+            data = cursor.fetchone()
+            if data is None:
+                command_state = config_list[command_id]["state"]
+            else:
+                command_state = True if data[1] == 1 else False
+            if command_state is True:
+                state["开启"].append(command_id)
+            else:
+                state["关闭"].append(command_id)
+        message = "功能列表：\n已开启的功能：\n"
+        for command_id in state["开启"]:
+            command_name = config_list[command_id]["name"]
+            message += f"{command_name}\n"
+        message += "\n已关闭的功能：\n"
+        for command_id in state["关闭"]:
+            command_name = config_list[command_id]["name"]
+            message += f"{command_name}\n"
+        message = message.removesuffix("\n")
+
+
+
+        message_del = ("功能列表："
                    "\n现支持的功能列表"
                    "\n1.合成emoji"
                    "\n2.一直"
