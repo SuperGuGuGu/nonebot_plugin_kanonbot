@@ -196,7 +196,7 @@ async def kanon(
             cursor.execute(
                 'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
                 'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
-        cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+        cursor.execute(f'select * from gameinglist where channelid = "{unity_channel_id}"')
         data = cursor.fetchone()
         cursor.close()
         conn.close()
