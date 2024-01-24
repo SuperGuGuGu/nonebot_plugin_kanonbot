@@ -1203,8 +1203,8 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
                 pass
             else:
                 cursor.execute(
-                    f'replace into command_state ("command","state","channel_id") '
-                    f'values("{command_id}",{command_state},"{channel_id}")')
+                    f'replace into command_state ("id_","command","state","channel_id") '
+                    f'values("{data[0]}","{command_id}",{command_state},"{channel_id}")')
                 conn.commit()
         else:
             cursor.execute(
@@ -1778,7 +1778,7 @@ async def plugin_emoji(user_avatar, user_name):
     return save_image(image)
 
 
-async def plugin_game_cck(command, channel_id):
+async def plugin_game_cck(command, channel_id, platform):
     """
     cck插件内容
     返回：
@@ -1794,8 +1794,7 @@ async def plugin_game_cck(command, channel_id):
     code = 0
     message = " "
     returnpath = None
-    returnpath2 = None
-    returnpath3 = None
+    markdown = keyboard = None
     if not kn_config("kanon_api-state"):
         logger.error("未开启api，已经退出cck")
         return 0, message, returnpath
@@ -1965,6 +1964,19 @@ async def plugin_game_cck(command, channel_id):
                     "\n例：“@kanon/猜猜看 花音”"
                     "\n发送/猜猜看+不知道结束游戏")
         code = 3  # 添加回复的类型
+
+        if platform == "qq_Official" and kn_config("plugin_cck", "send_button"):
+            if 11 <= int(member_id) <= 30:
+                button_id = "button_1_id"
+            elif 31 <= int(member_id) <= 45 or 106 <= int(member_id) <= 110:
+                button_id = "button_2_id"
+            else:
+                button_id = None
+
+            if button_id is not None:
+                keyboard = {"id": kn_config("plugin_cck", button_id)}
+                markdown = {"id": kn_config("plugin_cck", "markdown_id")}
+
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
         if command == "不知道":
@@ -2027,7 +2039,8 @@ async def plugin_game_cck(command, channel_id):
         cursor.close()
         conn.commit()
         conn.close()
-    return code, message, returnpath
+
+    return code, message, returnpath, markdown, keyboard
 
 
 async def plugin_game_blowplane(command: str, channel_id: str):

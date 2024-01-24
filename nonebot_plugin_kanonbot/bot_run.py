@@ -86,6 +86,7 @@ async def botrun(msg_info):
     event_name: str = msg_info["event_name"]
     platform: str = msg_info["platform"]
     keyboard = None  # 按钮
+    markdown = None  # markdown
 
     # 黑白名单
     # 频道黑白名单
@@ -209,7 +210,7 @@ async def botrun(msg_info):
 
         if state == 1:
             state = True
-        else:
+        elif state == 0:
             state = False
         logger.info(f"commandname:{commandname}, state:{state}")
         return state
@@ -907,10 +908,12 @@ async def botrun(msg_info):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath = await plugin_game_cck(command=command, channel_id=channel_id)
+                    code, message, returnpath, markdown, keyboard = await plugin_game_cck(
+                        command=command, channel_id=channel_id, platform=platform)
             else:
                 logger.info(f"run-{commandname}")
-                code, message, returnpath = await plugin_game_cck(command=command, channel_id=channel_id)
+                code, message, returnpath, markdown, keyboard = await plugin_game_cck(
+                    command=command, channel_id=channel_id, platform=platform)
         elif "炸飞机" == commandname and getconfig(commandname):
             # 转换命令名
             if command.startswith("炸") and not command.startswith("炸飞机"):
@@ -950,4 +953,5 @@ async def botrun(msg_info):
             "returnpath3": returnpath3,
             "at": False,
             "keyboard": keyboard,
+            "markdown": markdown,
             }
