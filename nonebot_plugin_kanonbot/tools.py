@@ -97,14 +97,20 @@ def get_command(msg: str) -> list:
     return commands
 
 
-def kn_config(config_name: str):
+def kn_config(config_name: str, config_name2: str = None):
     """
     获取配置。
     获取"kanon_api-url"时，相当于获取"config["kanon_api"]["url"]"的配置项
     :param config_name: 获取的配置名称
+    :param config_name2:
     :return: 配置内容
     """
-    path = basepath + "kanon_config.toml"
+    path = f"{basepath}kanon_config.toml"
+    if config_name2 is not None:
+        config_name += f"-{config_name2}"
+    names = config_name.split('-', 1)
+    name_1 = names[0]
+    name_2 = names[1]
 
     def save_config():
         with open(path, 'w') as config_file:
@@ -120,128 +126,52 @@ def kn_config(config_name: str):
         nonebot.logger.info("未存在KanonBot配置文件，正在创建")
     config = toml.load(path)
 
-    # 下面这堆代码自己都快看不懂了，有空再重构一下
-    # 用“-”来分段
-    config_group = config_name
-    if config_name == "kanon_api-url":
-        if "kanon_api" in list(config):
-            if "url" not in list(config["kanon_api"]):
-                config["kanon_api"]["url"] = "http://cdn.kanon.ink"
+    # 如果存在设置，则直接回复
+    if name_1 in list(config) and name_2 in list(config[name_1]):
+        return config[name_1][name_2]
+
+    # 配置默认设置
+    default = {
+        "kanon_api": {
+            "url": "http://cdn.kanon.ink",
+            "state": True,
+            "unity_key": "none",
+        },
+        "emoji": {
+            "state": True,
+            "mode": "file",
+        },
+        "botswift": {
+            "state": False,
+            "ignore_list": [],
+        },
+        "plugin": {
+            "channel_white_list": [],
+            "channel_black_list": [],
+            "user_white_list": [],
+            "user_black_list": [],
+            "bot_list": [],
+        },
+        "plugin_cck": {
+            "send_button": False,
+        },
+    }
+
+    # 保存默认设置
+    if name_1 in list(default) and name_2 in list(default[name_1]):
+        if name_1 in list(config):
+            if name_2 not in list(config[name_1]):
+                config[name_1][name_2] = default[name_1][name_2]
                 save_config()
         else:
-            config["kanon_api"] = {"url": "http://cdn.kanon.ink"}
+            config[name_1] = default[name_1]
             save_config()
-        return config["kanon_api"]["url"]
-    elif config_name == "kanon_api-state":
-        if "kanon_api" in list(config):
-            if "state" not in list(config["kanon_api"]):
-                config["kanon_api"]["state"] = True
-                save_config()
-        else:
-            config["kanon_api"] = {"state": True}
-            save_config()
-        return config["kanon_api"]["state"]
-    elif config_name == "kanon_api-unity_key":
-        if "kanon_api" in list(config):
-            if "unity_key" not in list(config["kanon_api"]):
-                config["kanon_api"]["unity_key"] = "none"
-                save_config()
-        else:
-            config["kanon_api"] = {"unity_key": "none"}
-            save_config()
-        return config["kanon_api"]["unity_key"]
-    elif config_name == "emoji-state":
-        if "emoji" in list(config):
-            if "state" not in list(config["emoji"]):
-                config["emoji"]["state"] = True
-                save_config()
-        else:
-            config["emoji"] = {"state": True}
-            save_config()
-        return config["emoji"]["state"]
-    elif config_name == "emoji-mode":
-        if "emoji" in list(config):
-            if "mode" not in list(config["emoji"]):
-                config["emoji"]["mode"] = "file"
-                save_config()
-        else:
-            config["emoji"] = {"mode": "file"}
-            save_config()
-        return config["emoji"]["mode"]
-    elif config_name == "botswift-state":
-        if "botswift" in list(config):
-            if "state" not in list(config["botswift"]):
-                config["botswift"]["state"] = False
-                save_config()
-        else:
-            config["botswift"] = {"state": False}
-            save_config()
-        return config["botswift"]["state"]
-    elif config_name == "botswift-ignore_list":
-        if "botswift" in list(config):
-            if "ignore_list" not in list(config["botswift"]):
-                config["botswift"]["ignore_list"] = []
-                save_config()
-        else:
-            config["botswift"] = {"ignore_list": []}
-            save_config()
-        return config["botswift"]["ignore_list"]
-    elif config_name == "plugin-channel_white_list":
-        if "plugin" in list(config):
-            if "channel_white_list" not in list(config["plugin"]):
-                config["plugin"]["channel_white_list"] = []
-                save_config()
-        else:
-            config["plugin"] = {"channel_white_list": []}
-            save_config()
-        return config["plugin"]["channel_white_list"]
-    elif config_name == "plugin-channel_black_list":
-        if "plugin" in list(config):
-            if "channel_black_list" not in list(config["plugin"]):
-                config["plugin"]["channel_black_list"] = []
-                save_config()
-        else:
-            config["plugin"] = {"channel_black_list": []}
-            save_config()
-        return config["plugin"]["channel_black_list"]
-    elif config_name == "plugin-user_white_list":
-        if "plugin" in list(config):
-            if "user_white_list" not in list(config["plugin"]):
-                config["plugin"]["user_white_list"] = []
-                save_config()
-        else:
-            config["plugin"] = {"user_white_list": []}
-            save_config()
-        return config["plugin"]["user_white_list"]
-    elif config_name == "plugin-user_black_list":
-        if "plugin" in list(config):
-            if "user_black_list" not in list(config["plugin"]):
-                config["plugin"]["user_black_list"] = []
-                save_config()
-        else:
-            config["plugin"] = {"user_black_list": []}
-            save_config()
-        return config["plugin"]["user_black_list"]
-    elif config_name == "plugin-bot_list":
-        if "plugin" in list(config):
-            if "bot_list" not in list(config["plugin"]):
-                config["plugin"]["bot_list"] = []
-                save_config()
-        else:
-            config["plugin"] = {"bot_list": []}
-            save_config()
-        return config["plugin"]["bot_list"]
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    elif config_name == "":
-        return
-    return False
+
+    # 如果存在设置，则直接回复
+    if name_1 in list(config) and name_2 in list(config[name_1]):
+        return config[name_1][name_2]
+
+    return None
 
 
 def get_qq_face(qq, size: int = 640):
