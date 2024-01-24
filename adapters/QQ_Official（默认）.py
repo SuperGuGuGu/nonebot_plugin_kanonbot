@@ -1,4 +1,5 @@
 # coding=utf-8
+from nonebot.adapters.qq.models import MessageKeyboard, MessageMarkdown
 from nonebot.plugin import PluginMetadata
 import nonebot
 import os
@@ -500,14 +501,17 @@ async def kanon(
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
-
         else:
             pass
 
         if "markdown" in list(data) and data["markdown"] is not None:
-            msg = MessageSegment.markdown(data["markdown"])
+            md_data = MessageMarkdown(custom_template_id=data["markdown"]["id"])
+            msg = MessageSegment.markdown(md_data)
+
+            if "keyboard" in list(data) and data["keyboard"] is not None:
+                kb_data = MessageKeyboard(id=data["keyboard"]["id"])
+                msg += MessageSegment.keyboard(kb_data)
+
             await run_kanon.send(msg)
-        if "keyboard" in list(data) and data["keyboard"] is not None:
-            msg = MessageSegment.keyboard(data["keyboard"])
-            await run_kanon.send(msg)
+
     await run_kanon.finish()
