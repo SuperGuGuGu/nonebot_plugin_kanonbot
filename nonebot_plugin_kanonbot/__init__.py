@@ -5,7 +5,6 @@ import nonebot
 import os
 import re
 import sqlite3
-from PIL import Image, ImageDraw, ImageFont
 from nonebot import on_message, logger
 from nonebot.adapters.qq import (
     Bot,
@@ -196,7 +195,7 @@ async def kanon(
             cursor.execute(
                 'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
                 'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
-        cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+        cursor.execute(f'select * from gameinglist where channelid = "{unity_channel_id}"')
         data = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -505,7 +504,10 @@ async def kanon(
             pass
 
         if "markdown" in list(data) and data["markdown"] is not None:
-            md_data = MessageMarkdown(custom_template_id=data["markdown"]["id"])
+            md_data = MessageMarkdown(
+                custom_template_id=data["markdown"]["id"],
+                params=data["markdown"]["params"] if "params" in list(data["markdown"]) else []
+            )
             msg = MessageSegment.markdown(md_data)
 
             if "keyboard" in list(data) and data["keyboard"] is not None:
