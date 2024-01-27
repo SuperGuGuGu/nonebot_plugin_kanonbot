@@ -37,32 +37,6 @@ async def kanon(session: SessionExtension):
     bot_id = session.self_id
 
     run = False
-    # 识别对话
-    if run is False:
-        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-        datas = cursor.fetchall()
-        tables = []
-        for data in datas:
-            if data[1] != "sqlite_sequence":
-                tables.append(data[1])
-        if "gameinglist" not in tables:
-            cursor.execute(
-                'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
-                'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
-        cursor.execute(f'select * from gameinglist where channelid = "{unity_channel_id}"')
-        data = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        if data is not None:
-            # 有聊天数据
-            gameing = data[3]
-            if gameing == 1:
-                # 有正在进行的聊天
-                commandname = data[1]
-                run = True
-
     # 识别精准
     if run is False:
         cache_commandlist = commandlist["精准"]
@@ -116,6 +90,32 @@ async def kanon(session: SessionExtension):
         if data is not None:
             commandname = "表情功能-emoji"
             run = True
+
+    # 识别对话
+    if run is False:
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "gameinglist" not in tables:
+            cursor.execute(
+                'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+                'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+        cursor.execute(f'select * from gameinglist where channelid = "{unity_channel_id}"')
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if data is not None:
+            # 有聊天数据
+            gameing = data[3]
+            if gameing == 1:
+                # 有正在进行的聊天
+                commandname = data[1]
+                run = True
 
     user_id = session.user.id
     unity_user_id = get_unity_user_id("tomorin", user_id)

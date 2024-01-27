@@ -189,62 +189,6 @@ async def kanon(
     run = False
     time_now = int(time.time())
 
-    # 识别绑定
-    if run is False:
-        if command == "绑定" and len(commands) > 1:
-            unity_user_id = get_unity_user_id(platform, user_id)
-            if not os.path.exists(f"{basepath}db/"):
-                os.makedirs(f"{basepath}db/")
-            conn = sqlite3.connect(f"{basepath}db/config.db")
-            cursor = conn.cursor()
-            try:
-                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-                datas = cursor.fetchall()
-                tables = []
-                for data in datas:
-                    if data[1] != "sqlite_sequence":
-                        tables.append(data[1])
-                # 检查是否创建数据库
-                if "connect_list" not in tables:
-                    cursor.execute(
-                        'create table "connect_list"'
-                        '(id INTEGER primary key AUTOINCREMENT, unity_id VARCHAR(10), qq VARCHAR(10))')
-
-                cursor.execute(
-                    f'replace into connect_list ("unity_id","qq") values("{unity_user_id}","{commands[1]}")')
-                conn.commit()
-            except Exception as e:
-                pass
-            cursor.close()
-            conn.close()
-
-    # 识别对话
-    if run is False:
-        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-        datas = cursor.fetchall()
-        tables = []
-        for data in datas:
-            if data[1] != "sqlite_sequence":
-                tables.append(data[1])
-        if "gameinglist" not in tables:
-            cursor.execute(
-                'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
-                'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
-        cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
-        data = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        logger.debug(f"该群正在进行的聊天{data}")
-        if data is not None:
-            # 有聊天数据
-            gameing = data[3]
-            if gameing == 1:
-                # 有正在进行的聊天
-                commandname = data[1]
-                run = True
-
     # 识别精准
     if run is False:
         cache_commandlist = commandlist["精准"]
@@ -298,7 +242,34 @@ async def kanon(
         if data is not None:
             commandname = "emoji"
             run = True
-    run = False
+
+    # 识别对话
+    if run is False:
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "gameinglist" not in tables:
+            cursor.execute(
+                'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+                'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+        cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        logger.debug(f"该群正在进行的聊天{data}")
+        if data is not None:
+            # 有聊天数据
+            gameing = data[3]
+            if gameing == 1:
+                # 有正在进行的聊天
+                commandname = data[1]
+                run = True
+
     # 排除部分相应词
     if run is True:
         if commandname == 'caicaikan':
