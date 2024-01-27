@@ -46,7 +46,7 @@ if "\\" in basepath:
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.8")
+    logger.info("KanonBot-0.3.9")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -66,7 +66,10 @@ async def botrun(msg_info):
     else:
         command2 = None
     at_datas: list = msg_info["at_datas"]
-    user_permission:int = int(msg_info["user"]["permission"])
+    if "permission" in list(msg_info["user"]):
+        user_permission:int = int(msg_info["user"]["permission"])
+    else:
+        user_permission: int = 5
     user_id: str = msg_info["user"]["user_id"]
     if "face_image" in list(msg_info["user"]):
         user_avatar = msg_info["user"]["face_image"]
@@ -91,15 +94,15 @@ async def botrun(msg_info):
     # 黑白名单
     # 频道黑白名单
     if channel_id in kn_config("plugin-channel_black_list"):
-        return {"code": 0}  # 结束运行
+        return {"code": 0, "message": "channel in black list"}  # 结束运行
     elif channel_id in kn_config("plugin-channel_white_list"):
         pass
     else:
-        return {"code": 0}  # 结束运行
+        return {"code": 0, "message": "channel not in write list"}  # 结束运行
 
     # 用户黑白名单
     if user_id in kn_config("plugin-user_black_list"):
-        return {"code": 0}  # 结束运行
+        return {"code": 0, "message": "user in black list"}  # 结束运行
     elif user_id in kn_config("plugin-user_white_list"):
         pass
     else:
@@ -341,7 +344,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -368,7 +371,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -388,8 +391,9 @@ async def botrun(msg_info):
                     user_id=user_id,
                     groupcode=channel_id,
                     timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                    coolingdb=f"{dbpath}cooling.db"
+                )
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -423,7 +427,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -448,7 +452,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -467,7 +471,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -492,7 +496,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -519,7 +523,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -566,7 +570,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -591,7 +595,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -616,7 +620,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -641,7 +645,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -666,7 +670,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -691,7 +695,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -716,7 +720,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -741,7 +745,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -766,7 +770,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -791,7 +795,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -816,7 +820,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -841,7 +845,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -866,7 +870,7 @@ async def botrun(msg_info):
                     groupcode=channel_id,
                     timeshort=time_now,
                     coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -902,7 +906,7 @@ async def botrun(msg_info):
             if command == "猜猜看" and getconfig("commandcd"):
                 cooling = command_cd(
                     user_id=user_id, groupcode=channel_id, timeshort=time_now, coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")
@@ -927,7 +931,7 @@ async def botrun(msg_info):
             if command == "炸飞机" and getconfig("commandcd"):
                 cooling = command_cd(
                     user_id=user_id, groupcode=channel_id, timeshort=time_now, coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != "7" and user_id not in adminqq:
+                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
                     code = 1
                     message = f"指令冷却中（{cooling}s)"
                     logger.info("指令冷却中")

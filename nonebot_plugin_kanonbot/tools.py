@@ -308,7 +308,7 @@ async def lockst(lockdb):
                 cursor.close()
                 conn.close()
                 if locking[1] == 'on':
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(0.5)
                     if num == 0:
                         logger.error("等待超时")
                 else:

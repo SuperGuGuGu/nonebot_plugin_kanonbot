@@ -506,7 +506,7 @@ async def kanon(
         if "markdown" in list(data) and data["markdown"] is not None:
             md_data = MessageMarkdown(
                 custom_template_id=data["markdown"]["id"],
-                params=data["markdown"]["params"] if "params" in list(data["markdown"]) else []
+                params=data["markdown"]["params"] if "params" in list(data["markdown"]) else None
             )
             msg = MessageSegment.markdown(md_data)
 
