@@ -151,10 +151,8 @@ async def kanon(
 
     # ## 心跳服务相关 ##
     if kn_config("botswift-state"):
-        botswift_db = f"{basepath}db/botswift.db"
-        conn = sqlite3.connect(botswift_db)
+        conn = sqlite3.connect(f"{basepath}db/botswift.db")
         cursor = conn.cursor()
-        # 检查表格是否存在，未存在则创建
         cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
         datas = cursor.fetchall()
         tables = []
@@ -181,6 +179,10 @@ async def kanon(
             conn.commit()
         cursor.close()
         conn.close()
+
+        if user_id in bots_list:
+            # 不相应bot的消息
+            await run_kanon.finish()
 
     # 判断是否响应
     commandname = ""
@@ -240,7 +242,7 @@ async def kanon(
         cursor.close()
         conn.close()
         if data is not None:
-            commandname = "emoji"
+            commandname = "表情功能-emoji"
             run = True
 
     # 识别对话
@@ -285,14 +287,6 @@ async def kanon(
     # 开始处理消息
     run = True
     if run:
-        # 创建变量内容
-        code = 0
-        date = str(time.strftime("%Y-%m-%d", time.localtime()))
-        date_year = str(time.strftime("%Y", time.localtime()))
-        date_month = str(time.strftime("%m", time.localtime()))
-        date_day = str(time.strftime("%d", time.localtime()))
-        time_now = str(int(time.time()))
-
         # 获取用户信息
         unity_user_id = get_unity_user_id(platform, user_id)
         unity_user_data = get_unity_user_data(unity_user_id)
@@ -377,11 +371,11 @@ async def kanon(
                         atmsgs.append(text.removeprefix("<@").removesuffix(">"))
                         jump_num = len(text) - 2
         at_datas = []
-        for id in atmsgs:
+        for id_ in atmsgs:
             try:
-                data = await bot.get_member(guild_id=guild_id, user_id=id)
+                data = await bot.get_member(guild_id=guild_id, user_id=id_)
                 at_data = {
-                    "id": id,
+                    "id": id_,
                     "username": data.user.username,
                     "nick_name": data.nick,
                     "avatar": data.user.avatar,
@@ -398,7 +392,7 @@ async def kanon(
 
         # 特定功能获取消息
         channel_member_datas = {}
-        if commandname in ["jinrilaopo", "群聊功能-jinrilaopo", "reply"]:
+        if commandname in ["群聊功能-jinrilaopo"]:
             allgroupmember_data = await bot.call_api("/api/v3/guild/user-list", guild_id=guild_id)
             print("allgroupmember_data")
             for data in allgroupmember_data.users:
@@ -441,7 +435,6 @@ async def kanon(
         logger.info(data)
         # 获取返回信息，进行回复
         code = int(data["code"])
-
         if code in [1, 3, 4, 5]:
             msg = MessageSegment.text(data["message"])
             if channel_id.startswith("private"):
