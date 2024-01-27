@@ -249,6 +249,13 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             "event_message": "#333333",
             "icon_bg": "#def8ff",
             "icon_outline": "#76c9ec",
+            "group_color": {
+                "normal": "#eace5f",
+                "good": "#46eca4",
+                "great": "#f15fb2",
+                "perfect": "#935ff1",
+                "ocean": "#5a96ef",
+            },
         },
         "dark": {
             "bg": "#18171C",
@@ -261,8 +268,15 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             "title": "#EFEFEF",
             "event_title": "#EFEFEF",
             "event_message": "#E0E0E0",
-            "icon_bg": "#def8ff",
-            "icon_outline": "#76c9ec",
+            "icon_bg": "#617793",
+            "icon_outline": "#365580",
+            "group_color": {
+                "normal": "#eace5f",
+                "good": "#46eca4",
+                "great": "#f15fb2",
+                "perfect": "#935ff1",
+                "ocean": "#5a96ef",
+            },
         }
     }
     time_h = int(time.strftime("%H", time.localtime()))
@@ -782,6 +796,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             for data in new_jellyfish:
                 j_id = data["id"]
                 j_name = data["name"]
+                j_group = data["group"]
                 j_number = data["number"]
                 j_message = data["message"]
                 card_num += 1
@@ -810,6 +825,19 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
                 draw.text(xy=(278, 95 + (card_num * 261)), text=j_name,
                           fill=draw_config[draw_model]["event_title"], font=font)
+
+                # 添加水母分组
+                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
+                draw.text(
+                    xy=(278 + 150, 152 + (card_num * 261)), text=f"分组：",
+                    fill=draw_config[draw_model]["event_message"], font=font)
+                if j_group in list(draw_config[draw_model]["group_color"]):
+                    color = draw_config[draw_model]["group_color"][j_group]
+                else:
+                    color = draw_config[draw_model]["event_message"]
+                draw.text(
+                    xy=(278 + 150 + 120, 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
 
                 # 添加水母数量
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
@@ -868,7 +896,13 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = Image.open(file_path, "r")
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
-                mask_image = Image.new("RGBA", (575, 575), (255, 255, 255, 102))
+                color = (
+                    int(draw_config[draw_model]["icon_bg"][1:3], 16),
+                    int(draw_config[draw_model]["icon_bg"][3:5], 16),
+                    int(draw_config[draw_model]["icon_bg"][5:7], 16),
+                    102,
+                    )
+                mask_image = Image.new("RGBA", (575, 575), color)
                 mask_image.paste(paste_image, (0, 0), mask_image)
                 paste_card_image.paste(mask_image, (542, -69 -27 + (card_num * 261)), paste_image)
 
@@ -877,16 +911,28 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name, fill=draw_config[draw_model]["event_title"],
                           font=font)
 
-                # 添加水母数量
+                # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
-                    xy=(278, -69 + 152 + (card_num * 261)), text=f"分组：{j_group}",
+                    xy=(278, -69 + 152 + (card_num * 261)), text=f"分组：",
                     fill=draw_config[draw_model]["event_message"], font=font)
+                if j_group in list(draw_config[draw_model]["group_color"]):
+                    color = draw_config[draw_model]["group_color"][j_group]
+                else:
+                    color = draw_config[draw_model]["event_message"]
+                draw.text(
+                    xy=(278 + 120, -69 + 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
 
                 # 添加消息
-                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
-                draw.text(xy=(278, -69 + 200 + (card_num * 261)), text=f"简介：{j_message}",
-                          fill=draw_config[draw_model]["event_message"], font=font)
+                paste_text = await draw_text(
+                    texts=f"简介：{j_message}",
+                    size=40,
+                    textlen=12,
+                    fontfile=font_shsk_M_path,
+                    text_color=draw_config[draw_model]["event_message"]
+                )
+                paste_card_image.paste(paste_text, (278, -69 + 200 + (card_num * 261)), paste_text)
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
@@ -1087,12 +1133,11 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 else:
                     box_data["jellyfish"][choose_jellyfish]["number"] += grab_quantity
 
-                # file_path = await get_file_path(f"plugin-jellyfish_box-{choose_jellyfish}.png")
-                jellyfish_name = jellyfish_datas[choose_jellyfish]["name"]
                 new_jellyfish.append(
                     {"id": choose_jellyfish,
                      "number": grab_quantity,
-                     "name": jellyfish_name,
+                     "name": jellyfish_datas[choose_jellyfish]["name"],
+                     "group": jellyfish_datas[choose_jellyfish]["group"],
                      "message": f"抓到了{grab_quantity}只"}
                 )
 
@@ -1190,7 +1235,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
         returunpath = await draw_jellyfish_box(draw_box=False)
         code = 2
-    elif command == "水母图鉴":
+    elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
         cache_groups = []
         cache_group = []
