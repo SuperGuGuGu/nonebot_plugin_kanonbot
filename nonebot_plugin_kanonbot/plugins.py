@@ -1980,7 +1980,7 @@ async def plugin_game_cck(command, channel_id, platform):
             message = "没有在猜猜看哦。"
 
     if game_state == "new":
-        logger.info('新建游戏')
+        logger.debug('新建游戏')
         # 获取游戏基本数据（卡牌列表）
         filepath = await get_file_path("plugin-cck-member_list.json")
         data = open(filepath, 'r', encoding='utf8')
@@ -2061,7 +2061,9 @@ async def plugin_game_cck(command, channel_id, platform):
         # 合并3
         cck_imane3 = cck_imane3.resize((150, 50))
         cck_imane.paste(cck_imane3, (0, 100))
-        returnpath = save_image(cck_imane)
+
+        image = Image.new("RGB", (410, 150), "#FFFFFF")
+        image.paste(cck_imane, (0, 0))
 
         # 添加回复的句子
         num = random.randint(1, 5)
@@ -2078,8 +2080,19 @@ async def plugin_game_cck(command, channel_id, platform):
         message += ("\n游戏限制5分钟内"
                     "\n@bot并发送/猜猜看+名字"
                     "\n例：“@kanon/猜猜看 花音”"
-                    "\n发送/猜猜看+不知道结束游戏")
-        code = 3  # 添加回复的类型
+                    "\n发送“/猜猜看 不知道”结束游戏")
+
+        paste_image = await draw_text(
+            message,
+            size=16,
+            textlen=30,
+            fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+            text_color="#000000"
+        )
+        image.paste(paste_image, (163, 10), paste_image)
+        returnpath = save_image(image)
+
+        code = 2  # 添加回复的类型
 
         if platform == "qq_Official" and kn_config("plugin_cck", "send_button"):
             if 11 <= int(member_id) <= 30:
