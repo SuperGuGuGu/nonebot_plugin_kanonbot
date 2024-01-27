@@ -1187,7 +1187,48 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         command_prompt_list.append({"title": "/水母箱 放生 普通水母 5", "message": "将5只普通水母放生"})
-        returunpath = await draw_jellyfish_box(no_draw_box=True)
+        command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
+        returunpath = await draw_jellyfish_box(draw_box=False)
+        code = 2
+    elif command == "水母图鉴":
+        # 读取水母箱内容并分组
+        cache_groups = []
+        cache_group = []
+        for jellyfish_id in jellyfish_datas:
+            jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
+            jellyfish_message = jellyfish_datas[jellyfish_id]["message"]
+            jellyfish_group = jellyfish_datas[jellyfish_id]["group"]
+
+            if len(cache_group) > 9:
+                cache_groups.append(cache_group)
+                cache_group = []
+
+            cache_group.append(
+                {"id": jellyfish_id,
+                 "name": jellyfish_name,
+                 "group": jellyfish_group,
+                 "message": jellyfish_message}
+            )
+        if cache_groups:
+            cache_groups.append(cache_group)
+
+        if len(cache_groups) == 1:
+            # for cache_group in cache_groups:
+            for cache_data in cache_groups[0]:
+                jellyfish_menu.append(cache_data)
+            returunpath = await draw_jellyfish_box(draw_box=False, draw_menu=True)
+        else:
+            num_x = 0
+            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["bg"])
+            for cache_group in cache_groups:
+                jellyfish_menu = []
+                for cache_data in cache_group:
+                    jellyfish_menu.append(cache_data)
+                cache_path = await draw_jellyfish_box(draw_box=False, draw_menu=True)
+                paste_image = Image.open(cache_path, "r")
+                image.paste(paste_image, ((1000 * num_x), 0))
+                num_x += 1
+            returunpath = save_image(image)
         code = 2
     else:
         code = 1
