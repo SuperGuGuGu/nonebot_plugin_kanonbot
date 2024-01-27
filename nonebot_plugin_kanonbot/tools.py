@@ -16,34 +16,88 @@ import shutil
 import asyncio
 import time
 
-# 读取配置文件
-try:
-    config = nonebot.get_driver().config
-    # 配置2：
-    try:
-        basepath = config.kanonbot_basepath
-        if "\\" in basepath:
-            basepath = basepath.replace("\\", "/")
-        if basepath.startswith("./"):
-            basepath = os.path.abspath('.') + basepath.removeprefix(".")
-            if not basepath.endswith("/"):
-                basepath += "/"
-        else:
-            if not basepath.endswith("/"):
-                basepath += "/"
-    except Exception as e:
-        basepath = os.path.abspath('.') + "/KanonBot/"
-    # 配置3：
-    try:
-        command_starts = config.COMMAND_START
-    except Exception as e:
-        command_starts = ["/"]
-except Exception as e:
-    basepath = os.path.abspath('.') + "/KanonBot/"
-    command_starts = ["/"]
 
-if "\\" in basepath:
-    basepath = basepath.replace("\\", "/")
+def _kanonbot_plugin_config():
+    # 读取配置
+    # -》无需修改代码文件，请在“.env”文件中改。《-
+    #
+    # 配置1：
+    # 管理员账号SUPERUSERS
+    # 需要添加管理员权限，参考如下：
+    # SUPERUSERS=["12345678"]
+    #
+    # 配置2：
+    # 文件存放目录
+    # 该目录是存放插件数据的目录，参考如下：
+    # bilipush_basepath="./"
+    # bilipush_basepath="C:/"
+    #
+    # 配置3：
+    # 读取自定义的命令前缀
+    # COMMAND_START=["/", ""]
+    #
+    # 读取配置文件
+    try:
+        config = nonebot.get_driver().config
+        # 配置1
+        try:
+            _superusers = list(config.superusers)
+        except Exception as e:
+            _superusers = []
+        # 配置2：
+        try:
+            _basepath = config.kanonbot_basepath
+            if "\\" in _basepath:
+                _basepath = _basepath.replace("\\", "/")
+            if _basepath.startswith("./"):
+                _basepath = os.path.abspath('.') + _basepath.removeprefix(".")
+                if not _basepath.endswith("/"):
+                    _basepath += "/"
+            else:
+                if not _basepath.endswith("/"):
+                    _basepath += "/"
+        except Exception as e:
+            _basepath = os.path.abspath('.') + "/KanonBot/"
+        # 配置3：
+        try:
+            _command_starts = config.COMMAND_START
+        except Exception as e:
+            _command_starts = ["/"]
+        # 配置test, 开发者选项：
+        try:
+            kanonbot_test = config.KanonBetaTest
+        except Exception as e:
+            kanonbot_test = False
+    except Exception as e:
+        _basepath = os.path.abspath('.') + "/KanonBot/"
+        _command_starts = ["/"]
+        _superusers = []
+        kanonbot_test = False
+
+    if "\\" in _basepath:
+        _basepath = _basepath.replace("\\", "/")
+
+    # 初始化文件夹
+    if not os.path.exists(basepath):
+        os.makedirs(basepath)
+    cache_path = f"{basepath}cache/"
+    if not os.path.exists(cache_path):
+        os.makedirs(cache_path)
+    cache_path = f"{basepath}file/"
+    if not os.path.exists(cache_path):
+        os.makedirs(cache_path)
+
+    return {
+        "basepath": _basepath,
+        "command_starts": _command_starts,
+        "superusers": _superusers,
+        "kanonbot_test": kanonbot_test
+    }
+
+
+_config = _kanonbot_plugin_config()
+basepath = _config["basepath"]
+command_starts = _config["command_starts"]
 
 
 def get_command(msg: str) -> list:
@@ -199,7 +253,7 @@ def list_in_list(list_1: list, list_2: list):
     return False
 
 
-def start_with_list(msg: str, texts: list)  -> bool:
+def start_with_list(msg: str, texts: list) -> bool:
     for text in texts:
         if msg.startswith(text):
             return True
@@ -430,15 +484,16 @@ def command_cd(user_id, groupcode, timeshort: int, coolingdb):
     return cooling
 
 
-async def draw_text(texts: str,
-              size: int,
-              textlen: int = 20,
-              fontfile: str = "",
-              text_color="#000000",
-              biliemoji_infos=None,
-              draw_qqemoji=False,
-              calculate=False
-              ):
+async def draw_text(
+        texts: str,
+        size: int,
+        textlen: int = 20,
+        fontfile: str = "",
+        text_color="#000000",
+        biliemoji_infos=None,
+        draw_qqemoji=False,
+        calculate=False
+):
     """
     - 文字转图片
 
@@ -659,7 +714,7 @@ async def imgpath_to_url(imgpath):
     return imgurl
 
 
-def mix_image(image_1, image_2, mix_type = 1):
+def mix_image(image_1, image_2, mix_type=1):
     """
     将两张图合并为1张
     :param image_1: 要合并的图像1
@@ -870,8 +925,8 @@ def get_unity_user_id(platform: str, user_id: str):
 
             # 保留号段
             pass_str = False
-            for strr in ["KN", "Kn", "kN", "kn", "KA", "Ka", "kA", "ka", "SG", "sg", "0",  "444",  "41",  "S1",  "S8",
-                         "SB", "250", "69", "79", "NC", "58",  "5B",  "64",  "63",  "SX",  "NT",  "n7"]:
+            for strr in ["KN", "Kn", "kN", "kn", "KA", "Ka", "kA", "ka", "SG", "sg", "0", "444", "41", "S1", "S8",
+                         "SB", "250", "69", "79", "NC", "58", "5B", "64", "63", "SX", "NT", "n7"]:
                 if strr in random_str:
                     # 重新选
                     pass_str = True

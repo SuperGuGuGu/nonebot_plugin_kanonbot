@@ -1,48 +1,19 @@
 # coding=utf-8
-import re
-
 from .config import _config_list
-from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list
+from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list, _config
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
     plugin_emoji_emoji, plugin_jellyfish_box
 )
 import time
-import nonebot
 from nonebot import logger
 import os
 import sqlite3
 
-try:
-    config = nonebot.get_driver().config
-    # 配置1
-    try:
-        adminqq = list(config.superusers)
-    except Exception as e:
-        adminqq = []
-    # 配置2：
-    try:
-        basepath = config.kanonbot_basepath
-        if "\\" in basepath:
-            basepath = basepath.replace("\\", "/")
-        if basepath.startswith("./"):
-            basepath = os.path.abspath('.') + basepath.removeprefix(".")
-            if not basepath.endswith("/"):
-                basepath += "/"
-        else:
-            if not basepath.endswith("/"):
-                basepath += "/"
-    except Exception as e:
-        basepath = os.path.abspath('.') + "/KanonBot/"
-except Exception as e:
-    adminqq = []
-    basepath = os.path.abspath('.') + "/KanonBot/"
-if not os.path.exists(basepath):
-    os.makedirs(basepath)
-
-if "\\" in basepath:
-    basepath = basepath.replace("\\", "/")
+basepath = _config["basepath"]
+command_starts = _config["command_starts"]
+adminqq = _config["superusers"]
 
 
 async def botrun(msg_info):

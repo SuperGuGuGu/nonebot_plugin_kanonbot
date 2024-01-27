@@ -1,71 +1,21 @@
 # coding=utf-8
 from nonebot.adapters.qq.models import MessageKeyboard, MessageMarkdown
 from nonebot.plugin import PluginMetadata
-import nonebot
 import os
 import re
 import sqlite3
 from nonebot import on_message, logger
-from nonebot.adapters.qq import (
-    Bot,
-    MessageSegment,
-    MessageEvent
-    )
+from nonebot.adapters.qq import Bot, MessageSegment, MessageEvent
 import time
 from .config import command_list, _config_list
 from .bot_run import botrun
 from .tools import (kn_config, get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api,
-                    get_unity_user_id, get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face)
+                    get_unity_user_id, get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face, _config)
 
-config = nonebot.get_driver().config
-# 读取配置
-# -》无需修改代码文件，请在“.env”文件中改。《-
-#
-# 配置1：
-# 管理员账号SUPERUSERS
-# 需要添加管理员权限，参考如下：
-# SUPERUSERS=["12345678"]
-#
-# 配置2：
-# 文件存放目录
-# 该目录是存放插件数据的目录，参考如下：
-# bilipush_basepath="./"
-# bilipush_basepath="C:/"
-#
-# 配置3：
-# 读取自定义的命令前缀
-# COMMAND_START=["/", ""]
-#
 
-# 配置1
-try:
-    adminqq = list(config.superusers)
-except Exception as e:
-    adminqq = []
-# 配置2：
-try:
-    basepath = config.kanonbot_basepath
-    if "\\" in basepath:
-        basepath = basepath.replace("\\", "/")
-    if basepath.startswith("./"):
-        basepath = os.path.abspath('.') + basepath.removeprefix(".")
-        if not basepath.endswith("/"):
-            basepath += "/"
-    else:
-        if not basepath.endswith("/"):
-            basepath += "/"
-except Exception as e:
-    basepath = os.path.abspath('.') + "/KanonBot/"
-# 配置3：
-try:
-    command_starts = config.COMMAND_START
-except Exception as e:
-    command_starts = ["/"]
-# 配置test：
-try:
-    kanon_test = config.KanonBetaTest
-except Exception as e:
-    kanon_test = False
+basepath = _config["basepath"]
+command_starts = _config["command_starts"]
+
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(

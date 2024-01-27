@@ -3,38 +3,20 @@ import json
 import random
 import time
 from nonebot import logger
-import nonebot
 import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
-    circle_corner, \
-    get_command, get_unity_user_data, json_to_str, start_with_list
+    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
 
-try:
-    config = nonebot.get_driver().config
-    # 配置2：
-    try:
-        basepath = config.kanonbot_basepath
-        if basepath.startswith("./"):
-            basepath = os.path.abspath('.') + basepath.removeprefix(".")
-            if not basepath.endswith("/"):
-                basepath += "/"
-        else:
-            if not basepath.endswith("/"):
-                basepath += "/"
-    except Exception as e:
-        basepath = os.path.abspath('.') + "/KanonBot/"
-except Exception as e:
-    basepath = os.path.abspath('.') + "/KanonBot/"
 
-if "\\" in basepath:
-    basepath = basepath.replace("\\", "/")
+basepath = _config["basepath"]
+adminqq = _config["superusers"]
 
-run = True
+run = True  # 代码折叠助手
 
 
 async def plugin_zhanbu(user_id, cachepath):

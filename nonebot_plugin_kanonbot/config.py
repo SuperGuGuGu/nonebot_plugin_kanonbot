@@ -1,30 +1,10 @@
 # coding=utf-8
 import json
-import nonebot
-import os
-from .tools import get_file_path
+from .tools import get_file_path, _config
 
-try:
-    config = nonebot.get_driver().config
-    # 配置2：
-    try:
-        basepath = config.kanonbot_basepath
-        if "\\" in basepath:
-            basepath = basepath.replace("\\", "/")
-        if basepath.startswith("./"):
-            basepath = os.path.abspath('.') + basepath.removeprefix(".")
-            if not basepath.endswith("/"):
-                basepath += "/"
-        else:
-            if not basepath.endswith("/"):
-                basepath += "/"
-    except Exception as e:
-        basepath = os.path.abspath('.') + "/KanonBot/"
-except Exception as e:
-    basepath = os.path.abspath('.') + "/KanonBot/"
+basepath = _config["basepath"]
+adminqq = _config["superusers"]
 
-if "\\" in basepath:
-    basepath = basepath.replace("\\", "/")
 
 def _config_list():
     """
