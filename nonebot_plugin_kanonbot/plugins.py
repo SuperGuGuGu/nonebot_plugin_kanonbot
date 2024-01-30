@@ -7,7 +7,7 @@ import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
-    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config
+    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config, imgpath_to_url
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
@@ -2091,9 +2091,6 @@ async def plugin_game_cck(command, channel_id, platform):
         cck_imane3 = cck_imane3.resize((150, 50))
         cck_imane.paste(cck_imane3, (0, 100))
 
-        image = Image.new("RGB", (410, 150), "#FFFFFF")
-        image.paste(cck_imane, (0, 0))
-
         # 添加回复的句子
         num = random.randint(1, 5)
         if num == 1:
@@ -2111,17 +2108,61 @@ async def plugin_game_cck(command, channel_id, platform):
                     "\n例：“@kanon/猜猜看 花音”"
                     "\n发送“/猜猜看 不知道”结束游戏")
 
-        paste_image = await draw_text(
-            message,
-            size=16,
-            textlen=30,
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-            text_color="#000000"
-        )
-        image.paste(paste_image, (163, 10), paste_image)
-        returnpath = save_image(image)
+        if kn_config("plugin_cck", "draw_type") == 1:
+            image = Image.new("RGB", (150, 150), "#FFFFFF")
+            image.paste(cck_imane, (0, 0))
+            returnpath = save_image(image)
+            code = 3
+        elif kn_config("plugin_cck", "draw_type") == 2:
+            image = Image.new("RGB", (410, 150), "#FFFFFF")
+            image.paste(cck_imane, (0, 0))
 
-        code = 2  # 添加回复的类型
+            paste_image = await draw_text(
+                message,
+                size=16,
+                textlen=30,
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                text_color="#000000"
+            )
+            image.paste(paste_image, (163, 10), paste_image)
+            returnpath = save_image(image)
+
+            code = 2  # 添加回复的类型
+        else:
+            image = Image.new("RGB", (150, 150), "#FFFFFF")
+            image.paste(cck_imane, (0, 0))
+            returnpath = save_image(image)
+            code = 3
+
+        # # 以下plugin_cck的设置内容需要md按钮模板，故不推荐设置，默认就好，这里仅作展示，未来也许会删除
+        # [plugin]
+        # # md模板，可配合cck功能使用
+        # none_markdown = "123456"  # 空白模板
+        # [plugin_cck]
+        # # 发送按钮开关 需要开发者自行申请按钮模板
+        # send_button = false
+        # button_1_id = "123456"  # 分组1按钮id  成员id为11-30发送 (按钮json在developer/plugin_cck_config文件夹内）
+        # button_2_id = "123456"  # 分组2按钮id  成员id为31-45、106-110发送 (按钮json在developer/plugin_cck_config文件夹内）
+        # markdown_id = "123456"  # 空白模板id，用于配合按钮一起发送
+        # # 发送markdown开关 需要开发者自行申请按钮模板
+        # send_markdown = false  # 将图片以md形式发送，开启后可配合按钮一起发送
+
+        if platform == "qq_Official" and kn_config("plugin_cck", "send_markdown"):
+            # 去除消息的图片内容
+            if code == 3:
+                code = 1
+            elif code == 2:
+                code = 0
+            # 转换图片为md
+            markdown = {
+                "id": kn_config("plugin", "markdown_id"),
+                "params": [
+                    {"key": "text","values": ["img"]},
+                    {"key": "imagex","values": [f"{image.size[0]}"]},
+                    {"key": "imagey","values": [f"{image.size[1]}"]},
+                    {"key": "image","values": [f"{await imgpath_to_url(returnpath)}"]},
+                ]
+            }
 
         if platform == "qq_Official" and kn_config("plugin_cck", "send_button"):
             if 11 <= int(member_id) <= 30:
