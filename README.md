@@ -72,32 +72,48 @@ ignore_list = ["channel_qq_123456"]
 # 频道黑白名单
 # 不在名单内则继续，同时在名单内不会运行
 # 名单规则：[f"channel_{platform}_{channel_id}", f"group_{platform}_{group_id}", f"private_{platform}_{user_id}"]
-channel_white_list = []  # 
-channel_black_list = []  # 
+channel_white_list = []
+channel_black_list = []
 # 用户id，为unity_id，并非真实id。对应id在config.db的id_list表中查看。
 # 不在名单内则继续，同时在名单内不会运行
 user_black_list = []  # 用户白名单
 user_white_list = []  # 用户黑名单
 # at消息包含有机器人列表的机器人话，则不运行
-bot_list = []  # 
+bot_list = []
+
+[plugin_cck]
+# 发送方式
+# 为1时，文字和图片分开发送；为2时，文字绘制成图片，和cck图片一起发送
+draw_type = 1
+
 
 ```
 
-## 已移植内容：
+## 已有功能：
 
-*   [x] 占卜
+*   [x] 塔罗牌
 
-*   [ ] emoji
+*   [x] 签到
+
+*   [x] 水母箱
+
+*   [x] emoji
 
 *   [x] 喜报/悲报
 
-*   [x] 一直（仅频道）
+*   [x] 表情：一直（仅频道，或绑定qq的用户）
+
+*   [x] 表情：摸摸（仅频道，或绑定qq的用户）
+
+*   [x] 表情：可爱（仅频道，或绑定qq的用户）
+
+*   [x] 表情：结婚（仅频道，或绑定qq的用户）
 
 *   [x] 猜猜看
 
-*
-
 *   [x] 炸飞机
+
+*   [x] 多bot保活（1个群只相应1个bot，bot寄了就顶上）
 
 *   [x] 指令冷却
 
