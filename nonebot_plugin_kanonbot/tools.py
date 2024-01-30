@@ -78,12 +78,12 @@ def _kanonbot_plugin_config():
         _basepath = _basepath.replace("\\", "/")
 
     # 初始化文件夹
-    if not os.path.exists(basepath):
-        os.makedirs(basepath)
-    cache_path = f"{basepath}cache/"
+    if not os.path.exists(_basepath):
+        os.makedirs(_basepath)
+    cache_path = f"{_basepath}cache/"
     if not os.path.exists(cache_path):
         os.makedirs(cache_path)
-    cache_path = f"{basepath}file/"
+    cache_path = f"{_basepath}file/"
     if not os.path.exists(cache_path):
         os.makedirs(cache_path)
 
