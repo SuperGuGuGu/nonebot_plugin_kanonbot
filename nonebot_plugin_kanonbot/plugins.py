@@ -1155,7 +1155,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     elif command == "放生":
         if command2 is None:
             code = 1
-            message = "请添加水母名称以及数量"
+            message = "请添加水母名称以及数量\n例：“/水母箱 放生 普通水母 10”"
         else:
             commands = get_command(command2)
             jellyfish_name = commands[0]
@@ -1169,7 +1169,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 number = None
             if number is None:
                 code = 1
-                message = "数量错误，请检查填写数量"
+                message = "数量错误，请检查填写数量\n例：“/水母箱 放生 普通水母 10”"
             else:
                 jellyfish_id = None
                 for jellyfish_id in jellyfish_datas:
