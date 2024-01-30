@@ -236,6 +236,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 "good": "#46eca4",
                 "great": "#f15fb2",
                 "perfect": "#935ff1",
+                "special": "#7afffa",
                 "ocean": "#5a96ef",
             },
         },
@@ -257,6 +258,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 "good": "#46eca4",
                 "great": "#f15fb2",
                 "perfect": "#935ff1",
+                "special": "#7afffa",
                 "ocean": "#5a96ef",
             },
         }
@@ -1099,8 +1101,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 message = "别抓啦，水母箱已经满啦"
             else:
                 # 随机水母类型
-                group = ["normal", "good", "great", "perfect", "ocean"]
-                group_probability = [0.90, 0.10, 0.00, 0.00, 0.00]
+                group = ["normal", "good", "great", "perfect", "special", "ocean"]
+                group_probability = [0.90, 0.10, 0.00, 0.00, 0.00, 0.00]
                 p = numpy.array(group_probability).ravel()
                 choose_group = numpy.random.choice(group, p=p)
                 choose_list = []
