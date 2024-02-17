@@ -358,8 +358,18 @@ async def kanon(
         code = int(data["code"])
 
         if code == 0:
-            pass
-        elif code == 1:
+            await run_kanon.finish()
+
+        async def upload_image(image_path):
+            params = {
+                "method": "POST",
+                "data": {"image_type": "message"},
+                "files": {"image": ("file", open(image_path, "rb"))}
+            }
+            result = await bot.call_api("im/v1/images", **params)
+            return result["data"]["image_key"]
+
+        if code == 1:
             message = data["message"]
             msg = MessageSegment.text(message)
             await run_kanon.send(msg)
@@ -412,10 +422,4 @@ async def kanon(
             pass
 
     await run_kanon.finish()
-
-
-async def upload_image(image_path):
-    if readme == "未完成代码"
-        pass
-    return "image_key"
 
