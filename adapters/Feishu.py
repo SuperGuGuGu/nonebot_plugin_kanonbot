@@ -88,13 +88,6 @@ async def kanon(
     command = commands[0]
     now = int(time.time())
 
-    # 获取消息包含的图片
-    imgmsgs = []
-    image_key = str(message_event.get_message()['image'])
-    image_key = image_key.removeprefix("[image:").removesuffix("]")
-    # 待完善：缓存收到的图片文件，并转为路径
-    imgmsgs.append(f"{image_key}")
-
     # ## 心跳服务相关 ##
     if kn_config("botswift-state"):
         botswift_db = f"{basepath}db/botswift.db"
@@ -134,7 +127,6 @@ async def kanon(
     config_list = _config_list()
     run = False
     time_now = int(time.time())
-
 
     # 识别精准
     if run is False:
@@ -234,11 +226,6 @@ async def kanon(
     if run:
         # 创建变量内容
         code = 0
-        date = str(time.strftime("%Y-%m-%d", time.localtime()))
-        date_year = str(time.strftime("%Y", time.localtime()))
-        date_month = str(time.strftime("%m", time.localtime()))
-        date_day = str(time.strftime("%d", time.localtime()))
-        time_now = str(int(time.time()))
 
         # 获取用户信息
         unity_user_id = get_unity_user_id(platform, user_id)
@@ -297,6 +284,15 @@ async def kanon(
         if save:
             unity_user_data = save_unity_user_data(unity_user_id, unity_user_data)
 
+        # 获取消息包含的图片
+        imgmsgs = []
+        image_key = str(message_event.get_message()['image'])
+        image_key = image_key.removeprefix("[image:").removesuffix("]")
+        # 待完善：缓存收到的图片文件，并转为路径
+        if image_key != "":
+            msg = msg.replace(f"【image:{image_key}】", "")
+            imgmsgs.append(f"{image_key}")
+
         # 获取at内容
         atids = []
         num = -1
@@ -329,11 +325,9 @@ async def kanon(
                 logger.error("获取at内容失败")
 
         # 获取成员名单
-        friend_list = []
-        group_member_list = []
+        friend_datas = {}
         channel_member_datas = {}
 
-        msg = re.sub(u"<.*?>", "", msg)
         commands = get_command(msg)
         # 组装信息，进行后续响应
         msg_info = {
@@ -348,7 +342,8 @@ async def kanon(
             "imgmsgs": imgmsgs,
             "event_name": event_name,
             "platform": platform,
-            "friend_list": friend_list,
+            "friend_list": [],  # 兼容内容，未来将删除
+            "friend_datas": friend_datas,
             "channel_member_datas": channel_member_datas
         }
         logger.debug(msg_info)
