@@ -64,7 +64,7 @@ async def kanon(event: Event, bot: Bot):
         unity_guild_id = unity_channel_id = f"private_{platform}_{user_id}"
         guild_id = channel_id = user_id
 
-    msg = str(event.get_message())
+    msg = str(event.get_message().copy())
     msg = re.sub(u"\\[.*?]", "", msg)  # 去除cq码
     msg = msg.replace('"', "“").replace("'", "‘")  # 转换同义符
     msg = msg.replace("(", "（").replace(")", "）")  # 转换同义符
@@ -256,8 +256,19 @@ async def kanon(event: Event, bot: Bot):
         if save is True:
             unity_user_data = save_unity_user_data(unity_user_id, unity_user_data)
 
+        # 获取消息包含的图片
+        imgmsgmsg = event.get_message().copy()["image"]
+        logger.warning(f"imgmsgmsg::{imgmsgmsg}")
+        imgmsgs = []
+        if len(imgmsgmsg) >= 1:
+            for i in imgmsgmsg:
+                imgmsgg = str(i.data["url"])
+                imgmsgs.append(imgmsgg)
+        else:
+            imgmsgs = []
+
         # 获取at内容
-        atmsg = event.get_message()["at"]
+        atmsg = event.get_message().copy()["at"]
         at_datas = []
         if len(atmsg) >= 1:
             for i in atmsg:
@@ -267,8 +278,7 @@ async def kanon(event: Event, bot: Bot):
                 at_datas.append({"id": atmsgg, "platform": "qq"})
 
         # 获取消息内容
-        friend_list = []
-        group_member_list = []
+        friend_datas = {}
         channel_member_datas = {}
         if isinstance(event, GroupMessageEvent):
             # 群消息
@@ -279,10 +289,10 @@ async def kanon(event: Event, bot: Bot):
                 except Exception as e:
                     logger.error("获取群成员列表出错")
                     group_member_list = []
-            for group_member in group_member_list:
-                channel_member_datas[group_member] = {
-                    "user_id": user_id,
-                }
+                for group_member in group_member_list:
+                    channel_member_datas[group_member] = {
+                        "user_id": user_id,
+                    }
 
             # 获取用户权限
             # if await GROUP_ADMIN(bot, event):
@@ -298,16 +308,6 @@ async def kanon(event: Event, bot: Bot):
             # 私聊
             pass
 
-        # 获取消息包含的图片
-        imgmsgmsg = event.get_message()["image"]
-        imgmsgs = []
-        if len(imgmsgmsg) >= 1:
-            for i in imgmsgmsg:
-                imgmsgg = str(i.data["url"])
-                imgmsgs.append(imgmsgg)
-        else:
-            imgmsgs = []
-
         # 组装信息，进行后续响应
         msg_info = {
             "msg": msg,
@@ -321,7 +321,8 @@ async def kanon(event: Event, bot: Bot):
             "imgmsgs": imgmsgs,
             "event_name": "message_event",
             "platform": platform,
-            "friend_list": friend_list,
+            "friend_list": [],
+            "friend_datas": friend_datas,
             "channel_member_datas": channel_member_datas
         }
         logger.info(msg_info)

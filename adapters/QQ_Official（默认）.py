@@ -338,8 +338,7 @@ async def kanon(
                 logger.error("获取at内容失败")
 
         # 获取成员名单
-        friend_list = []
-        group_member_list = []
+        friend_datas = {}
         channel_member_datas = {}
 
         msg = re.sub(u"<.*?>", "", msg)
@@ -357,7 +356,8 @@ async def kanon(
             "imgmsgs": imgmsgs,
             "event_name": event_name,
             "platform": platform,
-            "friend_list": friend_list,
+            "friend_list": [],
+            "friend_datas": friend_datas,
             "channel_member_datas": channel_member_datas
         }
         logger.debug(msg_info)

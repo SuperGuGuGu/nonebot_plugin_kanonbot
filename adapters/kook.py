@@ -222,7 +222,6 @@ async def kanon(
 
         # 获取用户信息
         save = False
-        # q频道
         # 所有用户默认5普通用户权限
         unity_user_data["permission"] = 5
         if run:
@@ -316,8 +315,7 @@ async def kanon(
                 logger.error("获取at内容失败")
 
         # 获取成员名单
-        friend_list = []
-        group_member_list = []
+        friend_datas = {}
 
         # 特定功能获取消息
         channel_member_datas = {}
@@ -356,7 +354,8 @@ async def kanon(
             "imgmsgs": imgmsgs,
             "event_name": "message_event",
             "platform": platform,
-            "friend_list": friend_list,
+            "friend_list": [],
+            "friend_datas": friend_datas,
             "channel_member_datas": channel_member_datas,
         }
         logger.info(msg_info)
