@@ -2,7 +2,6 @@
 import re
 import string
 import httpx
-import requests
 import toml
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -206,6 +205,9 @@ def kn_config(config_name: str, config_name2: str = None):
             "user_black_list": [],
             "bot_list": [],
             "none_markdown": ""
+        },
+        "image_api": {
+            "url": None
         },
         "plugin_cck": {
             "draw_type": 1,
@@ -711,12 +713,25 @@ async def imgpath_to_url(imgpath):
     :param imgpath: 图片的路径
     :return: 图片的url
     """
-    if read == me:
-        pass
-    """
-    这里会运行报错，因为图片转链接功能需要图床的支持。请用户自行适配。
-    QQ适配器发送图片需要发送url让qq请求。
-    """
+    url = kn_config("image_api", "url")
+    if url is None:
+        """
+        这里会运行报错，因为图片转链接功能需要图床的支持。请用户自行适配。
+        QQ适配器发送图片需要发送url让qq请求。
+        """
+        raise "未配置图床地址"
+    try:
+        files = {"file": open(imgpath, "rb")}
+        post_url = f"{url}/upload/"
+        response = httpx.post(post_url, files=files)
+        json_data = json.loads(response.text)
+        if json_data["code"] != 0:
+            raise "图片上传失败"
+        image_path = json_data["image_path"]
+        imgurl = f"{url}{image_path}"
+    except Exception as e:
+        logger.error("图片上传失败")
+        raise e
     return imgurl
 
 
