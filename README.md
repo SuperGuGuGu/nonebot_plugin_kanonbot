@@ -10,11 +10,19 @@ KanonBot - nb2 插件版
 
 默认为adapter-qq。如需其他适配器请下载文件，在adapters文件夹找到对应文件，更改名字为`__init__.py` 并覆盖插件文件中的文件
 
-一.命令行安装：
+一.使用插件文件安装：（推荐）
+
+1.下载 nonebot\_plugin\_kanonbot 文件夹，放到 plugins 文件夹内。
+
+2.在 pyproject.toml 的 plugin\_dirs 中添加 "plugin" 使其可以顺利加载。
+
+    plugin_dirs = ["plugins"]
+
+二.命令行安装：
 
     nb plugin install nonebot-plugin-kanonbot
 
-二.pip 安装：
+三.pip 安装：
 
 1.执行此命令
 
@@ -23,12 +31,6 @@ KanonBot - nb2 插件版
 2.修改 pyproject.toml 使其可以加载插件
 
     plugins = [”nonebot-plugin-kanonbot“]
-
-三.使用插件文件安装：
-
-1.下载插件文件，放到 plugins 文件夹。
-
-2.修改 pyproject.toml 使其可以加载插件
 
 ## 配置
 
@@ -80,6 +82,13 @@ user_black_list = []  # 用户白名单
 user_white_list = []  # 用户黑名单
 # at消息包含有机器人列表的机器人话，则不运行
 bot_list = []
+
+[image_api]
+# 自部署的图床api，部署方法在 /developer/图床/图床部署方法.md 。
+url = "http://127.0.0.1:8081"
+# 请按照实际填入ip地址与端口。
+# 127.0.0.1可填ip或域名都行，需要在外部可访问。
+# 8081为端口号，如未修改图床端口则默认8081
 
 [plugin_cck]
 # 发送方式
