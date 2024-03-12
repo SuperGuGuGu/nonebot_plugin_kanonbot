@@ -496,7 +496,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                             break  # 少于1条，跳过事件
                         # 计算事件发生的内容
                         new_jellyfish_list = []
-                        num = 5
+                        num = 5  # 增加的水母数量
+                        event_message.replace("{num}", str(num))
                         while num > 0:
                             num -= 1
                             new_jellyfish_list.append(random.choice(jellyfish_list))
