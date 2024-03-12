@@ -120,6 +120,8 @@ async def kanon(session: SessionExtension):
     user_id = session.user.id
     unity_user_id = get_unity_user_id("tomorin", user_id)
     unity_user_data = get_unity_user_data(unity_user_id)
+    if "user_id" not in list(unity_user_data):
+        unity_user_data["user_id"] = unity_user_id
     unity_user_data["avatar"] = session.user.avatar
     unity_user_data["username"] = session.user.name
     unity_user_data["nick_name"] = session.user.nick
