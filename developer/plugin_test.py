@@ -1,9 +1,10 @@
+# coding=utf-8
 import asyncio
 import sys
 import time
 from nonebot import logger
 sys.path.append("..")
-from plugins.plugin_kanonbot_for_Kook.plugins import plugin_jellyfish_box
+from nonebot_plugin_kanonbot.plugins import plugin_jellyfish_box
 
 # #########################
 # 无需运行bot就能测试插件的小工具
@@ -17,7 +18,7 @@ async def run():
         user_id="KnTest",
         user_name="KnTest",
         channel_id="test_channel",
-        msg="水母箱",
+        msg="抓水母",
         time_now=int(time.time()),
     )
     logger.info(data)
