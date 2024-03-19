@@ -1277,6 +1277,9 @@ async def draw_jellyfish_live(draw_data):
     :param draw_data: 水母箱的内容
     :return: 多张图片路径
     """
+    jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
+    jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
+
     draw_data = {
         "jellyfish": {  # 水母数据
             "j1": {"number": 3},
@@ -1289,16 +1292,75 @@ async def draw_jellyfish_live(draw_data):
         "": ""
     }
     image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
+    x, y = draw_data["size"]
+    # 计算水母的大小
+    num = 0
+    for jellyfish_id in draw_data["jellyfish"]:
+        num += draw_data["jellyfish"][jellyfish_id]["number"]
+    if num < 100:
+        j_size = int((x + y) / 12)
+    elif num < 200:
+        j_size = int((x + y) / 12 / 1.5)
+    else:
+        j_size = int((x + y) / 12 / 2.5)
+
     # 转换水母数据格式
     jellyfish_data = {}
+    num = 0
     for jellyfish_id in draw_data["jellyfish"]:
         jellyfish_num = draw_data["jellyfish"][jellyfish_id]["number"]
         while jellyfish_num > 0:
             jellyfish_num -= 1
+            num += 1
+
+            living_locations = jellyfish_datas[jellyfish_id]["living_location"]
+            if living_locations:
+                living_location = random.choice(living_locations)
+            else:
+                living_location = "中"
+            if living_location == "中":
+                paste_x = random.randint(int(x * 0.2), int(x * 0.8))
+                paste_y = random.randint(int(y * 0.2), int(y * 0.8))
+            elif living_location == "左":
+                paste_x = random.randint(0, int(x * 0.2))
+                paste_y = random.randint(0, y)
+            elif living_location == "右":
+                paste_x = random.randint(int(x * 0.8), x)
+                paste_y = random.randint(0, y)
+            elif living_location == "上":
+                paste_x = random.randint(0, x)
+                paste_y = random.randint(0, int(y * 0.2))
+            elif living_location == "下":
+                paste_x = random.randint(0, x)
+                paste_y = random.randint(int(y * 0.8), y)
+            else:
+                paste_x = random.randint(0, x)
+                paste_y = random.randint(0, y)
+
+            paste_x -= int(j_size / 2)
+            paste_y -= int(j_size / 2)
+
+            jellyfish_data[str(num)] = {
+                "jellyfish_id": jellyfish_id,  # s水母id
+                "x": paste_x,  # 位置x
+                "y": paste_y,  # 位置y
+                "x_speed": random.randint(j_size * -1000, j_size * 1000) / 1000,
+                "y_speed": random.randint(j_size * -1000, j_size * 1000) / 1000,
+            }
+            if living_location != "中":
+                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -200, j_size * 200) / 1000
+                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -200, j_size * 200) / 1000
 
 
-
-
+            # jellyfish_data[str(num)] = {
+            #     "jellyfish_id": jellyfish_id,  # s水母id
+            #     "x": paste_x,  # 位置x
+            #     "y": paste_y,  # 位置y
+            #     "direction": direction,
+            #     "speed": random.randint(0, int(j_size * 1.5))
+            # }
+            # if living_location != "中":
+            #     jellyfish_data[str(num)]["speed"] = random.randint(0, int(j_size * 0.2))
 
 
 
