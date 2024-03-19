@@ -190,13 +190,14 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     """
     命令列表：
     水母箱：总命令，输入可查看水母箱和相关指令列表
+    查看水母箱：获取水母箱的图片
     帮助: 指令说明
     抓水母: 抓水母，并放入箱中
-    投喂: 往杠中添加饲料
-    换水: 恢复水质状态
+    投喂: 往杠中添加饲料（未实装）
+    换水: 恢复水质状态（未实装）
     丢弃: 丢弃指定水母
-    装饰: 开启装饰模式指令
-    结束: 关闭水母箱对话进程
+    装饰: 开启装饰模式指令（未实装）
+    结束: 关闭水母箱对话进程（未实装）
     """
     # 指令解析
     commands = get_command(msg)
@@ -340,7 +341,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         box_data = {
             "info": {
                 "oner": user_id,
-                "oner_name": get_unity_user_data(user_id)["username"]
+                "oner_name": user_name
             },
             "sign_in_time": int(time_now / 3600 - 2) * 3600,  # 上次抓水母时间小时计算
             "refresh_time": int(time_now / 3600) * 3600,  # 更新时间小时计算
@@ -589,7 +590,10 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             while number > 0:
                 number -= 1
                 # 判断水母所在区域
-                living_location = random.choice(living_locations)
+                if living_locations:
+                    living_location = random.choice(living_locations)
+                else:
+                    living_location = "中"
                 if living_location == "中":
                     paste_x = random.randint(0, (x - w))
                     paste_y = random.randint(0, (y - h))
@@ -1265,6 +1269,41 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         message = "错误命令"
 
     return code, message, returunpath
+
+
+async def draw_jellyfish_live(draw_data):
+    """
+    绘制动态的水母图片
+    :param draw_data: 水母箱的内容
+    :return: 多张图片路径
+    """
+    draw_data = {
+        "jellyfish": {  # 水母数据
+            "j1": {"number": 3},
+            "j2": {"number": 5}
+        },
+        "size": (200, 100),  # 图片大小
+        "frame_rate": 10,  # 每秒图片数量，帧率
+        "duration": 1.0,  # 时长（秒）
+        "background_color": "#FFFFFF",  # 背景颜色
+        "": ""
+    }
+    image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
+    # 转换水母数据格式
+    jellyfish_data = {}
+    for jellyfish_id in draw_data["jellyfish"]:
+        jellyfish_num = draw_data["jellyfish"][jellyfish_id]["number"]
+        while jellyfish_num > 0:
+            jellyfish_num -= 1
+
+
+
+
+
+
+
+    returnpath = ["./image1.png", "./image2.png"]
+    return returnpath
 
 
 def plugin_config(command: str, command2, guild_id: str, channel_id: str):
