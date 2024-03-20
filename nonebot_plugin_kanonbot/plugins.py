@@ -1145,6 +1145,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 绘制
                 command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱相关帮助"})
+                command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
                 returunpath = await draw_jellyfish_box()
                 code = 2
     elif command == "投喂":
@@ -1157,10 +1158,10 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         code = 2
     elif command == "换水":
         pass
-    elif command == "放生":
+    elif command in ["丢弃", "放生"]:
         if command2 is None:
             code = 1
-            message = "请添加水母名称以及数量\n例：“/水母箱 放生 普通水母 10”"
+            message = "请添加水母名称以及数量\n例：“/水母箱 丢弃 普通水母 10”"
         else:
             commands = get_command(command2)
             jellyfish_name = commands[0]
@@ -1174,7 +1175,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 number = None
             if number is None:
                 code = 1
-                message = "数量错误，请检查填写数量\n例：“/水母箱 放生 普通水母 10”"
+                message = "数量错误，请检查填写数量\n例：“/水母箱 丢弃 普通水母 10”"
             else:
                 jellyfish_id = None
                 for jellyfish_id in jellyfish_datas:
@@ -1197,7 +1198,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                             else:
                                 box_data["jellyfish"][jellyfish_id]["number"] -= number
                             code = 1
-                            message = f"成功放生了{number}只{jellyfish_name}"
+                            message = f"成功丢弃了{number}只{jellyfish_name}"
 
                             # 写入水母箱数据
                             conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -1220,7 +1221,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
         command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
-        command_prompt_list.append({"title": "/水母箱 放生 普通水母 5", "message": "将5只普通水母放生"})
+        command_prompt_list.append({"title": "/水母箱 丢弃 普通水母 5", "message": "将5只普通水母丢弃"})
         command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
         returunpath = await draw_jellyfish_box(draw_box=False)
         code = 2
@@ -1490,13 +1491,13 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
 
 
         message_del = ("功能列表："
-                   "\n现支持的功能列表"
-                   "\n1.合成emoji"
-                   "\n2.一直"
-                   "\n3.猜猜看"
-                   "\n4.水母箱"
-                   "\n5.签到"
-                   " ")
+                       "\n现支持的功能列表"
+                       "\n1.合成emoji"
+                       "\n2.一直"
+                       "\n3.猜猜看"
+                       "\n4.水母箱"
+                       "\n5.签到"
+                       " ")
 
     cursor.close()
     conn.close()
@@ -2259,10 +2260,10 @@ async def plugin_game_cck(command, channel_id, platform):
             markdown = {
                 "id": kn_config("plugin", "markdown_id"),
                 "params": [
-                    {"key": "text","values": ["img"]},
-                    {"key": "imagex","values": [f"{image.size[0]}"]},
-                    {"key": "imagey","values": [f"{image.size[1]}"]},
-                    {"key": "image","values": [f"{await imgpath_to_url(returnpath)}"]},
+                    {"key": "text", "values": ["img"]},
+                    {"key": "imagex", "values": [f"{image.size[0]}"]},
+                    {"key": "imagey", "values": [f"{image.size[1]}"]},
+                    {"key": "image", "values": [f"{await imgpath_to_url(returnpath)}"]},
                 ]
             }
 
@@ -2327,8 +2328,7 @@ async def plugin_game_cck(command, channel_id, platform):
                 conn.close()
             else:
                 message = f"猜错了哦，她不是{command}"
-                code = 1
-
+                code = 0
     elif game_state == "exit":
         # 手动退出game状态
         # 将”结束游戏状态“写入到数据库
