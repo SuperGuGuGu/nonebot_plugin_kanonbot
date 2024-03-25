@@ -8,7 +8,7 @@ import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
-    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config, imgpath_to_url
+    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config, imgpath_to_url, del_files2
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
@@ -1067,10 +1067,13 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
     # 判断指令
     if command == "查看水母箱":
-        image = Image.new("RGB", (2000, 1500), "#16547b")
-        paste_image = await draw_jellyfish((1900, 1400))
-        image.paste(paste_image, (50, 50), paste_image)
-        returunpath = save_image(image)
+        if os.path.exists(f"{basepath}cache/jellyfish_box/{user_id}.gif"):
+            returunpath = f"{basepath}cache/jellyfish_box/{user_id}.gif"
+        else:
+            image = Image.new("RGB", (2000, 1500), "#16547b")
+            paste_image = await draw_jellyfish((1900, 1400))
+            image.paste(paste_image, (50, 50), paste_image)
+            returunpath = save_image(image)
         code = 2
     elif command == "水母箱":
         # 测试指令
@@ -1288,10 +1291,18 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     return code, message, returunpath
 
 
-async def draw_jellyfish_live(draw_data):
+async def draw_jellyfish_live(
+        draw_data,
+        user_id: str = None,
+        path: str = None,
+        del_cache: bool = True
+):
     """
     绘制动态的水母图片
     :param draw_data: 水母箱的内容
+    :param user_id: 用户ID，用于自动修改gif文件名为"{user_id}.gif"
+    :param path: 保存的路径，一般不需要填，除非需要指定保存的位置
+    :param del_cache: 是否删除gif生成缓存
     :return: 多张图片路径
     """
     """
@@ -1372,16 +1383,16 @@ async def draw_jellyfish_live(draw_data):
 
             jellyfish_data[str(num)] = {
                 "jellyfish_id": jellyfish_id,  # s水母id
-                "jumping": False,  # 是否在跳跃。False或者0-1的小数
+                "jumping": 0.0,  # 是否在跳跃。False或者0-1的小数
                 "x": paste_x,  # 位置x
                 "y": paste_y,  # 位置y
-                "x_speed": random.randint(j_size * -100, j_size * 100) / 1000,
-                "y_speed": random.randint(j_size * -100, j_size * 100) / 1000,
+                "x_speed": random.randint(j_size * -35, j_size * 35) / 100 / draw_data["frame_rate"],
+                "y_speed": random.randint(j_size * -35, j_size * 35) / 100 / draw_data["frame_rate"],
             }
 
             if living_location != "中":
-                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
-                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
+                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data["frame_rate"]
+                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data["frame_rate"]
 
     # 绘制图片
     date: str = time.strftime("%Y-%m-%d", time.localtime())
@@ -1414,51 +1425,92 @@ async def draw_jellyfish_live(draw_data):
             #     "y_speed": 50,
             # }
 
+            # 读取水母图片
             file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
             paste_image = Image.open(file_path, "r")
+            paste_image = paste_image.resize((j_size, j_size))
 
+            # 绘制折叠加速效果
+            if j_data["jumping"] != 0:
+                paste_image = paste_image.resize((
+                    int(j_size * (1 + (j_data["jumping"] / 2))),
+                    int(j_size * (1.01 - (j_data["jumping"] / 4)))
+                ))
+                if j_data["jumping"] > 0.05:
+                    jellyfish_data[j_id]["jumping"] -= (j_data["jumping"] / 0.3 / draw_data["frame_rate"])
+                else:
+                    jellyfish_data[j_id]["jumping"] = 0
+
+            # 绘制转向效果
             angle = - 90 - azimuthangle((0, 0), (j_data["x_speed"], j_data["y_speed"]))
             paste_image = paste_image.rotate(angle)
-
             image_box.paste(paste_image, (j_data["x"], j_data["y"]), mask=paste_image)
 
             # 更新水母状态
-            jellyfish_data[j_id]["x_speed"] -= jellyfish_data[j_id]["x_speed"] * 1 / 2 / draw_data["frame_rate"]
-            jellyfish_data[j_id]["y_speed"] -= jellyfish_data[j_id]["y_speed"] * 1 / 2 / draw_data["frame_rate"]
+            jellyfish_data[j_id]["x_speed"] -= jellyfish_data[j_id]["x_speed"] * 1 / 3 / draw_data["frame_rate"]
+            jellyfish_data[j_id]["y_speed"] -= jellyfish_data[j_id]["y_speed"] * 1 / 3 / draw_data["frame_rate"]
             jellyfish_data[j_id]["x"] = int(jellyfish_data[j_id]["x"] + (jellyfish_data[j_id]["x_speed"]))
             jellyfish_data[j_id]["y"] = int(jellyfish_data[j_id]["y"] + (jellyfish_data[j_id]["y_speed"]))
 
+            # 如果碰到墙壁，则反向游动
+            if j_size / 2 > jellyfish_data[j_id]["x"]:
+                jellyfish_data[j_id]["x_speed"] = abs(jellyfish_data[j_id]["x_speed"])
+            elif jellyfish_data[j_id]["x"] > x - j_size / 2:
+                jellyfish_data[j_id]["x_speed"] = -abs(jellyfish_data[j_id]["x_speed"])
+            if j_size / 2 > jellyfish_data[j_id]["y"]:
+                jellyfish_data[j_id]["y_speed"] = abs(jellyfish_data[j_id]["y_speed"])
+            elif jellyfish_data[j_id]["y"] > x - j_size / 2:
+                jellyfish_data[j_id]["y_speed"] = -abs(jellyfish_data[j_id]["y_speed"])
+
             # 如果游得很慢，那就加速一次
-            if (jellyfish_data[j_id]["x_speed"] + jellyfish_data[j_id]["x_speed"]) < (j_size * 0.05):
+            if (abs(jellyfish_data[j_id]["x_speed"]) + abs(jellyfish_data[j_id]["x_speed"])) < (j_size * 0.005):
+                jellyfish_data[j_id]["jumping"] = 1.0
                 living_locations = jellyfish_datas[j_data["jellyfish_id"]]["living_location"]
                 if living_locations:
                     living_location = random.choice(living_locations)
                 else:
                     living_location = "中"
 
-                if living_location == "中":
-                    jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -100, j_size * 100) / 1000
-                    jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -100, j_size * 100) / 1000
-                else:
-                    jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
-                    jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
+                vr = velocity_ratio = 50 if living_location == "中" else 30
+                vr2 = vr / 2 / 1000
 
+                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 40 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 40 / draw_data["frame_rate"]
+
+                # 限制最小加速速度，防止发生来回抽搐
+                if j_size * -vr2 < jellyfish_data[j_id]["x_speed"] < j_size * vr2:
+                    jellyfish_data[j_id]["x_speed"] += j_size * vr2 \
+                        if jellyfish_data[j_id]["x_speed"] > 0 else j_size * -vr2
+                    jellyfish_data[j_id]["y_speed"] += j_size * vr2 \
+                        if jellyfish_data[j_id]["y_speed"] > 0 else j_size * -vr2
+
+        image_box = image_box.resize(draw_data["size"])
         save_path = f"{gifcache}{frame_num + 1}.png"
         image_box.save(save_path)
         returnpath_list.append(save_path)
 
-    logger.info(f"绘制完成{returnpath_list}")
+    logger.info(f"正在拼接gif")
 
     # 拼接成gif
-    returnpath = f"{cachepath}{time_now}_{random.randint(1000, 9999)}.gif"
+    if path is None:
+        if user_id is None:
+            returnpath = f"{cachepath}{time_now}_{random.randint(1000, 9999)}.gif"
+        else:
+            returnpath = f"{cachepath}{user_id}.gif"
+    else:
+        if user_id is None:
+            returnpath = f"{path}{time_now}_{random.randint(1000, 9999)}.gif"
+        else:
+            returnpath = f"{path}{user_id}.gif"
     frames = []
     png_files = os.listdir(gifcache)
     for frame_id in range(1, len(png_files) + 1):
         frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
         frames.append(frame)
-    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=draw_data["frame_rate"] * 10, loop=0,
+    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"], loop=0,
                    disposal=2)
-
+    if del_cache is True:
+        del_files2(gifcache)
 
     return returnpath
 
@@ -1581,8 +1633,6 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
             command_name = config_list[command_id]["name"]
             message += f"{command_name}\n"
         message = message.removesuffix("\n")
-
-
 
         message_del = ("功能列表："
                        "\n现支持的功能列表"
