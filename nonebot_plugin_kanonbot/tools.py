@@ -28,8 +28,8 @@ def _kanonbot_plugin_config():
     # 配置2：
     # 文件存放目录
     # 该目录是存放插件数据的目录，参考如下：
-    # bilipush_basepath="./"
-    # bilipush_basepath="C:/"
+    # kanonbot_basepath="./"
+    # kanonbot_basepath="C:/kanonbot/"
     #
     # 配置3：
     # 读取自定义的命令前缀
@@ -272,8 +272,7 @@ async def connect_api(
         type: str,
         url: str,
         post_json=None,
-        file_path: str = None,
-        failure_message: str = None):
+        file_path: str = None):
     logger.debug(f"connect_api请求URL：{url}")
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
@@ -283,10 +282,13 @@ async def connect_api(
         else:
             return json.loads(httpx.post(url, json=post_json, headers=h).text)
     elif type == "image":
-        if url in ["none", "None"] or url is None:
+        if url is None or url in ["none", "None", "", " "]:
             image = await draw_text("获取图片出错", 50, 10)
         else:
-            image = Image.open(BytesIO(httpx.get(url).content))
+            try:
+                image = Image.open(BytesIO(httpx.get(url).content))
+            except Exception as e:
+                image = await draw_text("获取图片出错", 50, 10)
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
@@ -294,12 +296,13 @@ async def connect_api(
             f = open(cache_file_path, "wb")
             res = httpx.get(url, headers=h).content
             f.write(res)
-            f.close()
             logger.debug(f"下载完成-{file_path}")
-            shutil.copyfile(cache_file_path, file_path)
-            os.remove(cache_file_path)
-        except Exception as e:
-            logger.error(f"文件下载出错-{e}, {file_path}")
+        except:
+            raise Exception
+        finally:
+            f.close()
+        shutil.copyfile(cache_file_path, file_path)
+        os.remove(cache_file_path)
     return
 
 
@@ -1107,14 +1110,28 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
 
 
 def json_to_str(json_data):
-    text = str(json_data)
+    text = json.dumps(json_data)
+    # text = str(json_data)
 
     # 替换同义词
-    text = text.replace("'", '\\-code-replace-code-\\')
-    text = text.replace('"', "'")
-    text = text.replace("\\-code-replace-code-\\", '"')
-    text = text.replace("None", "null")
-    text = text.replace("True", "true")
-    text = text.replace("False", "false")
+    # text = text.replace("'", '\\-code-replace-code-\\')
+    # text = text.replace('"', "'")
+    # text = text.replace("\\-code-replace-code-\\", '"')
+    # text = text.replace("None", "null")
+    # text = text.replace("True", "true")
+    # text = text.replace("False", "false")
 
     return text
+
+
+def del_files2(dir_path):
+    """
+    删除文件夹下所有文件和路径，保留要删的父文件夹
+    """
+    for root, dirs, files in os.walk(dir_path, topdown=False):
+        # 第一步：删除文件
+        for name in files:
+            os.remove(os.path.join(root, name))  # 删除文件
+        # 第二步：删除空文件夹
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))  # 删除一个空目录
