@@ -218,8 +218,8 @@ async def botrun(msg_info):
             if not datas:
                 # 没有数据，将本bot记为第一个bot
                 cursor.execute(
-                    f'replace into channel ("channel","botid","priority") '
-                    f'values("{channel_id}",{botid},1)')
+                    f'replace into "channel" ("channel","botid","priority") '
+                    f'values("{channel_id}","{botid}",1)')
                 botswitch = True
             else:
                 # 提取优先级列表
@@ -477,16 +477,37 @@ async def botrun(msg_info):
                         user_name = command2
                     if imgmsgs:
                         returnpath = await plugin_emoji_keai(imgmsgs[0], user_name)
+                        code = 2
+                    elif at_datas:
+                        at_data = at_datas[0]
+                        if "face_image" in at_data:
+                            returnpath = await plugin_emoji_keai(at_data["face_image"], user_name)
+                            code = 2
+                        elif "avatar" in at_data:
+                            returnpath = await plugin_emoji_keai(at_data["avatar"], user_name)
+                            code = 2
                     else:
-                        returnpath = await plugin_emoji_keai(user_avatar, user_name)
-                    code = 2
+                        pass
+                        # returnpath = await plugin_emoji_keai(user_avatar, user_name)
+
             else:
                 logger.info(f"run-{commandname}")
+                if command2 is not None:
+                    user_name = command2
                 if imgmsgs:
                     returnpath = await plugin_emoji_keai(imgmsgs[0], user_name)
+                    code = 2
+                elif at_datas:
+                    at_data = at_datas[0]
+                    if "face_image" in at_data:
+                        returnpath = await plugin_emoji_keai(at_data["face_image"], user_name)
+                        code = 2
+                    elif "avatar" in at_data:
+                        returnpath = await plugin_emoji_keai(at_data["avatar"], user_name)
+                        code = 2
                 else:
-                    returnpath = await plugin_emoji_keai(user_avatar, user_name)
-                code = 2
+                    pass
+                    # returnpath = await plugin_emoji_keai(user_avatar, user_name)
         elif "结婚" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
                 cooling = command_cd(
@@ -511,11 +532,22 @@ async def botrun(msg_info):
                     else:
                         name1 = user_name
                         name2 = " "
+
                     if imgmsgs:
                         returnpath = await plugin_emoji_jiehun(imgmsgs[0], name1, name2)
+                        code = 2
+                    elif at_datas:
+                        at_data = at_datas[0]
+                        if "face_image" in at_data:
+                            returnpath = await plugin_emoji_jiehun(at_data["face_image"], name1, name2)
+                            code = 2
+                        elif "avatar" in at_data:
+                            returnpath = await plugin_emoji_jiehun(at_data["avatar"], name1, name2)
+                            code = 2
                     else:
-                        returnpath = await plugin_emoji_jiehun(user_avatar, name1, name2)
-                    code = 2
+                        pass
+                        # returnpath = await plugin_emoji_jiehun(user_avatar, name1, name2)
+
             else:
                 logger.info(f"run-{commandname}")
                 if command2 is not None:
@@ -529,11 +561,21 @@ async def botrun(msg_info):
                 else:
                     name1 = user_name
                     name2 = " "
+
                 if imgmsgs:
                     returnpath = await plugin_emoji_jiehun(imgmsgs[0], name1, name2)
+                    code = 2
+                elif at_datas:
+                    at_data = at_datas[0]
+                    if "face_image" in at_data:
+                        returnpath = await plugin_emoji_jiehun(at_data["face_image"], name1, name2)
+                        code = 2
+                    elif "avatar" in at_data:
+                        returnpath = await plugin_emoji_jiehun(at_data["avatar"], name1, name2)
+                        code = 2
                 else:
-                    returnpath = await plugin_emoji_jiehun(user_avatar, name1, name2)
-                code = 2
+                    pass
+                    # returnpath = await plugin_emoji_jiehun(user_avatar, name1, name2)
         elif "摸摸" == commandname and getconfig(commandname):
             if getconfig("commandcd"):
                 cooling = command_cd(
@@ -549,316 +591,34 @@ async def botrun(msg_info):
                     logger.info(f"run-{commandname}")
                     if imgmsgs:
                         returnpath = await plugin_emoji_momo(imgmsgs[0])
+                        code = 2
+                    elif at_datas:
+                        at_data = at_datas[0]
+                        if "face_image" in at_data:
+                            returnpath = await plugin_emoji_momo(at_data["face_image"])
+                            code = 2
+                        elif "avatar" in at_data:
+                            returnpath = await plugin_emoji_momo(at_data["avatar"])
+                            code = 2
                     else:
-                        returnpath = await plugin_emoji_momo(user_avatar)
-                    code = 2
+                        pass
+                        # returnpath = await plugin_emoji_momo(user_avatar)
             else:
                 logger.info(f"run-{commandname}")
                 if imgmsgs:
                     returnpath = await plugin_emoji_momo(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_momo(user_avatar)
-                code = 2
-        elif "亲亲" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_qinqin(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_qinqin(user_avatar)
                     code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_qinqin(imgmsgs[0])
+                elif at_datas:
+                    at_data = at_datas[0]
+                    if "face_image" in at_data:
+                        returnpath = await plugin_emoji_momo(at_data["face_image"])
+                        code = 2
+                    elif "avatar" in at_data:
+                        returnpath = await plugin_emoji_momo(at_data["avatar"])
+                        code = 2
                 else:
-                    returnpath = await plugin_emoji_qinqin(user_avatar)
-                code = 2
-        elif "贴贴" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_tietie(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_tietie(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_tietie(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_tietie(user_avatar)
-                code = 2
-        elif "逮捕" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_daibu(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_daibu(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_daibu(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_daibu(user_avatar)
-                code = 2
-        elif "踢" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_ti(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_ti(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_ti(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_ti(user_avatar)
-                code = 2
-        elif "爬" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_pa(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_pa(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_pa(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_pa(user_avatar)
-                code = 2
-        elif "咬咬" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_yaoyao(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_yaoyao(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_yaoyao(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_yaoyao(user_avatar)
-                code = 2
-        elif "寄" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_ji()
-                    else:
-                        returnpath = await plugin_emoji_ji()
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_ji()
-                else:
-                    returnpath = await plugin_emoji_ji()
-                code = 2
-        elif "拳拳" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_quanquan(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_quanquan(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_quanquan(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_quanquan(user_avatar)
-                code = 2
-        elif "我老婆" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_wolaopo(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_wolaopo(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_wolaopo(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_wolaopo(user_avatar)
-                code = 2
-        elif "指" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_zhi(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_zhi(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_zhi(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_zhi(user_avatar)
-                code = 2
-        elif "结婚证" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_jiehunzheng(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_jiehunzheng(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_jiehunzheng(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_jiehunzheng(user_avatar)
-                code = 2
-        elif "急" == commandname and getconfig(commandname):
-            if getconfig("commandcd"):
-                cooling = command_cd(
-                    user_id=user_id,
-                    groupcode=channel_id,
-                    timeshort=time_now,
-                    coolingdb=f"{dbpath}cooling.db")
-                if cooling != "off" and user_permission != 7 and user_id not in adminqq:
-                    code = 1
-                    message = f"指令冷却中（{cooling}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    if imgmsgs:
-                        returnpath = await plugin_emoji_ji2(imgmsgs[0])
-                    else:
-                        returnpath = await plugin_emoji_ji2(user_avatar)
-                    code = 2
-            else:
-                logger.info(f"run-{commandname}")
-                if imgmsgs:
-                    returnpath = await plugin_emoji_ji2(imgmsgs[0])
-                else:
-                    returnpath = await plugin_emoji_ji2(user_avatar)
-                code = 2
+                    pass
+                    # returnpath = await plugin_emoji_momo(user_avatar)
 
     elif commandname.startswith("小游戏") and botswitch is True:
         commandname = commandname.removeprefix("小游戏-")
