@@ -1,5 +1,6 @@
 # coding=utf-8
 import json
+import math
 import random
 import time
 from nonebot import logger
@@ -11,7 +12,6 @@ from .tools import kn_config, connect_api, save_image, image_resize2, draw_text,
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
-
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
@@ -362,6 +362,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if refresh_period > 0:
             refresh = True
             box_data["refresh_time"] += refresh_period * 3600
+    # refresh = True
     if refresh:
         # 更新数据
         logger.debug("正在刷新水母箱")
@@ -386,23 +387,26 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             event_probability.append(p_num)
 
             # 按周期更新数据
+            # refresh_period = 1  # beta test del
             while refresh_period > 0:
                 refresh_period -= 1
                 if len(news) > 9:
                     # 单次最多更新10条消息
                     break
                 # 随机发生的事件数
-                event_num = 1
+                event_num = 1  # beta test 1
                 while event_num > 0:
                     event_num -= 1
                     # 开始随机事件
                     p = numpy.array(event_probability).ravel()
                     event_id = numpy.random.choice(event_list, p=p)
+                    # event_id = "e4"  # beta test del
                     if event_id is None or event_id not in ["e1", "e2", "e3", "e4"]:
                         continue
                     # 准备事件
                     event_name = event_datas[event_id]["name"]
                     event_message = event_datas[event_id]["message"]
+                    # event_icon = await get_file_path(f"plugin-jellyfish_box-{event_id}")
                     event_icon = None
                     if event_id in ["e2"]:
                         # 无变化中立事件
@@ -522,6 +526,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                             jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
                             jellyfish_number = new_jellyfish_datas[jellyfish_id]
                             event_message += f"{jellyfish_name}{jellyfish_number}只、"
+
                         # 总结事件
                         news.append({"icon": event_icon, "title": event_name, "message": event_message})
                     elif event_id == "":
@@ -795,7 +800,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
                 paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
-                paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7),paste_image)
+                paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
                 paste_image = Image.open(file_path, "r")
                 paste_image = paste_image.resize((248, 248))
@@ -806,7 +811,13 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = Image.open(file_path, "r")
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
-                mask_image = Image.new("RGBA", (575, 575), (255, 255, 255, 102))
+                color = (
+                    int(draw_config[draw_model]["icon_bg"][1:3], 16),
+                    int(draw_config[draw_model]["icon_bg"][3:5], 16),
+                    int(draw_config[draw_model]["icon_bg"][5:7], 16),
+                    102,
+                )
+                mask_image = Image.new("RGBA", (575, 575), color)
                 mask_image.paste(paste_image, (0, 0), mask_image)
                 paste_card_image.paste(mask_image, (542, -27 + (card_num * 261)), paste_image)
 
@@ -874,7 +885,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
                 paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
-                paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7),paste_image)
+                paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
                 paste_image = Image.open(file_path, "r")
                 paste_image = paste_image.resize((248, 248))
@@ -890,15 +901,15 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     int(draw_config[draw_model]["icon_bg"][3:5], 16),
                     int(draw_config[draw_model]["icon_bg"][5:7], 16),
                     102,
-                    )
+                )
                 mask_image = Image.new("RGBA", (575, 575), color)
                 mask_image.paste(paste_image, (0, 0), mask_image)
-                paste_card_image.paste(mask_image, (542, -69 -27 + (card_num * 261)), paste_image)
+                paste_card_image.paste(mask_image, (542, -69 - 27 + (card_num * 261)), paste_image)
 
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
-                draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name, fill=draw_config[draw_model]["event_title"],
-                          font=font)
+                draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name,
+                          fill=draw_config[draw_model]["event_title"], font=font)
 
                 # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
@@ -1062,6 +1073,11 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         returunpath = save_image(image)
         code = 2
     elif command == "水母箱":
+        # 测试指令
+        # news.append({"icon": None, "title": "title", "message": "event_message"})
+        # command_prompt_list.append({"title": "title", "message": "event_message"})
+        # new_jellyfish.append(
+        #     {"id": "j2", "number": 20, "group": "good", "name": "jellyfish_name22", "message": f"抓到了???只"})
         command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令列表"})
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         returunpath = await draw_jellyfish_box()
@@ -1278,9 +1294,7 @@ async def draw_jellyfish_live(draw_data):
     :param draw_data: 水母箱的内容
     :return: 多张图片路径
     """
-    jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
-    jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
-
+    """
     draw_data = {
         "jellyfish": {  # 水母数据
             "j1": {"number": 3},
@@ -1289,10 +1303,25 @@ async def draw_jellyfish_live(draw_data):
         "size": (200, 100),  # 图片大小
         "frame_rate": 10,  # 每秒图片数量，帧率
         "duration": 1.0,  # 时长（秒）
-        "background_color": "#FFFFFF",  # 背景颜色
-        "": ""
+        "background_color": (22, 84, 123, 0),  # 背景颜色
     }
+    """
+    def azimuthangle(p1, p2):
+        """ 已知两点坐标计算角度 -
+        :param p1: 原点横坐标(1, 2)
+        :param p2: 目标纵坐标(3, 4)
+        """
+        x = math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+        x = x * 180 / math.pi  # 转换为角度
+        if x < 0:
+            x = 360 + x
+        return x
+
+    jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
+    jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
+
     image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
+    draw = ImageDraw.Draw(image_base)
     x, y = draw_data["size"]
     # 计算水母的大小
     num = 0
@@ -1343,29 +1372,94 @@ async def draw_jellyfish_live(draw_data):
 
             jellyfish_data[str(num)] = {
                 "jellyfish_id": jellyfish_id,  # s水母id
+                "jumping": False,  # 是否在跳跃。False或者0-1的小数
                 "x": paste_x,  # 位置x
                 "y": paste_y,  # 位置y
-                "x_speed": random.randint(j_size * -1000, j_size * 1000) / 1000,
-                "y_speed": random.randint(j_size * -1000, j_size * 1000) / 1000,
+                "x_speed": random.randint(j_size * -100, j_size * 100) / 1000,
+                "y_speed": random.randint(j_size * -100, j_size * 100) / 1000,
             }
+
             if living_location != "中":
-                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -200, j_size * 200) / 1000
-                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -200, j_size * 200) / 1000
+                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
+                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
 
+    # 绘制图片
+    date: str = time.strftime("%Y-%m-%d", time.localtime())
+    date_year: str = time.strftime("%Y", time.localtime())
+    date_month: str = time.strftime("%m", time.localtime())
+    date_day: str = time.strftime("%d", time.localtime())
+    time_h: str = time.strftime("%H", time.localtime())
+    time_m: str = time.strftime("%M", time.localtime())
+    time_s: str = time.strftime("%S", time.localtime())
+    time_now: int = int(time.time())
+    cachepath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
+    gifcache = f"{cachepath}jellyfish_box/live_cache_{time_now}/"
+    if not os.path.exists(gifcache):
+        os.makedirs(gifcache)
 
-            # jellyfish_data[str(num)] = {
-            #     "jellyfish_id": jellyfish_id,  # s水母id
-            #     "x": paste_x,  # 位置x
-            #     "y": paste_y,  # 位置y
-            #     "direction": direction,
-            #     "speed": random.randint(0, int(j_size * 1.5))
+    returnpath_list = []
+    image_num = int(draw_data["frame_rate"] * draw_data["duration"])
+    for frame_num in range(image_num):
+        logger.info(f"正在绘制{frame_num}/{image_num}")
+
+        image_box = image_base.copy()
+        for j_id in list(jellyfish_data):
+            j_data = jellyfish_data[j_id]
+            # j_data = {
+            #     "jellyfish_id": "j1",  # s水母id
+            #     "jumping": False,  # 是否在跳跃。False或者0-1的小数
+            #     "x": 100,  # 位置x
+            #     "y": 100,  # 位置y
+            #     "x_speed": 50,
+            #     "y_speed": 50,
             # }
-            # if living_location != "中":
-            #     jellyfish_data[str(num)]["speed"] = random.randint(0, int(j_size * 0.2))
+
+            file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
+            paste_image = Image.open(file_path, "r")
+
+            angle = - 90 - azimuthangle((0, 0), (j_data["x_speed"], j_data["y_speed"]))
+            paste_image = paste_image.rotate(angle)
+
+            image_box.paste(paste_image, (j_data["x"], j_data["y"]), mask=paste_image)
+
+            # 更新水母状态
+            jellyfish_data[j_id]["x_speed"] -= jellyfish_data[j_id]["x_speed"] * 1 / 2 / draw_data["frame_rate"]
+            jellyfish_data[j_id]["y_speed"] -= jellyfish_data[j_id]["y_speed"] * 1 / 2 / draw_data["frame_rate"]
+            jellyfish_data[j_id]["x"] = int(jellyfish_data[j_id]["x"] + (jellyfish_data[j_id]["x_speed"]))
+            jellyfish_data[j_id]["y"] = int(jellyfish_data[j_id]["y"] + (jellyfish_data[j_id]["y_speed"]))
+
+            # 如果游得很慢，那就加速一次
+            if (jellyfish_data[j_id]["x_speed"] + jellyfish_data[j_id]["x_speed"]) < (j_size * 0.05):
+                living_locations = jellyfish_datas[j_data["jellyfish_id"]]["living_location"]
+                if living_locations:
+                    living_location = random.choice(living_locations)
+                else:
+                    living_location = "中"
+
+                if living_location == "中":
+                    jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -100, j_size * 100) / 1000
+                    jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -100, j_size * 100) / 1000
+                else:
+                    jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
+                    jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -20, j_size * 20) / 1000
+
+        save_path = f"{gifcache}{frame_num + 1}.png"
+        image_box.save(save_path)
+        returnpath_list.append(save_path)
+
+    logger.info(f"绘制完成{returnpath_list}")
+
+    # 拼接成gif
+    returnpath = f"{cachepath}{time_now}_{random.randint(1000, 9999)}.gif"
+    frames = []
+    png_files = os.listdir(gifcache)
+    for frame_id in range(1, len(png_files) + 1):
+        frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
+        frames.append(frame)
+    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=draw_data["frame_rate"] * 10, loop=0,
+                   disposal=2)
 
 
-
-    returnpath = ["./image1.png", "./image2.png"]
     return returnpath
 
 
