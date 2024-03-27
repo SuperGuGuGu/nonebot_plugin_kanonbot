@@ -1447,13 +1447,13 @@ async def draw_jellyfish_live(
             jellyfish_data[j_id]["y"] = int(jellyfish_data[j_id]["y"] + (jellyfish_data[j_id]["y_speed"]))
 
             # 如果碰到墙壁，则反向游动
-            if j_size / 2 > jellyfish_data[j_id]["x"]:
+            if j_size / 2 - j_size > jellyfish_data[j_id]["x"]:
                 jellyfish_data[j_id]["x_speed"] = abs(jellyfish_data[j_id]["x_speed"])
             elif jellyfish_data[j_id]["x"] > x - j_size / 2:
                 jellyfish_data[j_id]["x_speed"] = -abs(jellyfish_data[j_id]["x_speed"])
-            if j_size / 2 > jellyfish_data[j_id]["y"]:
+            if j_size / 2 - j_size > jellyfish_data[j_id]["y"]:
                 jellyfish_data[j_id]["y_speed"] = abs(jellyfish_data[j_id]["y_speed"])
-            elif jellyfish_data[j_id]["y"] > x - j_size / 2:
+            elif jellyfish_data[j_id]["y"] > y - j_size / 2:
                 jellyfish_data[j_id]["y_speed"] = -abs(jellyfish_data[j_id]["y_speed"])
 
             # 如果游得很慢，那就加速一次
@@ -1465,18 +1465,16 @@ async def draw_jellyfish_live(
                 else:
                     living_location = "中"
 
-                vr = velocity_ratio = 50 if living_location == "中" else 30
-                vr2 = vr / 2 / 1000
+                vr = velocity_ratio = 12 if living_location == "中" else 7
+                vr2 = j_size * vr / draw_data["frame_rate"] / 4
 
-                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 40 / draw_data["frame_rate"]
-                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 40 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
 
                 # 限制最小加速速度，防止发生来回抽搐
-                if j_size * -vr2 < jellyfish_data[j_id]["x_speed"] < j_size * vr2:
-                    jellyfish_data[j_id]["x_speed"] += j_size * vr2 \
-                        if jellyfish_data[j_id]["x_speed"] > 0 else j_size * -vr2
-                    jellyfish_data[j_id]["y_speed"] += j_size * vr2 \
-                        if jellyfish_data[j_id]["y_speed"] > 0 else j_size * -vr2
+                if -vr2 < (jellyfish_data[j_id]["x_speed"] + jellyfish_data[j_id]["y_speed"]) < vr2:
+                    jellyfish_data[j_id]["x_speed"] += jellyfish_data[j_id]["x_speed"]
+                    jellyfish_data[j_id]["y_speed"] += jellyfish_data[j_id]["y_speed"]
 
         image_box = image_box.resize(draw_data["size"])
         save_path = f"{gifcache}{frame_num + 1}.png"
