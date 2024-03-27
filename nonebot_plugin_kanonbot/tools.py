@@ -217,6 +217,9 @@ def kn_config(config_name: str, config_name2: str = None):
             "markdown_id": "",
             "send_markdown": False,
         },
+        "plugin_jellyfish_box": {
+            "draw_gif": False,
+        },
     }
 
     # 保存默认设置
@@ -292,8 +295,8 @@ async def connect_api(
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
+        f = open(cache_file_path, "wb")
         try:
-            f = open(cache_file_path, "wb")
             res = httpx.get(url, headers=h).content
             f.write(res)
             logger.debug(f"下载完成-{file_path}")

@@ -1067,8 +1067,15 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
     # 判断指令
     if command == "查看水母箱":
-        if os.path.exists(f"{basepath}cache/jellyfish_box/{user_id}.gif"):
-            returunpath = f"{basepath}cache/jellyfish_box/{user_id}.gif"
+        if kn_config("plugin_jellyfish_box", "draw_gif") is True:
+            draw_data = {
+                "jellyfish": box_data["jellyfish"],
+                "size": (1000, 750),  # 图片大小
+                "frame_rate": 8,  # 每秒图片数量，帧率
+                "duration": 5.0,  # 时长（秒）
+                "background_color": (22, 84, 123, 255),  # 背景颜色
+            }
+            returunpath = await draw_jellyfish_live(draw_data=draw_data)
         else:
             image = Image.new("RGB", (2000, 1500), "#16547b")
             paste_image = await draw_jellyfish((1900, 1400))
@@ -1471,10 +1478,10 @@ async def draw_jellyfish_live(
                     living_location = "中"
 
                 vr = velocity_ratio = 12 if living_location == "中" else 7
-                vr2 = j_size * vr / 10 / draw_data["frame_rate"] / 4
+                vr2 = j_size * vr / 20 / draw_data["frame_rate"] / 3
 
-                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
-                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data["frame_rate"]
 
                 # 限制最小加速速度，防止发生来回抽搐
                 if -vr2 < (jellyfish_data[j_id]["x_speed"] + jellyfish_data[j_id]["y_speed"]) < vr2:
