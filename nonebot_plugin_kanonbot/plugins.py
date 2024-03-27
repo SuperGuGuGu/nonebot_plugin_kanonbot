@@ -1416,13 +1416,18 @@ async def draw_jellyfish_live(
         logger.info(f"正在绘制{frame_num}/{image_num}")
 
         image_box = image_base.copy()
+        load_image = "none"
+        jellyfish_image = None
         for j_id in list(jellyfish_data):
             j_data = jellyfish_data[j_id]
 
             # 读取水母图片
-            file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
-            paste_image = Image.open(file_path, "r")
-            paste_image = paste_image.resize((j_size, j_size))
+            if load_image != j_data['jellyfish_id']:
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
+                jellyfish_image = Image.open(file_path, "r")
+                jellyfish_image = jellyfish_image.resize((j_size, j_size))
+                load_image = j_data['jellyfish_id']
+            paste_image = jellyfish_image.copy()
 
             # 绘制折叠加速效果
             if j_data["jumping"] != 0:
