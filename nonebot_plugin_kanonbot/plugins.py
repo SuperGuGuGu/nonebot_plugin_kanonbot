@@ -1466,7 +1466,7 @@ async def draw_jellyfish_live(
                     living_location = "中"
 
                 vr = velocity_ratio = 12 if living_location == "中" else 7
-                vr2 = j_size * vr / draw_data["frame_rate"] / 4
+                vr2 = j_size * vr / 10 / draw_data["frame_rate"] / 4
 
                 jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
                 jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 10 / draw_data["frame_rate"]
