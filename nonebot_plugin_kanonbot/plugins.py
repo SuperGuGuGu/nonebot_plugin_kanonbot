@@ -1295,7 +1295,8 @@ async def draw_jellyfish_live(
         draw_data,
         user_id: str = None,
         path: str = None,
-        del_cache: bool = True
+        del_cache: bool = True,
+        to_gif: bool = True
 ):
     """
     绘制动态的水母图片
@@ -1303,7 +1304,8 @@ async def draw_jellyfish_live(
     :param user_id: 用户ID，用于自动修改gif文件名为"{user_id}.gif"
     :param path: 保存的路径，一般不需要填，除非需要指定保存的位置
     :param del_cache: 是否删除gif生成缓存
-    :return: 多张图片路径
+    :param to_gif: 说否生成gif图，如否则返回 list(多张图片路径)
+    :return: 图片路径
     """
     """
     draw_data = {
@@ -1416,14 +1418,6 @@ async def draw_jellyfish_live(
         image_box = image_base.copy()
         for j_id in list(jellyfish_data):
             j_data = jellyfish_data[j_id]
-            # j_data = {
-            #     "jellyfish_id": "j1",  # s水母id
-            #     "jumping": False,  # 是否在跳跃。False或者0-1的小数
-            #     "x": 100,  # 位置x
-            #     "y": 100,  # 位置y
-            #     "x_speed": 50,
-            #     "y_speed": 50,
-            # }
 
             # 读取水母图片
             file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
@@ -1489,30 +1483,32 @@ async def draw_jellyfish_live(
         image_box.save(save_path)
         returnpath_list.append(save_path)
 
-    logger.info(f"正在拼接gif")
-
-    # 拼接成gif
-    if path is None:
-        if user_id is None:
-            returnpath = f"{cachepath}{time_now}_{random.randint(1000, 9999)}.gif"
+    if to_gif is True:
+        # 拼接成gif
+        logger.info(f"正在拼接gif")
+        if path is None:
+            if user_id is None:
+                returnpath = f"{cachepath}{time_now}_{random.randint(1000, 9999)}.gif"
+            else:
+                returnpath = f"{cachepath}{user_id}.gif"
         else:
-            returnpath = f"{cachepath}{user_id}.gif"
+            if user_id is None:
+                returnpath = f"{path}{time_now}_{random.randint(1000, 9999)}.gif"
+            else:
+                returnpath = f"{path}{user_id}.gif"
+        frames = []
+        png_files = os.listdir(gifcache)
+        for frame_id in range(1, len(png_files) + 1):
+            frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
+            frames.append(frame)
+        frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"], loop=0,
+                       disposal=2)
+        if del_cache is True:
+            del_files2(gifcache)
+
+        return returnpath
     else:
-        if user_id is None:
-            returnpath = f"{path}{time_now}_{random.randint(1000, 9999)}.gif"
-        else:
-            returnpath = f"{path}{user_id}.gif"
-    frames = []
-    png_files = os.listdir(gifcache)
-    for frame_id in range(1, len(png_files) + 1):
-        frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
-        frames.append(frame)
-    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"], loop=0,
-                   disposal=2)
-    if del_cache is True:
-        del_files2(gifcache)
-
-    return returnpath
+        return returnpath_list
 
 
 def plugin_config(command: str, command2, guild_id: str, channel_id: str):
