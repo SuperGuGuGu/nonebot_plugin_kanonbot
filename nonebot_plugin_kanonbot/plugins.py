@@ -1196,7 +1196,10 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             else:
                 number = 1
             try:
-                number = int(number)
+                if number in ["all", "所有"]:
+                    number = "all"
+                else:
+                    number = abs(int(number))
             except Exception as e:
                 number = None
             if number is None:
@@ -1204,8 +1207,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 message = "数量错误，请检查填写数量\n例：“/水母箱 丢弃 普通水母 10”"
             else:
                 jellyfish_id = None
-                for jellyfish_id in jellyfish_datas:
-                    if jellyfish_name == jellyfish_datas[jellyfish_id]["name"]:
+                for jellyfish_id_temp in jellyfish_datas:
+                    if jellyfish_name == jellyfish_datas[jellyfish_id_temp]["name"]:
                         break
                 if jellyfish_id is None:
                     code = 1
@@ -1215,11 +1218,11 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                         code = 1
                         message = "水母箱没有这只水母哦"
                     else:
-                        if box_data["jellyfish"][jellyfish_id]["number"] < number:
+                        if number != "all" and box_data["jellyfish"][jellyfish_id]["number"] < number:
                             code = 1
                             message = "水母箱里没这么多水母哦"
                         else:
-                            if box_data["jellyfish"][jellyfish_id]["number"] == number:
+                            if number == "all" or box_data["jellyfish"][jellyfish_id]["number"] == number:
                                 box_data["jellyfish"].pop(jellyfish_id)
                             else:
                                 box_data["jellyfish"][jellyfish_id]["number"] -= number
