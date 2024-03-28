@@ -1209,6 +1209,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 jellyfish_id = None
                 for jellyfish_id_temp in jellyfish_datas:
                     if jellyfish_name == jellyfish_datas[jellyfish_id_temp]["name"]:
+                        jellyfish_id = jellyfish_id_temp
                         break
                 if jellyfish_id is None:
                     code = 1
