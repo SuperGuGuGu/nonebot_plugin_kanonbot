@@ -82,6 +82,8 @@ user_black_list = []  # 用户白名单
 user_white_list = []  # 用户黑名单
 # at消息包含有机器人列表的机器人话，则不运行
 bot_list = []
+# 记录运行日志
+log = false
 
 [image_api]
 # 自部署的图床api，部署方法在 /developer/图床/图床部署方法.md 。

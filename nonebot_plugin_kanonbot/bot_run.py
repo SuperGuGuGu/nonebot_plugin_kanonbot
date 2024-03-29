@@ -681,12 +681,35 @@ async def botrun(msg_info):
 
     # 返回消息处理
     locked(lockdb)
-    return {"code": code,
-            "message": message,
-            "returnpath": returnpath,
-            "returnpath2": returnpath2,
-            "returnpath3": returnpath3,
-            "at": False,
-            "keyboard": keyboard,
-            "markdown": markdown,
-            }
+    return_json = {"code": code,
+                   "message": message,
+                   "returnpath": returnpath,
+                   "returnpath2": returnpath2,
+                   "returnpath3": returnpath3,
+                   "at": False,
+                   "keyboard": keyboard,
+                   "markdown": markdown,
+                   }
+
+    # 日志记录
+    if kn_config("plugin", "log") is True:
+        conn = sqlite3.connect(f"{basepath}db/log.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "log" not in tables:
+            cursor.execute(
+                f'create table "log"(id INTEGER primary key AUTOINCREMENT, '
+                f'time VARCHAR(10), input VARCHAR(10), output VARCHAR(10))')
+        cursor.execute(
+            f'replace into "log" ("time","input","output") '
+            f"values('{time_now}','{json.dumps(msg_info)}','{json.dumps(return_json)}')")
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    return return_json

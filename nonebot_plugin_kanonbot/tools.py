@@ -204,10 +204,8 @@ def kn_config(config_name: str, config_name2: str = None):
             "user_white_list": [],
             "user_black_list": [],
             "bot_list": [],
-            "none_markdown": ""
-        },
-        "image_api": {
-            "url": None
+            "none_markdown": "",
+            "log": True
         },
         "plugin_cck": {
             "draw_type": 1,
