@@ -291,7 +291,8 @@ def _zhanbu_datas():
 
 
 async def _jellyfish_box_datas():
-    file_path = await get_file_path("plugin-jellyfish_box-box_data.json")
+    # 其实这里"_V2"可以不加也行，不加也是获取一样的文件。但是正在运行的插件不加V2导致水母数据没有更新，会获取到不存在的great水母而出问题。
+    file_path = await get_file_path("plugin-jellyfish_box-box_data_v2.json")
     f = open(file_path)
     data = f.read()
     f.close()

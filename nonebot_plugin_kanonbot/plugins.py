@@ -1133,7 +1133,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             else:
                 # 随机水母类型
                 group = ["normal", "good", "great", "perfect", "special", "ocean"]
-                group_probability = [0.90, 0.10, 0.00, 0.00, 0.00, 0.00]
+                group_probability = [0.90, 0.09, 0.01, 0.00, 0.00, 0.00]
                 p = numpy.array(group_probability).ravel()
                 choose_group = numpy.random.choice(group, p=p)
                 choose_list = []
