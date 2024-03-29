@@ -207,6 +207,9 @@ def kn_config(config_name: str, config_name2: str = None):
             "none_markdown": "",
             "log": True
         },
+        "image_api": {
+            "url": None
+        },
         "plugin_cck": {
             "draw_type": 1,
             "send_button": False,

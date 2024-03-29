@@ -1,6 +1,7 @@
 # coding=utf-8
+import json
 from .config import _config_list
-from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list, _config
+from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list, _config, del_files2
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
@@ -17,7 +18,7 @@ adminqq = _config["superusers"]
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.9")
+    logger.info("KanonBot-0.3.10")
     # ## 初始化 ##
     lockdb = f"{basepath}db/"
     if not os.path.exists(lockdb):
@@ -38,7 +39,7 @@ async def botrun(msg_info):
         command2 = None
     at_datas: list = msg_info["at_datas"]
     if "permission" in list(msg_info["user"]):
-        user_permission:int = int(msg_info["user"]["permission"])
+        user_permission: int = int(msg_info["user"]["permission"])
     else:
         user_permission: int = 5
     user_id: str = msg_info["user"]["user_id"]
@@ -98,18 +99,6 @@ async def botrun(msg_info):
     cachepath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
-
-    def del_files2(dir_path):
-        """
-        删除文件夹下所有文件和路径，保留要删的父文件夹
-        """
-        for root, dirs, files in os.walk(dir_path, topdown=False):
-            # 第一步：删除文件
-            for name in files:
-                os.remove(os.path.join(root, name))  # 删除文件
-            # 第二步：删除空文件夹
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))  # 删除一个空目录
 
     # 清除缓存
     if os.path.exists(f"{basepath}/cache/{int(date_year) - 1}"):
@@ -268,7 +257,7 @@ async def botrun(msg_info):
                             config_gruop_list = []
                             for config_id in config_list:
                                 if config_list[config_id]["group"] not in config_gruop_list:
-                                    config_gruop_list.append(config_list[config_id]["group"] )
+                                    config_gruop_list.append(config_list[config_id]["group"])
                             for config_group in config_gruop_list:
                                 commandname = commandname.removeprefix(f"{config_group}-")
                             if getconfig(cache) and commandname not in ["小游戏-猜猜看"]:
@@ -281,7 +270,6 @@ async def botrun(msg_info):
                                 continue
                             else:
                                 break
-
 
             conn.commit()
             cursor.close()
@@ -671,7 +659,7 @@ async def botrun(msg_info):
                     code, message, returnpath = await plugin_game_blowplane(command=command, channel_id=channel_id)
             else:
                 logger.info(f"run-{commandname}")
-                code, message, returnpath = await plugin_game_blowplane( command=command, channel_id=channel_id)
+                code, message, returnpath = await plugin_game_blowplane(command=command, channel_id=channel_id)
 
     elif "###" == commandname:
         pass
