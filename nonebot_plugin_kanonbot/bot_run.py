@@ -687,8 +687,10 @@ async def botrun(msg_info):
 
     except Exception as e:
         logger.error("初始化异常")
-        return_json["error_message"] = e
-        return_json["error_path"] = traceback.format_exc()
+        return_json["code"] = -1
+        return_json["error_message"] = str(e)
+        return_json["error_traceback"] = str(traceback.format_exc())
+
         logger.error(traceback.format_exc())
 
     # 日志记录
