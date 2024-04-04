@@ -637,7 +637,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         j_image = j_image.resize(size)
         return j_image
 
-    async def draw_jellyfish_box(draw_box=True, draw_menu=False):
+    async def draw_jellyfish_box(draw_box=True, draw_title=None):
         """
         绘制状态图
         :return: 图片路径
@@ -729,15 +729,15 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         font = ImageFont.truetype(font=font_shsk_M_path, size=40)
         draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config[draw_model]["date"], font=font)
 
-        if draw_menu is True:
-            text = "水母图鉴"
-        else:
+        if draw_title is None:
             text = user_name
+        else:
+            text = draw_title
         font = ImageFont.truetype(font=font_shsk_M_path, size=70)
         draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config[draw_model]["name"], font=font)
 
         # 绘制头像
-        if "face_image" in list(user_data) and draw_menu is not True:
+        if "face_image" in list(user_data) and draw_title is None:
             user_avatar = user_data["face_image"]
             try:
                 if user_avatar in [None, "None", "none"]:
@@ -1084,6 +1084,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 "background_color": (22, 84, 123, 255),  # 背景颜色
             }
             returunpath = await draw_jellyfish_live(draw_data=draw_data)
+        elif os.path.exists(f"{basepath}cache/jellyfish_box/{user_id}.gif"):
+            returunpath = f"{basepath}cache/jellyfish_box/{user_id}.gif"
         else:
             image = Image.new("RGB", (2000, 1500), "#16547b")
             paste_image = await draw_jellyfish((1900, 1400))
@@ -1096,7 +1098,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         # command_prompt_list.append({"title": "title", "message": "event_message"})
         # new_jellyfish.append(
         #     {"id": "j2", "number": 20, "group": "good", "name": "jellyfish_name22", "message": f"抓到了???只"})
-        command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令列表"})
+        command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         returunpath = await draw_jellyfish_box()
         code = 2
@@ -1178,7 +1180,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 conn.close()
 
                 # 绘制
-                command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱相关帮助"})
+                command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
+                command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "统计水母箱内水母数量"})
                 command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
                 returunpath = await draw_jellyfish_box()
                 code = 2
@@ -1251,7 +1254,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             else:
                 number = 1
             try:
-                if number in ["all", "所有"]:
+                if number in ["all", "所有", "全部"]:
                     number = "all"
                 else:
                     number = abs(int(number))
@@ -1268,7 +1271,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                         break
                 if jellyfish_id is None:
                     code = 1
-                    message = f"错误，找不到相关水母"
+                    message = f"错误，找不到“{jellyfish_name}”"
                 else:
                     if jellyfish_id not in list(box_data["jellyfish"]):
                         code = 1
@@ -1280,10 +1283,12 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                         else:
                             if number == "all" or box_data["jellyfish"][jellyfish_id]["number"] == number:
                                 box_data["jellyfish"].pop(jellyfish_id)
+                                code = 1
+                                message = f"成功丢弃了所有的{jellyfish_name}"
                             else:
                                 box_data["jellyfish"][jellyfish_id]["number"] -= number
-                            code = 1
-                            message = f"成功丢弃了{number}只{jellyfish_name}"
+                                code = 1
+                                message = f"成功丢弃了{number}只{jellyfish_name}"
 
                             # 写入水母箱数据
                             conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -1330,14 +1335,14 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                  "group": jellyfish_group,
                  "message": jellyfish_message}
             )
-        if cache_groups:
+        if cache_group:
             cache_groups.append(cache_group)
 
         if len(cache_groups) == 1:
             # for cache_group in cache_groups:
             for cache_data in cache_groups[0]:
                 jellyfish_menu.append(cache_data)
-            returunpath = await draw_jellyfish_box(draw_box=False, draw_menu=True)
+            returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
         else:
             num_x = 0
             image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["bg"])
@@ -1345,7 +1350,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 jellyfish_menu = []
                 for cache_data in cache_group:
                     jellyfish_menu.append(cache_data)
-                cache_path = await draw_jellyfish_box(draw_box=False, draw_menu=True)
+                cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
                 paste_image = Image.open(cache_path, "r")
                 image.paste(paste_image, ((1000 * num_x), 0))
                 num_x += 1
@@ -1401,7 +1406,6 @@ async def draw_jellyfish_live(
     jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
 
     image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
-    draw = ImageDraw.Draw(image_base)
     x, y = draw_data["size"]
     # 计算水母的大小
     num = 0
@@ -1413,6 +1417,7 @@ async def draw_jellyfish_live(
         j_size = int((x + y) / 12 / 1.5)
     else:
         j_size = int((x + y) / 12 / 2.5)
+    # j_size = int(j_size / 2)  # 绘制视频使用，将水母尺寸缩小到25%（长宽各50%）
 
     # 转换水母数据格式
     jellyfish_data = {}
@@ -1480,7 +1485,7 @@ async def draw_jellyfish_live(
     returnpath_list = []
     image_num = int(draw_data["frame_rate"] * draw_data["duration"])
     for frame_num in range(image_num):
-        logger.info(f"正在绘制{frame_num}/{image_num}")
+        logger.debug(f"正在绘制{frame_num}/{image_num}")
 
         image_box = image_base.copy()
         load_image = "none"

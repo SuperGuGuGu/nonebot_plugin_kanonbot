@@ -328,6 +328,13 @@ async def get_file_path(file_name) -> str:
     return file_path
 
 
+async def load_image(path: str):
+    if path.startswith("http"):
+        return await connect_api("image", path)
+    else:
+        return Image.open(path, "r")
+
+
 async def lockst(lockdb):
     """
     如有其他指令在运行，则暂停该函数
