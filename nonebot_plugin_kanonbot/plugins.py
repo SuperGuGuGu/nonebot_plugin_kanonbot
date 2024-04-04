@@ -1192,6 +1192,53 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         code = 2
     elif command == "换水":
         pass
+    elif command == "水母统计表":
+        # 读取水母箱内容并分组
+        cache_groups = []
+        cache_group = []
+
+        group_list = ["special", "perfect", "great", "good", "normal", "ocean"]
+        for jellyfish_id in list(box_data["jellyfish"]):
+            if jellyfish_datas[jellyfish_id]["group"] not in group_list:
+                group_list.append(jellyfish_datas[jellyfish_id]["group"])
+
+        for group in group_list:
+            for jellyfish_id in list(box_data["jellyfish"]):
+                if group != jellyfish_datas[jellyfish_id]["group"]:
+                    continue
+
+                if len(cache_group) > 9:
+                    cache_groups.append(cache_group)
+                    cache_group = []
+
+                cache_group.append(
+                    {"id": jellyfish_id,
+                     "name": jellyfish_datas[jellyfish_id]["name"],
+                     "group": jellyfish_datas[jellyfish_id]["group"],
+                     "message": f"x{box_data['jellyfish'][jellyfish_id]['number']}"}
+                )
+
+        if cache_group:
+            cache_groups.append(cache_group)
+
+        if len(cache_groups) == 1:
+            for cache_data in cache_groups[0]:
+                jellyfish_menu.append(cache_data)
+            returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+        else:
+            num_x = 0
+            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["bg"])
+            for cache_group in cache_groups:
+                jellyfish_menu = []
+                for cache_data in cache_group:
+                    jellyfish_menu.append(cache_data)
+                cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+                paste_image = Image.open(cache_path, "r")
+                image.paste(paste_image, ((1000 * num_x), 0))
+                num_x += 1
+            returunpath = save_image(image)
+        code = 2
+
     elif command in ["丢弃", "放生"]:
         if command2 is None:
             code = 1
@@ -1261,6 +1308,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
         command_prompt_list.append({"title": "/水母箱 丢弃 普通水母 5", "message": "将5只普通水母丢弃"})
         command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
+        command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "查看目前水母箱有多少水母"})
         returunpath = await draw_jellyfish_box(draw_box=False)
         code = 2
     elif command in ["水母图鉴", "图鉴"]:
