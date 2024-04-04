@@ -582,14 +582,22 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         else:
             j_size = int((x + y) / 12 / 2.5)
 
+        load_image = "None"
+        jellyfish_image = None
         j_image = Image.new("RGBA", (x, y), (0, 0, 0, 0))
         for jellyfish_id in box_data["jellyfish"]:
             # 读取要绘制水母的数据
             number = box_data["jellyfish"][jellyfish_id]["number"]  # 绘制数量
             # 读取绘制的图片，并缩放
-            file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
-            paste_image = Image.open(file_path, "r")
-            paste_image = paste_image.resize((j_size, j_size))
+
+            # 读取水母图片
+            if load_image != jellyfish_id:
+                file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
+                jellyfish_image = Image.open(file_path, "r")
+                jellyfish_image = jellyfish_image.resize((j_size, j_size))
+                load_image = jellyfish_id
+            paste_image = jellyfish_image.copy()
+
             w, h = paste_image.size
             living_locations = jellyfish_datas[jellyfish_id]["living_location"]
             while number > 0:
