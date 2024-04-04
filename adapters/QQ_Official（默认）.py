@@ -377,7 +377,6 @@ async def kanon(
                 logger.error(f"message:{msg},code:{e.code},message:{e.message},trace_id:{e.trace_id}")
 
         elif code == 2:
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -386,6 +385,7 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(e)
+                img_url = await imgpath_to_url(data["returnpath"])
                 await run_kanon.send(f"图片发送失败，请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
@@ -397,7 +397,6 @@ async def kanon(
             except Exception as e:
                 logger.error(f"message:{msg},code:{e.code},message:{e.message},trace_id:{e.trace_id}")
 
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -406,6 +405,7 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
@@ -414,7 +414,6 @@ async def kanon(
             msg = MessageSegment.text(message)
             await run_kanon.send(msg)
 
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -423,10 +422,10 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
-            img_url = await imgpath_to_url(data["returnpath2"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -435,6 +434,7 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath2"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
@@ -443,7 +443,6 @@ async def kanon(
             msg = MessageSegment.text(message)
             await run_kanon.send(msg)
 
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -452,10 +451,10 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -464,10 +463,10 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath2"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
 
-            img_url = await imgpath_to_url(data["returnpath"])
             image_file = open(data["returnpath"], "rb")
             image = image_file.read()
             image_file.close()
@@ -476,6 +475,7 @@ async def kanon(
                 await run_kanon.send(msg)
             except Exception as e:
                 logger.error(f"code:{e.code},message:{e.message},trace_id:{e.trace_id}")
+                img_url = await imgpath_to_url(data["returnpath3"])
                 await run_kanon.send(f"请点击链接查看图片")
                 await run_kanon.send(f"{img_url}")
         else:
