@@ -6,7 +6,7 @@ import time
 from nonebot import logger
 import os
 import sqlite3
-from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas
+from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas, jellyfish_box_draw_config
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
     circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config, imgpath_to_url, del_files2
 from PIL import Image, ImageDraw, ImageFont
@@ -219,54 +219,10 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     ornament_datas = jellyfish_box_datas["ornament_datas"]  # 所有装饰物
     medal_datas = jellyfish_box_datas["medal_datas"]  # 所有勋章
     user_data = get_unity_user_data(user_id)
-    draw_config = {
-        "bright": {
-            "bg": "#EAEBEE",
-            "水母箱": "#D5DADF",
-            "box_bg": "#17547b",
-            "box_outline": "#002237",
-            "card": "#FFFFFF",
-            "date": "#363739",
-            "name": "#2E82EE",
-            "title": "#2E82EE",
-            "event_title": "#000000",
-            "event_message": "#333333",
-            "icon_bg": "#def8ff",
-            "icon_outline": "#76c9ec",
-            "group_color": {
-                "normal": "#eace5f",
-                "good": "#46eca4",
-                "great": "#f15fb2",
-                "perfect": "#935ff1",
-                "special": "#7afffa",
-                "ocean": "#5a96ef",
-            },
-        },
-        "dark": {
-            "bg": "#18171C",
-            "水母箱": "#232741",
-            "box_bg": "#17547b",
-            "box_outline": "#002237",
-            "card": "#2F2F37",
-            "date": "#536DED",
-            "name": "#E0E0E0",
-            "title": "#EFEFEF",
-            "event_title": "#EFEFEF",
-            "event_message": "#E0E0E0",
-            "icon_bg": "#617793",
-            "icon_outline": "#365580",
-            "group_color": {
-                "normal": "#eace5f",
-                "good": "#46eca4",
-                "great": "#f15fb2",
-                "perfect": "#935ff1",
-                "special": "#7afffa",
-                "ocean": "#5a96ef",
-            },
-        }
-    }
+    draw_config = jellyfish_box_draw_config()
     time_h = int(time.strftime("%H", time.localtime()))
     draw_model = "bright" if 5 <= time_h <= 20 else "dark"
+    # draw_model = "bright"
 
     # 添加数据参数
     news = []
@@ -306,7 +262,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         "message": "这条消息没有图标，这是为什么呢？"
         }
     ]
-    
+
     command_prompt_list = [
         {
         "title": "/水母箱 抓水母",
@@ -591,11 +547,20 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             number = box_data["jellyfish"][jellyfish_id]["number"]  # 绘制数量
             # 读取绘制的图片，并缩放
 
+            if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None:
+                jellyfish_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
             # 读取水母图片
             if load_image != jellyfish_id:
                 file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
                 jellyfish_image = Image.open(file_path, "r")
                 jellyfish_image = jellyfish_image.resize((j_size, j_size))
+                if draw_config[draw_model]["jellyfish"]["jellyfish_foreground"] is not None:
+                    file_path = await get_file_path(
+                        f"plugin-jellyfish_box-{draw_config[draw_model]['jellyfish']['jellyfish_foreground']}.png")
+                    foreground_image = Image.open(file_path, "r")
+                    foreground_image = foreground_image.resize((j_size, j_size))
+                    jellyfish_image.paste(foreground_image, (0, 0), mask=foreground_image)
+
                 load_image = jellyfish_id
             paste_image = jellyfish_image.copy()
 
@@ -688,7 +653,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["event_message"],
+                    text_color=draw_config[draw_model]["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -706,7 +671,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["event_message"],
+                    text_color=draw_config[draw_model]["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -716,26 +681,32 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         y += 43
 
         # 创建底图
-        image = Image.new("RGB", (x, y), draw_config[draw_model]["bg"])
+        image = Image.new("RGB", (x, y), draw_config[draw_model]["color"]["bg"])
         draw = ImageDraw.Draw(image)
 
         # 绘制内容
-        # 添加标题
+        # 添加背景大字
         draw_x = 0
         draw_y = 0
         font = ImageFont.truetype(font=font_shsk_H_path, size=300)
-        draw.text(xy=(draw_x + 136, draw_y + 28), text="水母箱", fill=draw_config[draw_model]["水母箱"], font=font)
+        draw.text(
+            xy=(draw_x + 136, draw_y + 28),
+            text=draw_config[draw_model]["text"]["背景大字"],
+            fill=draw_config[draw_model]["color"]["背景大字"],
+            font=font)
 
+        # 添加时间
         text = f"{datetime.fromtimestamp(time_now)}"[0:10]
         font = ImageFont.truetype(font=font_shsk_M_path, size=40)
-        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config[draw_model]["date"], font=font)
+        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config[draw_model]["color"]["date"], font=font)
 
+        # 添加标题
         if draw_title is None:
             text = user_name
         else:
             text = draw_title
         font = ImageFont.truetype(font=font_shsk_M_path, size=70)
-        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config[draw_model]["name"], font=font)
+        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config[draw_model]["color"]["name"], font=font)
 
         # 绘制头像
         if "face_image" in list(user_data) and draw_title is None:
@@ -763,10 +734,10 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if draw_box is True:
             x = 914  # 卡片宽度
             y = 563  # 卡片长度
-            paste_image = Image.new("RGB", (x, y), draw_config[draw_model]["box_outline"])
+            paste_image = Image.new("RGB", (x, y), draw_config[draw_model]["color"]["box_outline"])
             paste_image = circle_corner(paste_image, 30)  # 圆角
             image.paste(paste_image, (draw_x, draw_y), paste_image)
-            paste_image = Image.new("RGB", (x - 6, y - 6), draw_config[draw_model]["box_bg"])
+            paste_image = Image.new("RGB", (x - 6, y - 6), draw_config[draw_model]["color"]["box_bg"])
             paste_image = circle_corner(paste_image, 28)  # 圆角
             image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
             paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
@@ -789,25 +760,31 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             card_y += 14  # 卡片长度 结尾
 
             # 开始绘制卡片
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
             # 添加标题
             font = ImageFont.truetype(font=font_shsk_B_path, size=50)
-            draw.text(xy=(32, 20), text="新增水母", fill=draw_config[draw_model]["title"], font=font)
+            draw.text(
+                xy=(32, 20),
+                text=draw_config[draw_model]["text"]["新水母_标题"],
+                fill=draw_config[draw_model]["color"]["title"],
+                font=font)
             # 添加水母
             card_num = -1
             for data in new_jellyfish:
                 j_id = data["id"]
+                if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None:
+                    j_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
                 j_name = data["name"]
                 j_group = data["group"]
                 j_number = data["number"]
                 j_message = data["message"]
                 card_num += 1
                 # 添加水母图标
-                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["icon_outline"])
+                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["color"]["icon_outline"])
                 paste_image = circle_corner(paste_image, 24)
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
-                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["icon_bg"])
+                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["color"]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
@@ -821,9 +798,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
-                    int(draw_config[draw_model]["icon_bg"][1:3], 16),
-                    int(draw_config[draw_model]["icon_bg"][3:5], 16),
-                    int(draw_config[draw_model]["icon_bg"][5:7], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][1:3], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][3:5], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][5:7], 16),
                     102,
                 )
                 mask_image = Image.new("RGBA", (575, 575), color)
@@ -833,17 +810,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
                 draw.text(xy=(278, 95 + (card_num * 261)), text=j_name,
-                          fill=draw_config[draw_model]["event_title"], font=font)
+                          fill=draw_config[draw_model]["color"]["event_title"], font=font)
 
                 # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
                     xy=(278 + 150, 152 + (card_num * 261)), text=f"分组：",
-                    fill=draw_config[draw_model]["event_message"], font=font)
-                if j_group in list(draw_config[draw_model]["group_color"]):
-                    color = draw_config[draw_model]["group_color"][j_group]
+                    fill=draw_config[draw_model]["color"]["event_message"], font=font)
+                if j_group in list(draw_config[draw_model]["color"]["group_color"]):
+                    color = draw_config[draw_model]["color"]["group_color"][j_group]
                 else:
-                    color = draw_config[draw_model]["event_message"]
+                    color = draw_config[draw_model]["color"]["event_message"]
                 draw.text(
                     xy=(278 + 150 + 120, 152 + (card_num * 261)), text=j_group,
                     fill=color, font=font)
@@ -852,12 +829,12 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
                     xy=(278, 152 + (card_num * 261)), text=f"x{j_number}",
-                    fill=draw_config[draw_model]["event_message"], font=font)
+                    fill=draw_config[draw_model]["color"]["event_message"], font=font)
 
                 # 添加消息
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(xy=(278, 200 + (card_num * 261)), text=j_message,
-                          fill=draw_config[draw_model]["event_message"], font=font)
+                          fill=draw_config[draw_model]["color"]["event_message"], font=font)
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
@@ -875,24 +852,27 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             card_y += 14  # 卡片长度 结尾
 
             # 开始绘制卡片
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
             # 添加标题
             # font = ImageFont.truetype(font=font_shsk_B_path, size=50)
-            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config[draw_model]["title"], font=font)
+            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config[draw_model]["color"]["title"], font=font)
             # 添加水母
             card_num = -1
             for data in jellyfish_menu:
                 j_id = data["id"]
+                if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None and (
+                        draw_title is None or draw_title in ["水母统计表"]):
+                    j_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
                 j_name = data["name"]
                 j_group = data["group"]
                 j_message = data["message"]
                 card_num += 1
                 # 添加水母图标
-                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["icon_outline"])
+                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["color"]["icon_outline"])
                 paste_image = circle_corner(paste_image, 24)
                 paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
-                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["icon_bg"])
+                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["color"]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
@@ -906,9 +886,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
-                    int(draw_config[draw_model]["icon_bg"][1:3], 16),
-                    int(draw_config[draw_model]["icon_bg"][3:5], 16),
-                    int(draw_config[draw_model]["icon_bg"][5:7], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][1:3], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][3:5], 16),
+                    int(draw_config[draw_model]["color"]["icon_bg"][5:7], 16),
                     102,
                 )
                 mask_image = Image.new("RGBA", (575, 575), color)
@@ -918,17 +898,19 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
                 draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name,
-                          fill=draw_config[draw_model]["event_title"], font=font)
+                          fill=draw_config[draw_model]["color"]["event_title"], font=font)
 
                 # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
-                    xy=(278, -69 + 152 + (card_num * 261)), text=f"分组：",
-                    fill=draw_config[draw_model]["event_message"], font=font)
-                if j_group in list(draw_config[draw_model]["group_color"]):
-                    color = draw_config[draw_model]["group_color"][j_group]
+                    xy=(278, -69 + 152 + (card_num * 261)),
+                    text=f"分组：",
+                    fill=draw_config[draw_model]["color"]["event_message"],
+                    font=font)
+                if j_group in list(draw_config[draw_model]["color"]["group_color"]):
+                    color = draw_config[draw_model]["color"]["group_color"][j_group]
                 else:
-                    color = draw_config[draw_model]["event_message"]
+                    color = draw_config[draw_model]["color"]["event_message"]
                 draw.text(
                     xy=(278 + 120, -69 + 152 + (card_num * 261)), text=j_group,
                     fill=color, font=font)
@@ -939,7 +921,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=40,
                     textlen=12,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["event_message"]
+                    text_color=draw_config[draw_model]["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_text, (278, -69 + 200 + (card_num * 261)), paste_text)
 
@@ -962,7 +944,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["event_message"],
+                    text_color=draw_config[draw_model]["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -971,13 +953,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
 
             # 添加标题
             draw_event_y += 20
             font = ImageFont.truetype(font=font_shsk_B_path, size=45)
-            draw.text(xy=(32, draw_event_y), text="事件列表", fill=draw_config[draw_model]["title"], font=font)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config[draw_model]["text"]["事件_标题"],
+                fill=draw_config[draw_model]["color"]["title"],
+                font=font)
 
             # 添加事件
             draw_event_y += 55
@@ -990,7 +976,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加标题
                 font = ImageFont.truetype(font=font_shsk_M_path, size=42)
-                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["event_title"], font=font)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["color"]["event_title"],
+                          font=font)
                 draw_event_y += 52  # 标题高度
 
                 # 添加消息
@@ -999,7 +986,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["event_message"]
+                    text_color=draw_config[draw_model]["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
                 draw_event_y += paste_image.size[1] + 15
@@ -1024,7 +1011,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["event_message"],
+                    text_color=draw_config[draw_model]["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -1033,13 +1020,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
 
             # 添加标题
             draw_event_y += 20
             font = ImageFont.truetype(font=font_shsk_B_path, size=45)
-            draw.text(xy=(32, draw_event_y), text="指令提示", fill=draw_config[draw_model]["title"], font=font)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config[draw_model]["text"]["指令_标题"],
+                fill=draw_config[draw_model]["color"]["title"],
+                font=font)
 
             # 添加事件
             draw_event_y += 55
@@ -1052,7 +1043,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加标题
                 font = ImageFont.truetype(font=font_shsk_M_path, size=42)
-                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["event_title"], font=font)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["color"]["event_title"],
+                          font=font)
                 draw_event_y += 52  # 标题高度
 
                 paste_image = await draw_text(
@@ -1060,7 +1052,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["event_message"]
+                    text_color=draw_config[draw_model]["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
                 draw_event_y += paste_image.size[1] + 15
@@ -1259,7 +1251,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
         else:
             num_x = 0
-            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["bg"])
+            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["color"]["bg"])
             for cache_group in cache_groups:
                 jellyfish_menu = []
                 for cache_data in cache_group:
@@ -1389,7 +1381,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
         else:
             num_x = 0
-            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["bg"])
+            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["color"]["bg"])
             for cache_group in cache_groups:
                 jellyfish_menu = []
                 for cache_data in cache_group:
@@ -1435,6 +1427,7 @@ async def draw_jellyfish_live(
         "background_color": (22, 84, 123, 0),  # 背景颜色
     }
     """
+
     def azimuthangle(p1, p2):
         """ 已知两点坐标计算角度 -
         :param p1: 原点横坐标(1, 2)
@@ -1625,7 +1618,8 @@ async def draw_jellyfish_live(
             frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
             frames.append(frame)
         frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"],
-                       loop=0, disposal=2)
+                       loop=0,
+                       disposal=2)
         if del_cache is True:
             del_files2(gifcache)
 

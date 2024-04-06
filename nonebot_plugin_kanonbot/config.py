@@ -299,3 +299,114 @@ async def _jellyfish_box_datas():
     f.close()
     json_data = json.loads(data)
     return json_data
+
+
+def jellyfish_box_draw_config():
+    draw_config = {
+        "bright": {
+            "color": {
+                "bg": "#EAEBEE",
+                "背景大字": "#D5DADF",
+                "box_bg": "#17547b",
+                "box_outline": "#002237",
+                "card": "#FFFFFF",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": "j5",
+                "jellyfish_foreground": None,
+            },
+        },
+        "dark": {
+            "color": {
+                "bg": "#18171C",
+                "背景大字": "#232741",
+                "box_bg": "#17547b",
+                "box_outline": "#002237",
+                "card": "#2F2F37",
+                "date": "#536DED",
+                "name": "#E0E0E0",
+                "title": "#EFEFEF",
+                "event_title": "#EFEFEF",
+                "event_message": "#E0E0E0",
+                "icon_bg": "#617793",
+                "icon_outline": "#365580",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": "j5",
+                "jellyfish_foreground": None,
+            },
+        },
+        "mixieer": {
+            "color": {
+                "bg": "#d5b5c4",
+                "背景大字": "#e7ccd9",
+                "box_bg": "#645462",
+                "box_outline": "#002237",
+                "card": "#f7e7f0",
+                "date": "#363739",
+                "name": "#fe9bca",
+                "title": "#fe9bcc",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#f8ddec",
+                "icon_outline": "#fe9bcc",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": "j5",
+                "jellyfish_foreground": None,
+            },
+        }
+    }
+    return draw_config
+
+
+
