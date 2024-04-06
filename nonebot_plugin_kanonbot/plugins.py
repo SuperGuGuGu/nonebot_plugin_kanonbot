@@ -211,6 +211,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     code = 0
     message = None
     returunpath = None
+    jellyfish_group_list = ["special", "perfect", "great", "good", "normal", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
     event_datas = jellyfish_box_datas["event_datas"]  # 所有事件
     jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
@@ -1197,19 +1198,47 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         pass
     elif command == "水母统计表":
         # 读取水母箱内容并分组
-        cache_groups = []
-        cache_group = []
 
-        group_list = ["special", "perfect", "great", "good", "normal", "ocean"]
+        # 获取分组
+        group_list = jellyfish_group_list.copy()
         for jellyfish_id in list(box_data["jellyfish"]):
             if jellyfish_datas[jellyfish_id]["group"] not in group_list:
                 group_list.append(jellyfish_datas[jellyfish_id]["group"])
 
+        # 转换格式
+        j_list = {}
         for group in group_list:
+            if group not in list(j_list):
+                j_list[f"cache_{group}"] = []
             for jellyfish_id in list(box_data["jellyfish"]):
-                if group != jellyfish_datas[jellyfish_id]["group"]:
-                    continue
+                if group == jellyfish_datas[jellyfish_id]["group"]:
+                    j_list[f"cache_{group}"].append(jellyfish_id)
 
+        # 排列大小
+        for group in group_list:
+            num = 99
+            while num > 0 and len(j_list[f"cache_{group}"]) > 0:
+                num -= 1
+                j_max_number = 0
+                j_max_id = ""
+                for jellyfish_id in j_list[f"cache_{group}"]:
+                    if box_data["jellyfish"][jellyfish_id]["number"] > j_max_number:
+                        j_max_number = box_data["jellyfish"][jellyfish_id]["number"]
+                        j_max_id = jellyfish_id
+
+                j_list[f"cache_{group}"].remove(j_max_id)
+                if group not in list(j_list):
+                    j_list[group] = []
+                j_list[group].append(j_max_id)
+        for group in list(j_list):
+            if group.startswith("cache"):
+                j_list.pop(group)
+
+        # 渲染成图片
+        cache_groups = []
+        cache_group = []
+        for group in list(j_list):
+            for jellyfish_id in j_list[group]:
                 if len(cache_group) > 9:
                     cache_groups.append(cache_group)
                     cache_group = []
@@ -1318,23 +1347,38 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         code = 2
     elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
+
+        # 获取分组
+        group_list = jellyfish_group_list.copy()
+        for jellyfish_id in jellyfish_datas:
+            if jellyfish_datas[jellyfish_id]["group"] not in group_list:
+                group_list.append(jellyfish_datas[jellyfish_id]["group"])
+
+        # 转换格式
+        j_list = {}
+        for group in group_list:
+            if group not in list(j_list):
+                j_list[group] = []
+            for jellyfish_id in jellyfish_datas:
+                if group == jellyfish_datas[jellyfish_id]["group"]:
+                    j_list[group].append(jellyfish_id)
+
+        # 渲染成图片
         cache_groups = []
         cache_group = []
-        for jellyfish_id in jellyfish_datas:
-            jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
-            jellyfish_message = jellyfish_datas[jellyfish_id]["message"]
-            jellyfish_group = jellyfish_datas[jellyfish_id]["group"]
+        for group in list(j_list):
+            for jellyfish_id in j_list[group]:
+                if len(cache_group) > 9:
+                    cache_groups.append(cache_group)
+                    cache_group = []
 
-            if len(cache_group) > 9:
-                cache_groups.append(cache_group)
-                cache_group = []
+                cache_group.append(
+                    {"id": jellyfish_id,
+                     "name": jellyfish_datas[jellyfish_id]["name"],
+                     "group": jellyfish_datas[jellyfish_id]["group"],
+                     "message": jellyfish_datas[jellyfish_id]["message"]}
+                )
 
-            cache_group.append(
-                {"id": jellyfish_id,
-                 "name": jellyfish_name,
-                 "group": jellyfish_group,
-                 "message": jellyfish_message}
-            )
         if cache_group:
             cache_groups.append(cache_group)
 
@@ -1465,8 +1509,10 @@ async def draw_jellyfish_live(
             }
 
             if living_location != "中":
-                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data["frame_rate"]
-                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data["frame_rate"]
+                jellyfish_data[str(num)]["x_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data[
+                    "frame_rate"]
+                jellyfish_data[str(num)]["y_speed"] = random.randint(j_size * -15, j_size * 15) / 100 / draw_data[
+                    "frame_rate"]
 
     # 绘制图片
     date: str = time.strftime("%Y-%m-%d", time.localtime())
@@ -1545,8 +1591,10 @@ async def draw_jellyfish_live(
                 vr = velocity_ratio = 12 if living_location == "中" else 7
                 vr2 = j_size * vr / 20 / draw_data["frame_rate"] / 3
 
-                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data["frame_rate"]
-                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data["frame_rate"]
+                jellyfish_data[j_id]["x_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data[
+                    "frame_rate"]
+                jellyfish_data[j_id]["y_speed"] = random.randint(j_size * -vr, j_size * vr) / 20 / draw_data[
+                    "frame_rate"]
 
                 # 限制最小加速速度，防止发生来回抽搐
                 if -vr2 < (jellyfish_data[j_id]["x_speed"] + jellyfish_data[j_id]["y_speed"]) < vr2:
@@ -1576,8 +1624,8 @@ async def draw_jellyfish_live(
         for frame_id in range(1, len(png_files) + 1):
             frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
             frames.append(frame)
-        frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"], loop=0,
-                       disposal=2)
+        frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"],
+                       loop=0, disposal=2)
         if del_cache is True:
             del_files2(gifcache)
 
