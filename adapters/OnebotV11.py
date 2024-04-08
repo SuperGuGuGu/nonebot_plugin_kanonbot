@@ -234,15 +234,7 @@ async def kanon(event: Event, bot: Bot):
         if "user_id" not in list(unity_user_data):
             unity_user_data["user_id"] = unity_user_id
             save = True
-        if "username" not in list(unity_user_data):
-            unity_user_data["username"] = "user"
-            save = True
-        if "nick_name" not in list(unity_user_data):
-            unity_user_data["nick_name"] = None
-            save = True
-        if "permission" not in list(unity_user_data):
-            unity_user_data["permission"] = 5
-            save = True
+
         unity_user_data["avatar"] = f"https://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640"
         if "face_image" not in list(unity_user_data):
             image_path = f"{basepath}file/user_face/"
@@ -253,8 +245,36 @@ async def kanon(event: Event, bot: Bot):
             image.save(image_path)
             unity_user_data["face_image"] = image_path
             save = True
+        # 更新头像
+        if "avatar" in list(unity_user_data):
+            if "update_face_image" not in list(unity_user_data):
+                unity_user_data["update_face_image"] = 0
+            if (time_now - unity_user_data["update_face_image"]) > (86400 * 7):  # 超过7天没更新
+                try:
+                    # 尝试更新头像
+                    image_path = f"{basepath}file/user_face/"
+                    if not os.path.exists(image_path):
+                        os.makedirs(image_path)
+                    image_path += f"{unity_user_id}.png"
+
+                    image = await connect_api("image", unity_user_data["avatar"])
+                    image.save(image_path)
+
+                except Exception as e:
+                    logger.error("更新头像失败")
+                unity_user_data["update_face_image"] = time_now
+
+            save = True
+
         if save is True:
             unity_user_data = save_unity_user_data(unity_user_id, unity_user_data)
+
+        if "username" not in list(unity_user_data):
+            unity_user_data["username"] = "user"
+        if "nick_name" not in list(unity_user_data):
+            unity_user_data["nick_name"] = None
+        if "permission" not in list(unity_user_data):
+            unity_user_data["permission"] = 5
 
         # 获取消息包含的图片
         imgmsgmsg = event.get_message().copy()["image"]
