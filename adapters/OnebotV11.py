@@ -71,14 +71,11 @@ async def kanon(event: Event, bot: Bot):
     msg = msg.replace("{", "（").replace("}", "）")  # 转换同义符
     msg = msg.replace("[", "【").replace("]", "】")  # 转换同义符
     msg = msg.replace('"', "'")  # 转换同义符
+
+    time_now = int(time.time())
+
     commands = get_command(msg)
     command = commands[0]
-
-    date = str(time.strftime("%Y-%m-%d", time.localtime()))
-    date_year = str(time.strftime("%Y", time.localtime()))
-    date_month = str(time.strftime("%m", time.localtime()))
-    date_day = str(time.strftime("%d", time.localtime()))
-    time_now = str(int(time.time()))
 
     # ## 心跳服务相关 ##
     if kn_config("botswift-state"):
@@ -278,7 +275,7 @@ async def kanon(event: Event, bot: Bot):
 
         # 获取消息包含的图片
         imgmsgmsg = event.get_message().copy()["image"]
-        logger.warning(f"imgmsgmsg::{imgmsgmsg}")
+        logger.debug(f"imgmsgmsg::{imgmsgmsg}")
         imgmsgs = []
         if len(imgmsgmsg) >= 1:
             for i in imgmsgmsg:
@@ -354,55 +351,46 @@ async def kanon(event: Event, bot: Bot):
         if code == 0:
             pass
         elif code == 1:
-            message = data["message"]
-            msg = MessageSegment.text(message)
+            msg = MessageSegment.text(data["message"])
             at = data["at"]
             if at is not False:
                 msgat = MessageSegment.at(at)
                 msgn = MessageSegment.text('\n')
                 msg = msgat + msgn + msg
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
         elif code == 2:
-            imgpath = data["returnpath"]
-            msg = MessageSegment.image(r"file:///" + imgpath)
+            image = open(data["returnpath"], "rb").read()
+            msg = MessageSegment.image(image)
             at = data["at"]
             if at is not False:
                 msgat = MessageSegment.at(at)
                 msg = msgat + msg
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
         elif code == 3:
-            at = data["at"]
-            message = data["message"]
-            imgpath = data["returnpath"]
-            msg1 = MessageSegment.text(message)
-            msg2 = MessageSegment.image(r"file:///" + imgpath)
-            if at is not False:
-                msgat = MessageSegment.at(at)
+            msg = MessageSegment.text(data["message"])
+            if data["at"] is not False:
+                msgat = MessageSegment.at(data["at"])
                 msgn = MessageSegment.text('\n')
-                msg = msgat + msgn + msg1 + msg2
-            else:
-                msg = msg1 + msg2
-            await run_kanon.finish(msg)
+                msg = msgat + msgn + msg
+            await run_kanon.send(msg)
+
+            msg = MessageSegment.image(open(data["returnpath"], "rb").read())
+            await run_kanon.send(msg)
         elif code == 4:
-            imgpath = data["returnpath"]
-            imgpath2 = data["returnpath2"]
-            msg1 = MessageSegment.image(r"file:///" + imgpath)
-            msg2 = MessageSegment.image(r"file:///" + imgpath2)
+            msg1 = MessageSegment.image(open(data["returnpath"], "rb").read())
+            msg2 = MessageSegment.image(open(data["returnpath2"], "rb").read())
             message = data["message"]
             msg0 = MessageSegment.text(message)
             msg = msg0 + msg1 + msg2
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
         elif code == 5:
-            imgpath = data["returnpath"]
-            imgpath2 = data["returnpath2"]
-            imgpath3 = data["returnpath3"]
-            msg1 = MessageSegment.image(r"file:///" + imgpath)
-            msg2 = MessageSegment.image(r"file:///" + imgpath2)
-            msg3 = MessageSegment.image(r"file:///" + imgpath3)
+            msg1 = MessageSegment.image(open(data["returnpath"], "rb").read())
+            msg2 = MessageSegment.image(open(data["returnpath2"], "rb").read())
+            msg3 = MessageSegment.image(open(data["returnpath3"], "rb").read())
             message = data["message"]
             msg0 = MessageSegment.text(message)
             msg = msg0 + msg1 + msg2 + msg3
-            await run_kanon.finish(msg)
+            await run_kanon.send(msg)
         else:
             pass
     await run_kanon.finish()
