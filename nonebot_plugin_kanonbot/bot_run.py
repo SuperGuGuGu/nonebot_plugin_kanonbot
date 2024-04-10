@@ -2,7 +2,7 @@
 import json
 import traceback
 from .config import _config_list
-from .tools import kn_config, lockst, locked, command_cd, get_command, start_with_list, _config, del_files2
+from .tools import kn_config, lockst, locked, command_cd, _config, del_files2
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
@@ -19,7 +19,7 @@ adminqq = _config["superusers"]
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.11")
+    logger.info("KanonBot-0.3.12")
     err_path = None
     return_json = {"code": -1}
     date: str = time.strftime("%Y-%m-%d", time.localtime())
@@ -35,8 +35,43 @@ async def botrun(msg_info):
         if not os.path.exists(f"{basepath}db/"):
             os.makedirs(f"{basepath}db/")
         await lockst(f"{basepath}db/lock.db")
-        msg: str = msg_info["msg"]
-        commands: list = msg_info["commands"]
+
+        # 读取消息
+        msg: str = msg_info["msg"] if "msg" in msg_info else ""
+        commands: list = msg_info["commands"] if "commands" in msg_info else [""]
+        at_datas: list = msg_info["at_datas"] if "at_datas" in msg_info else []
+        commandname: str = msg_info["commandname"] if "commandname" in msg_info else ""
+        guild_id: str = msg_info["guild_id"] if "guild_id" in msg_info else "None_guild_id"
+        channel_id: str = msg_info["channel_id"] if "channel_id" in msg_info else "None_channel_id"
+        imgmsgs: list = msg_info["imgmsgs"] if "imgmsgs" in msg_info else []
+        botid: str = msg_info["bot_id"] if "bot_id" in msg_info else "None_bot_id"
+        friend_datas: dict = msg_info["friend_datas"] if "friend_datas" in msg_info else {}
+        group_member_datas: dict = msg_info["channel_member_datas"] if "channel_member_datas" in msg_info else {}
+        event_name: str = msg_info["event_name"] if "event_name" in msg_info else ""
+        platform: str = msg_info["platform"] if "platform" in msg_info else "None_platform"
+
+        if "user" not in msg_info:
+            msg_info["user"] = {}
+
+        user_id: str = msg_info["user"]["user_id"] if "user_id" in msg_info["user"] else ""
+        user_permission: int = msg_info["user"]["permission"] if "permission" in msg_info["user"] else 5
+        user_avatar: str = msg_info["user"]["avatar"] if "avatar" in msg_info["user"] else None
+
+        if "username" in msg_info["user"]:  # 兼容性转换
+            msg_info["user"]["name"] = msg_info["user"]["username"]
+
+        user_name: str = msg_info["user"]["name"] if "name" in msg_info["user"] else ""
+
+        if msg_info["user"]["nick_name"] is not None:
+            user_name: str = msg_info["user"]["nick_name"]
+
+        if "face_image" in list(msg_info["user"]):
+            user_face_image = msg_info["user"]["face_image"]
+        elif user_avatar is not None:
+            user_face_image = await connect_api("image", msg_info["user"]["avatar"])
+        else:
+            user_face_image = None
+
         command: str = commands[0]
         if len(commands) >= 2:
             command2 = commands[1]
@@ -47,29 +82,7 @@ async def botrun(msg_info):
                 command2 = command2.removesuffix(" ")
         else:
             command2 = None
-        at_datas: list = msg_info["at_datas"]
-        if "permission" in list(msg_info["user"]):
-            user_permission: int = int(msg_info["user"]["permission"])
-        else:
-            user_permission: int = 5
-        user_id: str = msg_info["user"]["user_id"]
-        if "face_image" in list(msg_info["user"]):
-            user_avatar = msg_info["user"]["face_image"]
-        else:
-            user_avatar = None
-        if msg_info["user"]["nick_name"] is not None:
-            user_name: str = msg_info["user"]["nick_name"]
-        else:
-            user_name: str = msg_info["user"]["username"]
-        commandname: str = msg_info["commandname"]
-        guild_id: str = msg_info["guild_id"]
-        channel_id: str = msg_info["channel_id"]
-        imgmsgs = msg_info["imgmsgs"]
-        botid: str = msg_info["bot_id"]
-        friend_list: list = msg_info["friend_list"]
-        group_member_datas = msg_info["channel_member_datas"]
-        event_name: str = msg_info["event_name"]
-        platform: str = msg_info["platform"]
+
         keyboard = None  # 按钮
         markdown = None  # markdown
 
