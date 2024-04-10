@@ -97,6 +97,7 @@ def _kanonbot_plugin_config():
 _config = _kanonbot_plugin_config()
 basepath = _config["basepath"]
 command_starts = _config["command_starts"]
+kn_config_data = None
 
 
 def get_command(msg: str) -> list:
@@ -158,26 +159,33 @@ def kn_config(config_name: str, config_name2: str = None):
     :param config_name2:
     :return: 配置内容
     """
-    path = f"{basepath}kanon_config.toml"
+    global kn_config_data
+
+    def save_config():
+        global kn_config_data
+        with open(path, 'w') as config_file:
+            toml.dump(config, config_file)
+        kn_config_data = config
+
+    if kn_config_data is None:
+        path = f"{basepath}kanon_config.toml"
+        if not os.path.exists(path):
+            config = {
+                "Kanon_Config": {
+                    "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
+                "knapi": {
+                    "url": "http://cdn.kanon.ink"}}
+            save_config()
+            nonebot.logger.info("未存在KanonBot配置文件，正在创建")
+        config = toml.load(path)
+    else:
+        config = kn_config_data
+
     if config_name2 is not None:
         config_name += f"-{config_name2}"
     names = config_name.split('-', 1)
     name_1 = names[0]
     name_2 = names[1]
-
-    def save_config():
-        with open(path, 'w') as config_file:
-            toml.dump(config, config_file)
-
-    if not os.path.exists(path):
-        config = {
-            "Kanon_Config": {
-                "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
-            "knapi": {
-                "url": "http://cdn.kanon.ink"}}
-        save_config()
-        nonebot.logger.info("未存在KanonBot配置文件，正在创建")
-    config = toml.load(path)
 
     # 如果存在设置，则直接回复
     if name_1 in list(config) and name_2 in list(config[name_1]):
