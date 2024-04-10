@@ -701,8 +701,8 @@ async def botrun(msg_info):
     except Exception as e:
         logger.error("初始化异常")
         return_json["code"] = -1
-        return_json["error_message"] = str(e)
-        return_json["error_traceback"] = str(traceback.format_exc())
+        return_json["error_message"] = str(e).replace("'", '"')
+        return_json["error_traceback"] = str(traceback.format_exc()).replace("'", '"')
 
         logger.error(traceback.format_exc())
 
@@ -720,10 +720,13 @@ async def botrun(msg_info):
             cursor.execute(
                 f'create table "log"(id INTEGER primary key AUTOINCREMENT, '
                 f'time VARCHAR(10), input VARCHAR(10), output VARCHAR(10))')
-        cursor.execute(
-            f'replace into "log" ("time","input","output") '
-            f"values('{time_now}','{json.dumps(msg_info)}','{json.dumps(return_json)}')")
-        conn.commit()
+        try:
+            cursor.execute(
+                f'replace into "log" ("time","input","output") '
+                f"values('{time_now}','{json.dumps(msg_info)}','{json.dumps(return_json)}')")
+            conn.commit()
+        except Exception as e:
+            logger.error(e)
         cursor.close()
         conn.close()
 
