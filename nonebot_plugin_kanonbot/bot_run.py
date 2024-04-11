@@ -687,7 +687,7 @@ async def botrun(msg_info):
             pass
 
         # 返回消息处理
-        locked(f"{basepath}db/lock.db")
+        locked()
         return_json = {"code": code,
                        "message": message,
                        "returnpath": returnpath,
