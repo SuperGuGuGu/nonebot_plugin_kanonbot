@@ -350,7 +350,7 @@ def jellyfish_box_draw_config():
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
-                "replace_jellyfish": "j5",
+                "replace_jellyfish": None,
                 "jellyfish_foreground": None,
             },
         },
@@ -384,7 +384,7 @@ def jellyfish_box_draw_config():
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
-                "replace_jellyfish": "j5",
+                "replace_jellyfish": None,
                 "jellyfish_foreground": None,
             },
         },
