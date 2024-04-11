@@ -2101,186 +2101,23 @@ async def plugin_emoji_momo(user_avatar):
     return returnpath
 
 
-async def plugin_emoji_qinqin(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_tietie(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_daibu(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_ti(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_yaoyao(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_pa(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_ji(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_quanquan(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_wolaopo(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_zhi(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_jiehunzheng(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_ji2(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji_autorply(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
-
-
-async def plugin_emoji(user_avatar, user_name):
-    try:
-        user_image = await connect_api("image", user_avatar)
-    except Exception as e:
-        user_image = await draw_text("图片", 50, 10)
-        logger.error(f"获取图片出错:{e}")
-    user_image = image_resize2(user_image, (640, 640), overturn=False)
-
-    pass
-
-    return save_image(image)
+# async def plugin_emoji_qinqin(user_avatar, user_name):
+#     try:
+#         if user_avatar in [None, "None", "none"]:
+#             user_image = await draw_text("图片", 50, 10)
+#         elif user_avatar.startswith("http"):
+#             user_image = await connect_api("image", user_avatar)
+#         else:
+#             user_image = Image.open(user_avatar, "r")
+#     except Exception as e:
+#         user_image = await draw_text("图片", 50, 10)
+#         logger.error(f"获取图片出错:{e}")
+#     user_image = image_resize2(user_image, (640, 640), overturn=False)
+#
+#
+#     pass
+#
+#     return save_image(image)
 
 
 async def plugin_game_cck(command, channel_id, platform):

@@ -689,14 +689,14 @@ async def botrun(msg_info):
         # 返回消息处理
         locked()
         return_json = {"code": code,
-                       "message": message,
-                       "returnpath": returnpath,
-                       "returnpath2": returnpath2,
-                       "returnpath3": returnpath3,
-                       "at": False,
-                       "keyboard": keyboard,
-                       "markdown": markdown,
-                       }
+            "message": message,
+            "returnpath": returnpath,
+            "returnpath2": returnpath2,
+            "returnpath3": returnpath3,
+            "at": False,
+            "keyboard": keyboard,
+            "markdown": markdown,
+            }
 
     except Exception as e:
         logger.error("初始化异常")
