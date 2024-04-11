@@ -211,7 +211,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     code = 0
     message = None
     returunpath = None
-    jellyfish_group_list = ["special", "perfect", "great", "good", "normal", "ocean"]
+    jellyfish_group_list = ["perfect", "great", "good", "normal", "special", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
     event_datas = jellyfish_box_datas["event_datas"]  # 所有事件
     jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
@@ -1135,8 +1135,8 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 message = "别抓啦，水母箱已经满啦"
             else:
                 # 随机水母类型
-                group = ["normal", "good", "great", "perfect", "special", "ocean"]
-                group_probability = [0.90, 0.09, 0.01, 0.00, 0.00, 0.00]
+                group = ["perfect", "great", "good", "normal", "special", "ocean"]
+                group_probability = [0.00, 0.02, 0.09, 0.89, 0.00, 0.00]
                 p = numpy.array(group_probability).ravel()
                 choose_group = numpy.random.choice(group, p=p)
                 choose_list = []
@@ -1618,8 +1618,7 @@ async def draw_jellyfish_live(
             frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
             frames.append(frame)
         frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"],
-                       loop=0,
-                       disposal=2)
+                       loop=0, disposal=2)
         if del_cache is True:
             del_files2(gifcache)
 
