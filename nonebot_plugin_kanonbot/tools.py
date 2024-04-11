@@ -14,6 +14,7 @@ import os
 import shutil
 import asyncio
 import time
+kn_cache = {}
 
 
 def _kanonbot_plugin_config():
