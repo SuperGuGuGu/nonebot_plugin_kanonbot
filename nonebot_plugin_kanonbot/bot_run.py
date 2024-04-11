@@ -16,10 +16,12 @@ import sqlite3
 basepath = _config["basepath"]
 command_starts = _config["command_starts"]
 adminqq = _config["superusers"]
+kn_cache = {}
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.12")
+    logger.info("KanonBot-0.3.13")
+    global kn_cache
     err_path = None
     return_json = {"code": -1}
     date: str = time.strftime("%Y-%m-%d", time.localtime())
@@ -32,9 +34,7 @@ async def botrun(msg_info):
     time_now: int = int(time.time())
     try:
         # ## 初始化 ##
-        if not os.path.exists(f"{basepath}db/"):
-            os.makedirs(f"{basepath}db/")
-        await lockst(f"{basepath}db/lock.db")
+        await lockst()
 
         # 读取消息
         msg: str = msg_info["msg"] if "msg" in msg_info else ""

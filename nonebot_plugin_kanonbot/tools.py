@@ -343,82 +343,35 @@ async def load_image(path: str):
         return Image.open(path, "r")
 
 
-async def lockst(lockdb):
+async def lockst():
     """
     如有其他指令在运行，则暂停该函数
     :param lockdb: 数据库路径
     :return:
     """
-    sleeptime = random.randint(1, 200)
-    sleeptime = float(sleeptime) / 100
-    # 随机随眠0.01-2秒，避免同时收到消息进行处理
-    await asyncio.sleep(sleeptime)
-    # 读取锁定
-    conn = sqlite3.connect(lockdb)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-        datas = cursor.fetchall()
-        tables = []
-        for data in datas:
-            if data[1] != "sqlite_sequence":
-                tables.append(data[1])
-        if "lock" not in tables:
-            cursor.execute('create table lock (name VARCHAR(10) primary key, lock VARCHAR(20))')
-        # 查询数据
-        cursor.execute('select * from lock where name = "lock"')
-        locking = cursor.fetchone()
-    except Exception as e:
-        logger.error("")
-        locking = ["lock", "off"]
-    finally:
-        cursor.close()
-        conn.close()
+    global kn_cache
+    if "lock" not in kn_cache:
+        kn_cache["lock"] = False
 
-    # 判断锁定
-    if locking is not None:
-        if locking[1] == 'on':
-            num = 50
-            while num >= 1:
-                num -= 1
-                conn = sqlite3.connect(lockdb)
-                cursor = conn.cursor()
-                try:
-                    cursor.execute('select * from lock where name = "lock"')
-                    locking = cursor.fetchone()
-                except Exception as e:
-                    logger.error("线程锁读取错误")
-                    num = 0
-                cursor.close()
-                conn.close()
-                if locking[1] == 'on':
-                    await asyncio.sleep(0.5)
-                    if num == 0:
-                        logger.error("等待超时")
-                else:
-                    num = 0
+    # 随机随眠0.01-2秒，避免同时收到消息进行处理
+    await asyncio.sleep(float(random.randint(1, 200)) / 100)
 
     # 锁定
-    conn = sqlite3.connect(lockdb)
-    cursor = conn.cursor()
-    cursor.execute('replace into lock(name,lock) values("lock","on")')
-    cursor.close()
-    conn.commit()
-    conn.close()
+    num = 20
+    while num > 1:
+        num -= 1
+        if kn_cache["lock"] is True:
+            await asyncio.sleep(0.2)
+        else:
+            break
 
-    return locking
+    kn_cache["lock"] = True
+    return True
 
 
-def locked(lockdb):
-    # 解锁
-    conn = sqlite3.connect(lockdb)
-    cursor = conn.cursor()
-    cursor.execute('replace into lock(name,lock) values("lock","off")')
-    cursor.close()
-    conn.commit()
-    conn.close()
-    locking = 'off'
-    return locking
+def locked():
+    kn_cache["lock"] = False
+    return True
 
 
 def command_cd(user_id, groupcode, timeshort: int, coolingdb):
