@@ -331,6 +331,34 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         else:
             # 更新时间并更新事件
             box_data["refresh_time"] = int(time_now / 3600) * 3600
+
+            # 更新繁殖
+            num = refresh_period
+            if num > 72:
+                num = 72  # 最高单次更新3天的数量
+            while num > 0:
+                num -= 1
+                for jellyfish_id in box_data["jellyfish"]:
+                    reproductive_rate = jellyfish_datas[jellyfish_id]["reproductive_rate"]
+                    if reproductive_rate == 0:
+                        continue
+
+                    # 计算繁殖概率
+                    add_jellyfish = 0
+                    rate = reproductive_rate / 30 / 24 * box_data["jellyfish"][jellyfish_id]["number"]
+                    if rate > 1:
+                        add_jellyfish += int(rate)
+                        rate -= int(rate)
+
+                     # 判断是否繁殖
+                    p = numpy.array([rate, (1 - rate)]).ravel()
+                    choose = numpy.random.choice([True, False], p=p)
+                    if choose is True:
+                        add_jellyfish += 1
+
+                    # 添加进水母箱
+                    box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
+
             # 提取事件id与事件概率，用来选取事件
             event_list = []
             event_probability = []
