@@ -1,3 +1,5 @@
+![](README_md_files/3ed35ba0-07c7-11ef-8937-af21a3434079.jpeg?v=1\&type=image)
+
 # nonebot-plugin-kanonbot
 
 KanonBot - nb2 插件版
