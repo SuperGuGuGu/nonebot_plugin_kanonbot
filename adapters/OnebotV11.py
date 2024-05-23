@@ -292,7 +292,8 @@ async def kanon(event: Event, bot: Bot):
                 atmsgg = str(i.data["qq"])
                 atmsgg.removeprefix('[CQ:at,qq=')
                 atmsgg.removesuffix(']')
-                at_datas.append({"id": atmsgg, "platform": "qq"})
+                at_datas.append(
+                    {"id": atmsgg, "platform": "qq", "avatar": f"https://q1.qlogo.cn/g?b=qq&nk={atmsgg}&s=640"})
 
         # 获取消息内容
         friend_datas = {}

@@ -12,7 +12,6 @@ def _config_list():
     commandname: {默认状态, "'帮助'命令中显示的内容", 该功能的群组, 用于设置功能开关所识别的名字}
     """
     configs = {
-        "塔罗牌": {"state": True, "message": "塔罗牌 (发送：塔罗牌)", "group": "群聊功能", "name": "塔罗牌"},
         "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
         "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
@@ -22,8 +21,11 @@ def _config_list():
         "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
         "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
         "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
+        "找不同": {"state": False, "message": "测试功能z", "group": "小游戏", "name": "测试功能z"},
         "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
-        }
+        "塔罗牌": {"state": False, "message": "塔罗牌 (发送：塔罗牌)", "group": "群聊功能", "name": "塔罗牌"},
+        "今日老婆": {"state": True, "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"}
+    }
     configs_none = {
         "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
         "qinqin": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
@@ -39,8 +41,7 @@ def _config_list():
         "quanquan": {"state": False, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
         "jiehunzheng": {"state": False, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
         "ji2": {"state": False, "message": "急", "group": "表情功能", "name": "急"},
-        "commandcd": {"state": False, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"},
-        "jinrilaopo": {"state": False, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"}
+        "commandcd": {"state": False, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"}
     }
     return configs
 
@@ -68,26 +69,32 @@ def command_list():
             "合成": "表情功能-emoji",
             "cck": "小游戏-猜猜看",
             "猜猜看": "小游戏-猜猜看",
+            "bzd": "小游戏-猜猜看",
+            "不知道": "小游戏-猜猜看",
             "炸飞机": "小游戏-炸飞机",
+            "找不同": "小游戏-找不同",
             "签到": "群聊功能-签到",
             "水母箱": "群聊功能-水母箱",
             "查看水母箱": "群聊功能-水母箱",
             "抓水母": "群聊功能-水母箱",
             "放生": "群聊功能-水母箱",
+            "抛弃": "群聊功能-水母箱",
             "丢弃": "群聊功能-水母箱",
             "水母图鉴": "群聊功能-水母箱",
             "水母统计表": "群聊功能-水母箱",
+            "水母箱样式": "群聊功能-水母箱",
             "塔罗牌": "群聊功能-塔罗牌",
+            "今日老婆": "群聊功能-今日老婆",
+            "jrlp": "群聊功能-今日老婆",
         },
         "开头": {
+            "炸": "小游戏-炸飞机",
         },
         "结尾": {
         },
         "模糊": {
         },
         "精准2": {
-            "bzd": "小游戏-猜猜看",
-            "不知道": "小游戏-猜猜看",
         },
     }
     commands_none = {
@@ -113,8 +120,6 @@ def command_list():
             "😡👊": "表情功能-quanquan",
             "买薯条": "群聊功能-chickin",
             "吃薯条": "群聊功能-chickin",
-            "今日老婆": "群聊功能-jinrilaopo",
-            "jrlp": "群聊功能-jinrilaopo",
             "wlp是谁": "图库功能-wlp",
             "来点wlp": "图库功能-wlp",
             "多来点wlp": "图库功能-wlp",
@@ -309,8 +314,7 @@ def _zhanbu_datas():
 
 
 async def _jellyfish_box_datas():
-    # 其实这里"_V2"可以不加也行，不加也是获取一样的文件。但是正在运行的插件不加V2导致水母数据没有更新，会获取到不存在的great水母而出问题。
-    file_path = await get_file_path("plugin-jellyfish_box-box_data_v2.json")
+    file_path = await get_file_path("plugin-jellyfish_box-box_data.json")
     f = open(file_path)
     data = f.read()
     f.close()
@@ -318,13 +322,13 @@ async def _jellyfish_box_datas():
     return json_data
 
 
-def jellyfish_box_draw_config():
+def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = False):
     draw_config = {
-        "bright": {
+        "normal": {
             "color": {
                 "bg": "#EAEBEE",
                 "背景大字": "#D5DADF",
-                "box_bg": "#17547b",
+                "box_bg": "#1b4771",
                 "box_outline": "#002237",
                 "card": "#FFFFFF",
                 "date": "#363739",
@@ -352,9 +356,13 @@ def jellyfish_box_draw_config():
             "jellyfish": {
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
             },
         },
-        "dark": {
+        "normal_dark": {
             "color": {
                 "bg": "#18171C",
                 "背景大字": "#232741",
@@ -386,6 +394,48 @@ def jellyfish_box_draw_config():
             "jellyfish": {
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
+            },
+        },
+        "text": {
+            "color": {
+                "bg": "#EAEBEE",
+                "背景大字": "#D5DADF",
+                "box_bg": "#1b4771",
+                "box_outline": "#002237",
+                "card": "#FFFFFF",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
             },
         },
         "mixieer": {
@@ -418,12 +468,141 @@ def jellyfish_box_draw_config():
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
-                "replace_jellyfish": "j5",
+                "replace_jellyfish": ["j5"],
                 "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
             },
-        }
+        },
+        "birthday_kanon": {
+            "color": {
+                "bg": "#a0d8ef",
+                "背景大字": "#bbe7f9",
+                "box_bg": "#1b4771",
+                "box_outline": "#002237",
+                "card": "#e0eff4",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "Kanon",
+                "新水母_标题": "新增呼诶诶",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": [
+                    "jellyfish_foreground_birthday",
+                    "jellyfish_foreground_birthday_2",
+                    "jellyfish_foreground_birthday_3"
+                ],
+                "box_foreground": "box_foreground_birthday",
+                "jellyfish_background": None,
+                "box_background": "box_background_birthday",
+                "card_background": [
+                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
+                ],
+            },
+        },
+        "freehand": {
+            "color": {
+                "bg": "#EAEBEE",
+                "背景大字": "#e7eaec",
+                "box_bg": "#0d70a4",
+                "box_outline": "#FFFFFF",
+                "card": (255, 255, 255, 255),
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
+            },
+        },
+        "freehand_dark": {
+            "color": {
+                "bg": "#282828",
+                "背景大字": "#333434",
+                "box_bg": "#17547b",
+                "box_outline": "#FFFFFF",
+                "card": (126, 126, 126, 255),
+                "date": "#2e82ee",
+                "name": "#91aaca",
+                "title": "#589df5",
+                "event_title": "#FFFFFF",
+                "event_message": "#b3b3b3",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "水母箱",
+                "新水母_标题": "新增水母",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
+            },
+        },
     }
-    return draw_config
-
-
-
+    if draw_model is None:
+        return draw_config
+    else:
+        if draw_model not in list(draw_config):
+            draw_model = "normal"
+        if draw_dark_model is True:
+            if f"{draw_model}_dark" in list(draw_config):
+                draw_model = f"{draw_model}_dark"
+        return draw_config[draw_model]

@@ -8,13 +8,16 @@ import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas, jellyfish_box_draw_config
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
-    circle_corner, get_command, get_unity_user_data, json_to_str, start_with_list, _config, imgpath_to_url, del_files2
+    circle_corner, get_command, get_unity_user_data, json_to_str, _config, imgpath_to_url, del_files2, \
+    statistics_list, get_unity_user_id, get_image_path, load_image
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
+kn_cache = {}
+test_id = "KnTest"
 
 run = True  # 代码折叠助手
 
@@ -113,7 +116,7 @@ async def plugin_zhanbu(user_id, cachepath):
                         image = await draw_text("获取图片出错", 50, 10)
                         logger.error(f"获取图片出错:{e}")
                         returnpath = save_image(image)
-    except:
+    except Exception as e:
         logger.error("KanonBot插件出错-plugin-zhanbu")
     finally:
         conn.commit()
@@ -123,15 +126,14 @@ async def plugin_zhanbu(user_id, cachepath):
     return message, returnpath
 
 
-async def plugin_checkin(user_id: str, group_id: str, date: str):
+async def plugin_checkin(user_id: str, date: str):
     """
     签到功能，state=0,message="签到成功" state=1,message="签到失败"
     :param user_id: 用户id
-    :param group_id: 群id
     :param date: 今日日期
     :return: {"state": state, "message": message}
     """
-    state = "success"
+    state = 2
     message = ""
     date: str = time.strftime("%Y-%m-%d", time.localtime())
 
@@ -149,35 +151,41 @@ async def plugin_checkin(user_id: str, group_id: str, date: str):
             tables.append(data[1])
     if "checkin" not in tables:
         cursor.execute(f"create table checkin(user_id VARCHAR(10) primary key, date VARCHAR(10), point INT(20))")
-    cursor.execute(f'select * from checkin where user_id = "{user_id}"')
-    data = cursor.fetchone()
-    add_point = random.randint(2, 3)
-    if data is None:
-        # 未有数据，签到并返回成功
-        point = add_point
-        cursor.execute(f'replace into checkin ("user_id","date","point") values("{user_id}","{date}",{point})')
-        conn.commit()
-        state = 0
-    else:
-        last_data = data[1]
-        point = data[2]
-        if date == last_data:
-            # 已经签到过，不再签到
-            state = 1
-        else:
-            # 今日未签到，正常签到
-            point = int(point) + add_point
+    try:
+        cursor.execute(f'select * from checkin where user_id = "{user_id}"')
+        data = cursor.fetchone()
+        add_point = random.randint(2, 3)
+        if data is None:
+            # 未有数据，签到并返回成功
+            point = add_point
             cursor.execute(f'replace into checkin ("user_id","date","point") values("{user_id}","{date}",{point})')
             conn.commit()
             state = 0
-    cursor.close()
-    conn.close()
+        else:
+            last_data = data[1]
+            point = data[2]
+            if date == last_data:
+                # 已经签到过，不再签到
+                state = 1
+            else:
+                # 今日未签到，正常签到
+                point = int(point) + add_point
+                cursor.execute(f'replace into checkin ("user_id","date","point") values("{user_id}","{date}",{point})')
+                conn.commit()
+                state = 0
+    except Exception:
+        raise Exception
+    finally:
+        cursor.close()
+        conn.close()
 
     # 创建返回的消息
     if state == 0:
         message = f"签到成功，获得{add_point}根薯条，现在有{point}根薯条"
-    else:
+    elif state == 1:
         message = f"今天签到过啦，{point}根薯条还不够吃嘛…QAQ…"
+    else:
+        message = f"出错惹QAQ…"
 
     return state, message
 
@@ -211,6 +219,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     code = 0
     message = None
     returunpath = None
+    trace = []  # 用于日志记录插件运行内容
     jellyfish_group_list = ["perfect", "great", "good", "normal", "special", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
     event_datas = jellyfish_box_datas["event_datas"]  # 所有事件
@@ -219,10 +228,16 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     ornament_datas = jellyfish_box_datas["ornament_datas"]  # 所有装饰物
     medal_datas = jellyfish_box_datas["medal_datas"]  # 所有勋章
     user_data = get_unity_user_data(user_id)
-    draw_config = jellyfish_box_draw_config()
-    time_h = int(time.strftime("%H", time.localtime()))
-    draw_model = "bright" if 5 <= time_h <= 20 else "dark"
-    # draw_model = "bright"
+
+    if user_id == test_id:
+        # time_now = 1615439118
+        pass
+    date_y: str = time.strftime("%Y", time.localtime(time_now))
+    date_m: str = time.strftime("%m", time.localtime(time_now))
+    date_d: str = time.strftime("%d", time.localtime(time_now))
+    time_h: int = int(time.strftime("%H", time.localtime(time_now)))
+
+    global kn_cache
 
     # 添加数据参数
     news = []
@@ -262,7 +277,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         "message": "这条消息没有图标，这是为什么呢？"
         }
     ]
-
+    
     command_prompt_list = [
         {
         "title": "/水母箱 抓水母",
@@ -305,10 +320,83 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             "jellyfish": {"j1": {"number": 3}},
             "ornament": {},
             "salinity": 30,  # 千分盐度
-            "temperature": 25  # 温度
+            "temperature": 25,  # 温度
+            "draw_style": "normal"  # 绘制风格
         }
     else:
         box_data = json.loads(data[1])
+
+    draw_dark_model = False if 5 <= time_h <= 20 else True
+    draw_model_list = {
+        "04-01": "mixieer",
+        "--ppp--": "--",
+        "03-23": "birthday_rimi",
+        "05-19": "birthday_saya",
+        "07-14": "birthday_kasumi",
+        "10-27": "birthday_arisa",
+        "12-04": "birthday_tae",
+        "--ag--": "--",
+        "01-07": "birthday_tsugumi",
+        "04-10": "birthday_ran",
+        "04-15": "birthday_tomoe",
+        "09-03": "birthday_moca",
+        "10-23": "birthday_himari",
+        "--r--": "--",
+        "03-20": "birthday_hikawa",
+        "07-03": "birthday_ako",
+        "08-25": "birthday_lisa",
+        "10-17": "birthday_rinko",
+        "10-26": "birthday_yukina",
+        "--pp--": "--",
+        "04-06": "birthday_chisato",
+        "06-27": "birthday_eve",
+        "11-03": "birthday_maya",
+        "12-27": "birthday_aya",
+        "--hhw--": "--",
+        "02-28": "birthday_kaoru",
+        "05-11": "birthday_kanon",
+        "07-30": "birthday_misaki",
+        "08-08": "birthday_kokoro",
+        "10-01": "birthday_hagumi",
+        "--m--": "--",
+        "02-19": "birthday_mashiro",
+        "06-16": "birthday_nanami",
+        "09-15": "birthday_tsukushi",
+        "11-19": "birthday_rui",
+        "12-16": "birthday_toko",
+        "--ras--": "--",
+        "01-13": "birthday_rei",
+        "03-25": "birthday_pareo",
+        "05-12": "birthday_masuki",
+        "07-17": "birthday_rokka",
+        "12-07": "birthday_chuchu",
+        "--mygo--": "--",
+        "02-22": "birthday_rana",
+        "05-27": "birthday_soyo",
+        "08-09": "birthday_taki",
+        "09-08": "birthday_anon",
+        "11-22": "birthday_tomori",
+        "--ave--": "--",
+        "01-14": "birthday_若叶睦",
+        "02-14": "birthday_丰川祥子",
+        "04-07": "birthday_八幡海铃",
+        "06-26": "birthday_uika",
+        "06-01": "birthday_祐天寺若麦",
+    }
+    if f"{date_m}-{date_d}" in list(draw_model_list):
+        draw_model = draw_model_list[f"{date_m}-{date_d}"]
+    else:
+        draw_model = "normal"
+
+    if "draw_model" in list(box_data) and draw_model == "normal":
+        draw_model = box_data["draw_model"]
+
+    if user_id == test_id:
+        box_data["draw_model"] = draw_model = "text"
+        draw_dark_model = True
+        logger.info(f"(draw_model, {draw_model})(draw_dark_model, {draw_dark_model})(time_h, {time_h})")
+
+    draw_config = jellyfish_box_draw_config(draw_model, draw_dark_model)
 
     # 更新水母箱状态，并写入
     refresh: bool = False  # 判断是否更新
@@ -319,7 +407,18 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if refresh_period > 0:
             refresh = True
             box_data["refresh_time"] += refresh_period * 3600
-    # refresh = True
+        if refresh_period > 168:
+            # 超过7天未抓，减少刷新次数
+            refresh_period = 24
+        elif refresh_period > 96:
+            # 超过4天未抓，减少刷新次数
+            refresh_period = 96
+
+    trace.append(f"将刷新{refresh_period}次")
+
+    if user_id == test_id:
+        refresh = True
+        refresh_period = 1
     if refresh:
         # 更新数据
         logger.debug("正在刷新水母箱")
@@ -332,10 +431,16 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             # 更新时间并更新事件
             box_data["refresh_time"] = int(time_now / 3600) * 3600
 
+            # 统计现有水母数量
+            jellyfish_number = 0
+            for jellyfish_id in box_data["jellyfish"]:
+                jellyfish_number += box_data["jellyfish"][jellyfish_id]["number"]
+
             # 更新繁殖
             num = refresh_period
             if num > 72:
                 num = 72  # 最高单次更新3天的数量
+            new = {}
             while num > 0:
                 num -= 1
                 for jellyfish_id in box_data["jellyfish"]:
@@ -346,152 +451,162 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     # 计算繁殖概率
                     add_jellyfish = 0
                     rate = reproductive_rate / 30 / 24 * box_data["jellyfish"][jellyfish_id]["number"]
+
+                    if jellyfish_number < 10:
+                        rate = rate / jellyfish_number
+                    elif jellyfish_number < 20:
+                        rate = rate / jellyfish_number
+                    elif jellyfish_number < 40:
+                        rate = rate / jellyfish_number
+                    elif jellyfish_number < 80:
+                        rate = rate / jellyfish_number
+                    elif jellyfish_number < 160:
+                        rate = rate / jellyfish_number
+                    else:
+                        rate = rate / jellyfish_number
+
                     if rate > 1:
                         add_jellyfish += int(rate)
                         rate -= int(rate)
 
-                     # 判断是否繁殖
+                    # 判断是否繁殖
                     p = numpy.array([rate, (1 - rate)]).ravel()
-                    choose = numpy.random.choice([True, False], p=p)
-                    if choose is True:
+                    choose = numpy.random.choice(["True", "False"], p=p)
+                    if choose == "True":
                         add_jellyfish += 1
 
                     # 添加进水母箱
-                    box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
+                    if add_jellyfish != 0:
+                        if jellyfish_id in new:
+                            new[jellyfish_id] += add_jellyfish
+                        else:
+                            new[jellyfish_id] = add_jellyfish
+                        box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
 
-            # 提取事件id与事件概率，用来选取事件
-            event_list = []
-            event_probability = []
-            for event_id in event_datas:
-                event_list.append(event_id)
-                event_probability.append(event_datas[event_id]["probability"] / 100000)
-            p_num = 1  # 数列总数需要等于1
-            for probability in event_probability:
-                p_num -= probability
-            event_list.append(None)
-            event_probability.append(p_num)
+            for jellyfish_id in list(new):
+                if user_id == test_id:
+                    pass
+                    # news.append({
+                    #     "icon": None,
+                    #     "title": "水母繁殖",
+                    #     "message": f"{jellyfish_datas[jellyfish_id]['name']} 增加了 {new[jellyfish_id]}只"})
+                    # box_data["jellyfish"][jellyfish_id]["number"] += new[jellyfish_id]
+                trace.append(f"水母繁殖，trace， ”{jellyfish_id}“增加{new[jellyfish_id]}只")
 
             # 按周期更新数据
-            # refresh_period = 1  # beta test del
             while refresh_period > 0:
                 refresh_period -= 1
                 if len(news) > 9:
                     # 单次最多更新10条消息
                     break
-                # 随机发生的事件数
-                event_num = 1  # beta test 1
-                while event_num > 0:
-                    event_num -= 1
-                    # 开始随机事件
-                    p = numpy.array(event_probability).ravel()
-                    event_id = numpy.random.choice(event_list, p=p)
-                    # event_id = "e4"  # beta test del
-                    if event_id is None or event_id not in ["e1", "e2", "e3", "e4"]:
-                        continue
-                    # 准备事件
-                    event_name = event_datas[event_id]["name"]
-                    event_message = event_datas[event_id]["message"]
-                    # event_icon = await get_file_path(f"plugin-jellyfish_box-{event_id}")
-                    event_icon = None
-                    if event_id in ["e2"]:
-                        # 无变化中立事件
-                        jellyfish_list = []
-                        for jellyfish_id in box_data["jellyfish"]:
-                            num = box_data["jellyfish"][jellyfish_id]["number"]
-                            while num > 0:
-                                num -= 1
-                                jellyfish_list.append(jellyfish_id)
-                        if len(jellyfish_list) < 1:
-                            break  # 没有水母，跳过事件
-                        if len(news) < 7:
-                            # 超过7条就不发中立事件的内容
-                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "e1":
-                        # 判断事件是否成立
-                        # 计算未受保护的水母的数量
-                        jellyfish_list = []
-                        for jellyfish_id in box_data["jellyfish"]:
-                            if jellyfish_datas[jellyfish_id]["protected"] is False:
-                                num = box_data["jellyfish"][jellyfish_id]["number"]
-                                while num > 0:
-                                    num -= 1
-                                    jellyfish_list.append(jellyfish_id)
-                        if len(jellyfish_list) < 11:
-                            break  # 少于11条，跳过事件
-                        # 进行数据修改
-                        subtract_quantity = int(len(jellyfish_list) / 10)  # 要减去的数量
-                        # 挑选减去的列表
-                        choose_list = []
-                        while subtract_quantity > 0:
-                            subtract_quantity -= 1
-                            choose_list.append(random.choice(jellyfish_list))
-                        # 修改现有数据
-                        for jellyfish_id in choose_list:
-                            box_data["jellyfish"][jellyfish_id]["number"] -= 1
-                            if box_data["jellyfish"][jellyfish_id]["number"] == 0:
-                                box_data["jellyfish"].pop(jellyfish_id)
-                        # 总结事件
-                        event_message = event_message.replace("{num}", str(len(choose_list)))
+                # 开始随机事件
 
-                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "e3":
-                        # 判断事件是否成立
-                        # 计算未受保护的水母的数量
-                        jellyfish_list = []
-                        for jellyfish_id in box_data["jellyfish"]:
-                            if int(jellyfish_datas[jellyfish_id]["reproductive_rate"]) > 0:
-                                num = box_data["jellyfish"][jellyfish_id]["number"]
-                                while num > 0:
-                                    num -= 1
-                                    jellyfish_list.append(jellyfish_id)
-                        if len(jellyfish_list) < 1:
-                            break  # 少于1条，跳过事件
-                        # 计算事件发生的内容
-                        new_jellyfish_list = []
-                        for jellyfish_id in jellyfish_list:
-                            reproductive_rate = int(jellyfish_datas[jellyfish_id]["reproductive_rate"])
-                            if random.randint(0, 30) < reproductive_rate:
-                                new_jellyfish_list.append(jellyfish_id)
-                        if len(new_jellyfish_list) > 1:
-                            # 总结事件
-                            event_message = f"新增了{len(new_jellyfish_list)}只水母，分别是:"
-                            # 统计各种水母的数量，转成json
-                            new_jellyfish_datas = {}
-                            for jellyfish_id in new_jellyfish_list:
-                                if jellyfish_id not in list(new_jellyfish_datas):
-                                    new_jellyfish_datas[jellyfish_id] = 1
-                                else:
-                                    new_jellyfish_datas[jellyfish_id] += 1
-                            # 进行数据修改
-                            for jellyfish_id in new_jellyfish_datas:
-                                number = new_jellyfish_datas[jellyfish_id]
-                                box_data["jellyfish"][jellyfish_id]["number"] += number
+                # 提取事件id与事件概率，用来选取事件
+                event_list = []
+                for event_id in event_datas:
+                    choose = random.randint(0, 100000) / 100000
+                    if choose < event_datas[event_id]["probability"]:
+                        event_list.append(event_id)
 
-                            # 读取水母名称并添加到列表
-                            for jellyfish_id in new_jellyfish_datas:
-                                jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
-                                jellyfish_number = new_jellyfish_datas[jellyfish_id]
-                                event_message += f"{jellyfish_name}{jellyfish_number}只、"
-                            news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "e4":
-                        # 判断事件是否成立
-                        # 计算未受保护的水母的数量
-                        jellyfish_list = []
-                        for jellyfish_id in box_data["jellyfish"]:
-                            num = box_data["jellyfish"][jellyfish_id]["number"]
-                            while num > 0:
-                                num -= 1
-                                jellyfish_list.append(jellyfish_id)
-                        if len(jellyfish_list) < 1:
-                            break  # 少于1条，跳过事件
-                        # 计算事件发生的内容
-                        new_jellyfish_list = []
-                        num = 5  # 增加的水母数量
-                        event_message.replace("{num}", str(num))
+                if user_id == test_id:
+                    pass
+                    # event_list = ["e9"]
+
+                if event_list:
+                    event_id = random.choice(event_list)
+                else:
+                    continue
+
+                if event_id not in ["e1", "e2", "e3", "e4", "e5", "e7", "e8", "e9"]:
+                    continue
+                # 准备事件
+                event_name: str = event_datas[event_id]["name"]
+                event_message: str = event_datas[event_id]["message"]
+                # event_icon = await get_file_path(f"plugin-jellyfish_box-{event_id}")
+                event_icon: str | None = None
+
+                trace.append(f"添加事件{event_id}")
+
+                if event_id in ["e2"]:
+                    # 无变化中立事件
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        num = box_data["jellyfish"][jellyfish_id]["number"]
                         while num > 0:
                             num -= 1
-                            new_jellyfish_list.append(random.choice(jellyfish_list))
+                            jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 1:
+                        continue  # 没有水母，跳过事件
+                    if len(news) < 7:
+                        # 超过7条就不发中立事件的内容
+                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e1":
+                    # 判断事件是否成立
+                    # 计算未受保护的水母的数量
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        if (jellyfish_datas[jellyfish_id]["protected"] is False or
+                                box_data["jellyfish"][jellyfish_id]["number"] > 40):
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 11:
+                        continue  # 少于11条，跳过事件
+                    # 进行数据修改
+                    subtract_quantity = int(len(jellyfish_list) / 10)  # 要减去的数量
+                    # 挑选减去的列表
+                    choose_list = []
+                    while subtract_quantity > 0:
+                        subtract_quantity -= 1
+                        choose_jellyfish = random.choice(jellyfish_list)
+                        jellyfish_list.remove(choose_jellyfish)
+                        choose_list.append(jellyfish_list)
+                    # 修改现有数据
+                    for jellyfish_id in choose_list:
+                        box_data["jellyfish"][jellyfish_id]["number"] -= 1
+                        if box_data["jellyfish"][jellyfish_id]["number"] == 0:
+                            box_data["jellyfish"].pop(jellyfish_id)
+                    # 总结事件
+                    event_message += ": "
+                    # 统计各水母数量
+                    choose_jellyfish = {}
+                    for jellyfish_id in choose_list:
+                        if jellyfish_id in list(choose_jellyfish):
+                            choose_jellyfish[jellyfish_id] += 1
+                        else:
+                            choose_jellyfish[jellyfish_id] = 1
+                    # 添加到消息中
+                    for jellyfish_id in list(choose_jellyfish):
+                        event_message += f"{jellyfish_datas[jellyfish_id]['name']}"
+                        event_message += f"{choose_jellyfish[jellyfish_id]}只、"
+                        trace.append(f"{event_id}-{jellyfish_id}减去{choose_jellyfish[jellyfish_id]}")
 
+                    event_message.removesuffix("、")
+                    event_message = event_message.replace("{num}", str(len(choose_list)))
+
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e3":
+                    # 判断事件是否成立
+                    # 计算未受保护的水母的数量
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        if int(jellyfish_datas[jellyfish_id]["reproductive_rate"]) > 0:
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 1:
+                        continue  # 少于1条，跳过事件
+                    # 计算事件发生的内容
+                    new_jellyfish_list = []
+                    for jellyfish_id in jellyfish_list:
+                        reproductive_rate = int(jellyfish_datas[jellyfish_id]["reproductive_rate"])
+                        if random.randint(0, 30) < reproductive_rate:
+                            new_jellyfish_list.append(jellyfish_id)
+                    if len(new_jellyfish_list) > 1:
+                        # 总结事件
+                        event_message = f"新增了{len(new_jellyfish_list)}只水母，分别是:"
                         # 统计各种水母的数量，转成json
                         new_jellyfish_datas = {}
                         for jellyfish_id in new_jellyfish_list:
@@ -499,42 +614,213 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                                 new_jellyfish_datas[jellyfish_id] = 1
                             else:
                                 new_jellyfish_datas[jellyfish_id] += 1
-
                         # 进行数据修改
                         for jellyfish_id in new_jellyfish_datas:
                             number = new_jellyfish_datas[jellyfish_id]
                             box_data["jellyfish"][jellyfish_id]["number"] += number
 
                         # 读取水母名称并添加到列表
-                        event_message += ":"
                         for jellyfish_id in new_jellyfish_datas:
                             jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
-                            jellyfish_number = new_jellyfish_datas[jellyfish_id]
-                            event_message += f"{jellyfish_name}{jellyfish_number}只、"
+                            num = new_jellyfish_datas[jellyfish_id]
+                            event_message += f"{jellyfish_name}{num}只、"
+                            trace.append(f"{event_id}-{jellyfish_id}增加{num}")
 
-                        # 总结事件
                         news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "":
-                        # 判断事件是否成立
-                        # 计算事件发生的内容
-                        # 进行数据修改
-                        # 总结事件
-                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "":
-                        # 判断事件是否成立
-                        # 计算事件发生的内容
-                        # 进行数据修改
-                        # 总结事件
-                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
-                    elif event_id == "":
-                        # 判断事件是否成立
-                        # 计算事件发生的内容
-                        # 进行数据修改
-                        # 总结事件
-                        news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e4":
+                    # 判断事件是否成立
+                    # 计算水母的数量
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        num = box_data["jellyfish"][jellyfish_id]["number"]
+                        while num > 0:
+                            num -= 1
+                            jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 1:
+                        continue  # 少于1条，跳过事件
+                    # 计算事件发生的内容
+                    new_jellyfish_list = []
+                    num = 5  # 增加的水母数量
+                    event_message = event_message.replace("{num}", str(num))
+                    while num > 0:
+                        num -= 1
+                        new_jellyfish_list.append(random.choice(jellyfish_list))
+
+                    # 统计各种水母的数量，转成json
+                    new_jellyfish_datas = {}
+                    for jellyfish_id in new_jellyfish_list:
+                        if jellyfish_id not in list(new_jellyfish_datas):
+                            new_jellyfish_datas[jellyfish_id] = 1
+                        else:
+                            new_jellyfish_datas[jellyfish_id] += 1
+
+                    # 进行数据修改
+                    for jellyfish_id in new_jellyfish_datas:
+                        number = new_jellyfish_datas[jellyfish_id]
+                        box_data["jellyfish"][jellyfish_id]["number"] += number
+
+                    # 读取水母名称并添加到列表
+                    event_message += ":"
+                    for jellyfish_id in new_jellyfish_datas:
+                        jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
+                        jellyfish_number = new_jellyfish_datas[jellyfish_id]
+                        event_message += f"{jellyfish_name}{jellyfish_number}只、"
+                        trace.append(f"{event_id}-{jellyfish_id}增加{jellyfish_number}")
+
+                    # 总结事件
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e5":
+                    # 判断事件是否成立
+                    # 计算未受保护的水母的数量
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        if jellyfish_datas[jellyfish_id]["protected"] is False:
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 11:
+                        continue  # 少于11条，跳过事件
+                    if "j24" in list(box_data["jellyfish"]) and box_data["jellyfish"]["j24"]["number"] > 4:
+                        continue  # 超过4条，跳过
+                    # 计算事件发生的内容
+                    choose_jellyfish = random.choice(jellyfish_list)
+
+                    # 进行数据修改
+                    if box_data["jellyfish"][choose_jellyfish]["number"] == 1:
+                        box_data["jellyfish"].pop(choose_jellyfish)
                     else:
-                        news.append(
-                            {"icon": event_icon, "title": "程序出错事件", "message": "什么都没发生，只是代码出现了问题"})
+                        box_data["jellyfish"][choose_jellyfish]["number"] -= 1
+
+                    if "j24" in list(box_data["jellyfish"]):
+                        box_data["jellyfish"]["j24"]["number"] += 1
+                    else:
+                        box_data["jellyfish"]["j24"] = {"number": 1}
+
+                    # 总结事件
+                    event_message = event_message.replace("{name}", jellyfish_datas[choose_jellyfish]["name"])
+                    trace.append(f"{event_id}-{choose_jellyfish}转为j24")
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "":
+                    # 判断事件是否成立
+                    # 计算事件发生的内容
+                    # 进行数据修改
+                    # 总结事件
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e7":
+                    # 计算未受保护的水母的数量
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        if (jellyfish_datas[jellyfish_id]["protected"] is False or
+                                box_data["jellyfish"][jellyfish_id]["number"] > 30):
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 11:
+                        continue  # 少于11条，跳过事件
+                    # 进行数据修改
+                    subtract_quantity = 3  # 要减去的数量
+
+                    # 挑选减去的列表
+                    choose_list = []
+                    while subtract_quantity > 0:
+                        subtract_quantity -= 1
+                        choose_jellyfish = random.choice(jellyfish_list)
+                        jellyfish_list.remove(choose_jellyfish)
+                        choose_list.append(choose_jellyfish)
+                    # 修改现有数据
+                    for jellyfish_id in choose_list:
+                        box_data["jellyfish"][jellyfish_id]["number"] -= 1
+                        if box_data["jellyfish"][jellyfish_id]["number"] == 0:
+                            box_data["jellyfish"].pop(jellyfish_id)
+                    # 总结事件
+                    # 转换数据
+                    choose_jellyfish = {}
+                    for jellyfish_id in choose_list:
+                        if jellyfish_id in list(choose_jellyfish):
+                            choose_jellyfish[jellyfish_id] += 1
+                        else:
+                            choose_jellyfish[jellyfish_id] = 1
+                    event_message = event_message.replace("{num}", "3")
+                    event_message += ": "
+                    for jellyfish_id in list(choose_jellyfish):
+                        num = choose_jellyfish[jellyfish_id]
+                        event_message += f"{jellyfish_datas[jellyfish_id]['name']}{num}只、"
+                        trace.append(f"{event_id}-{jellyfish_id}减少{num}")
+                    event_message.removesuffix("、")
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e8":
+                    # 判断事件是否成立
+                    jellyfish_list = []
+                    for jellyfish_id in box_data["jellyfish"]:
+                        if (jellyfish_datas[jellyfish_id]["protected"] is False or
+                                box_data["jellyfish"][jellyfish_id]["number"] > 30):
+                            num = box_data["jellyfish"][jellyfish_id]["number"]
+                            while num > 0:
+                                num -= 1
+                                jellyfish_list.append(jellyfish_id)
+                    if len(jellyfish_list) < 11:
+                        continue  # 少于11条，跳过事件
+                    # 计算事件发生的内容
+                    jellyfishs = []
+                    for _ in range(3):
+                        choose_jellyfish = random.choice(jellyfish_list)
+                        jellyfish_list.remove(choose_jellyfish)
+                        jellyfishs.append(choose_jellyfish)
+                    choose_jellyfish = statistics_list(jellyfishs)
+                    # 进行数据修改
+                    for jellyfish_id in list(choose_jellyfish):
+                        if box_data["jellyfish"][jellyfish_id]["number"] == choose_jellyfish[jellyfish_id]:
+                            box_data["jellyfish"].pop(jellyfish_id)
+                        else:
+                            box_data["jellyfish"][jellyfish_id]["number"] -= choose_jellyfish[jellyfish_id]
+                    # 总结事件
+                    event_message += ":"
+                    for jellyfish_id in list(choose_jellyfish):
+                        name = jellyfish_datas[jellyfish_id]["name"]
+                        event_message += f"{name}{choose_jellyfish[jellyfish_id]}只、"
+                        trace.append(f"{event_id}-{jellyfish_id}减{choose_jellyfish[jellyfish_id]}")
+                    event_message.removesuffix("、")
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "e9":
+                    # 判断事件是否成立
+                    if jellyfish_number < 4:
+                        continue  # 少于4只，跳过
+
+                    # 计算事件发生的内容
+                    jellyfish_list = []
+                    for jellyfish_id in list(jellyfish_datas):
+                        if jellyfish_datas[jellyfish_id]["group"] in ["normal", "good"]:
+                            jellyfish_list.append(jellyfish_id)
+                    choose_list = []
+                    for _ in range(3):
+                        choose_list.append(random.choice(jellyfish_list))
+                    choose_jellyfish = statistics_list(choose_list)
+
+                    # 进行数据修改
+                    for jellyfish_id in list(choose_jellyfish):
+                        if jellyfish_id in list(box_data["jellyfish"]):
+                            box_data["jellyfish"][jellyfish_id]["number"] += choose_jellyfish[jellyfish_id]
+                        else:
+                            box_data["jellyfish"][jellyfish_id] = {"number": choose_jellyfish[jellyfish_id]}
+                    # 总结事件
+                    event_message += ":"
+                    for jellyfish_id in list(choose_jellyfish):
+                        name = jellyfish_datas[jellyfish_id]["name"]
+                        event_message += f"{name}{choose_jellyfish[jellyfish_id]}只、"
+                        trace.append(f"{event_id}-{jellyfish_id}增{num}")
+                    event_message.removesuffix("、")
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                elif event_id == "":
+                    # 判断事件是否成立
+                    # 计算事件发生的内容
+                    # 进行数据修改
+                    # 总结事件
+                    news.append({"icon": event_icon, "title": event_name, "message": event_message})
+                else:
+                    news.append(
+                        {"icon": event_icon, "title": "程序出错事件", "message": "什么都没发生，只是代码出现了问题"})
 
         # 写入水母箱数据
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -554,46 +840,51 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         :param size: 要绘制的大小
         :return: image
         """
+        global kn_cache
         x = size[0] * 2  # 2倍抗锯齿长
         y = size[1] * 2  # 2倍抗锯齿宽
         # 计算水母的大小
+        number = 0
+        for jellyfish_id in box_data["jellyfish"]:
+            number += box_data["jellyfish"][jellyfish_id]["number"]
+        num_list = [400, 353, 306, 260, 236, 213, 190, 166, 143, 120, 96, 73, 50]
+        size_list = [100, 104, 109, 117, 124, 134, 144, 154, 165, 180, 197, 218, 244]
+
+        j_size = 100
+        num = len(num_list)
+        while num > 0:
+            num -= 1
+            if number < num_list[num]:
+                j_size = size_list[num]
+                break
+
+        j_image = Image.new("RGBA", (x, y), (0, 0, 0, 0))
+
         num = 0
         for jellyfish_id in box_data["jellyfish"]:
+            # 加载要绘制水母的数量
             num += box_data["jellyfish"][jellyfish_id]["number"]
-        if num < 100:
-            j_size = int((x + y) / 12)
-        elif num < 200:
-            j_size = int((x + y) / 12 / 1.5)
-        else:
-            j_size = int((x + y) / 12 / 2.5)
 
-        load_image = "None"
-        jellyfish_image = None
-        j_image = Image.new("RGBA", (x, y), (0, 0, 0, 0))
         for jellyfish_id in box_data["jellyfish"]:
-            # 读取要绘制水母的数据
-            number = box_data["jellyfish"][jellyfish_id]["number"]  # 绘制数量
-            # 读取绘制的图片，并缩放
+            # 加载要绘制水母的数量
+            number = box_data["jellyfish"][jellyfish_id]["number"]
 
-            if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None:
-                jellyfish_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
+            # 检查绘制样式是否指定水母
+            if draw_config["jellyfish"]["replace_jellyfish"] is not None:
+                jellyfish_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+
             # 读取水母图片
-            if load_image != jellyfish_id:
-                file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
-                jellyfish_image = Image.open(file_path, "r")
-                jellyfish_image = jellyfish_image.resize((j_size, j_size))
-                if draw_config[draw_model]["jellyfish"]["jellyfish_foreground"] is not None:
-                    file_path = await get_file_path(
-                        f"plugin-jellyfish_box-{draw_config[draw_model]['jellyfish']['jellyfish_foreground']}.png")
-                    foreground_image = Image.open(file_path, "r")
-                    foreground_image = foreground_image.resize((j_size, j_size))
-                    jellyfish_image.paste(foreground_image, (0, 0), mask=foreground_image)
+            file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
+            jellyfish_image = Image.open(file_path, "r")
+            jellyfish_image = jellyfish_image.resize((j_size, j_size))
 
-                load_image = jellyfish_id
-            paste_image = jellyfish_image.copy()
+            # 绘制旋转
+            if jellyfish_datas[jellyfish_id]["draw"]["rotate"] != 0:
+                jellyfish_image = jellyfish_image.rotate(jellyfish_datas[jellyfish_id]["draw"]["rotate"])
 
-            w, h = paste_image.size
+            w, h = jellyfish_image.size
             living_locations = jellyfish_datas[jellyfish_id]["living_location"]
+            foreground_num = 0
             while number > 0:
                 number -= 1
                 # 判断水母所在区域
@@ -625,23 +916,133 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     paste_x = random.randint(0, (x - w))
                     paste_y = random.randint(0, (y - h))
                     direction = random.randint(-180, 180)
+
                 # 绘制
+                foreground_num += 1
+                paste_image = jellyfish_image.copy()
+
+                if draw_config["jellyfish"]["jellyfish_foreground"] is not None:
+                    choose_foreground = random.choice(draw_config['jellyfish']['jellyfish_foreground'])
+                    file_path = await get_file_path(f"plugin-jellyfish_box-{choose_foreground}.png")
+                    foreground_image = Image.open(file_path, "r")
+                    foreground_image = foreground_image.resize((j_size, j_size))
+                    paste_image.paste(foreground_image, (0, 0), mask=foreground_image)
+
                 paste_image = paste_image.rotate(direction)
                 j_image.paste(paste_image, (paste_x, paste_y), paste_image)
         j_image = j_image.resize(size)
         return j_image
 
-    async def draw_jellyfish_box(draw_box=True, draw_title=None):
+    async def draw_jellyfish_box(draw_box=True, draw_title=None, ) -> str:
+        if draw_model in ["freehand", "freehand_dark"]:
+            return await draw_jellyfish_box_freehand(draw_box, draw_title)
+        elif draw_model == "text":
+            return await draw_jellyfish_box_text(draw_box, draw_title)
+        else:
+            return await draw_jellyfish_box_normal(draw_box, draw_title)
+
+    async def draw_jellyfish_box_text(draw_box=True, draw_title=None) -> str:
         """
         绘制状态图
-        :return: 图片路径
+        :return: 字符串
         """
         """
         内容：
         :param bd: 水母箱数据 user_box_data
         :param news: 新增的水母列表
         :param new_jellyfish: 新闻列表，显示最近的动态
-        :param command_list: 指令列表，建议可以输入的指令
+        :param command_prompt_list: 指令列表，建议可以输入的指令
+        """
+        msg = ""
+
+        # 添加水母箱
+        if draw_box is True:
+            msg += ("\n[                 🪼                     🪼]\n"
+                    "[     🪼             🪼                    ]\n"
+                    "[            🪼                 🪼         ]\n")
+
+        # 添加新水母
+        if len(new_jellyfish) > 0:
+            msg += draw_config["text"]["新水母_标题"] + "\n"
+
+            # 添加水母
+            for data in new_jellyfish:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None:
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_number = data["number"]
+                j_message = data["message"]
+
+                msg += f"{j_name}x{j_number}，{j_group}"
+
+        # 添加水母图鉴
+        if len(jellyfish_menu) > 0:
+            msg += "\n"
+
+            # 添加水母
+            num = 0
+            group = ""
+            for data in jellyfish_menu:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None and (
+                        draw_title is None or draw_title in ["水母统计表"]):
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_message = data["message"]
+
+                if group != j_group:
+                    num = 0
+                    if msg.endswith("\n"):
+                        msg += f"{j_group}:\n"
+                    else:
+                        msg += f"\n{j_group}:\n"
+                    group = j_group
+
+                if num == 0:
+                    num = 1
+                    msg += f"🪼{j_name}{j_message}"
+                else:
+                    num = 0
+                    msg += f"🪼{j_name}{j_message} \n"
+            if not msg.endswith("\n"):
+                msg += "\n"
+
+        # 添加事件
+        if len(news) > 0:
+            msg += draw_config["text"]["事件_标题"] + "\n"
+            # 添加事件
+            for data in news:
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+                msg += f"{title}: {message}\n"
+
+        # 添加指令介绍
+        if len(command_prompt_list) > 0:
+            msg += draw_config["text"]["指令_标题"] + "\n"
+
+            for data in command_prompt_list:
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+                msg += f"{title}: {message}\n"
+
+        return msg
+
+    async def draw_jellyfish_box_normal(draw_box=True, draw_title=None) -> str:
+        """
+        绘制状态图
+        :return: 图片路径 save_image(image)
+        """
+        """
+        内容：
+        :param bd: 水母箱数据 user_box_data
+        :param news: 新增的水母列表
+        :param new_jellyfish: 新闻列表，显示最近的动态
+        :param command_prompt_list: 指令列表，建议可以输入的指令
         """
         font_shsk_H_path = await get_file_path("SourceHanSansK-Heavy.ttf")
         font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
@@ -658,7 +1059,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         # 添加新水母高度
         if len(new_jellyfish) > 0:
             y += 36  # 空行
-            y += 0  # 标题
+            y += 33  # 标题
             for data in new_jellyfish:
                 y += 261
             y += 14  # 结尾
@@ -681,12 +1082,12 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["color"]["event_message"],
+                    text_color=draw_config["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
                 y += h + 15  # 事件介绍
-            y += 20  # 结尾
+            y += 60  # 结尾
         # 添加指令提示高度
         if len(command_prompt_list) > 0:
             y += 20  # 空行
@@ -699,17 +1100,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["color"]["event_message"],
+                    text_color=draw_config["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
                 y += h + 15  # 事件介绍
-            y += 20  # 结尾
+            y += 60  # 结尾
         # 添加图片尾
         y += 43
 
         # 创建底图
-        image = Image.new("RGB", (x, y), draw_config[draw_model]["color"]["bg"])
+        image = Image.new("RGB", (x, y), draw_config["color"]["bg"])
         draw = ImageDraw.Draw(image)
 
         # 绘制内容
@@ -719,14 +1120,14 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         font = ImageFont.truetype(font=font_shsk_H_path, size=300)
         draw.text(
             xy=(draw_x + 136, draw_y + 28),
-            text=draw_config[draw_model]["text"]["背景大字"],
-            fill=draw_config[draw_model]["color"]["背景大字"],
+            text=draw_config["text"]["背景大字"],
+            fill=draw_config["color"]["背景大字"],
             font=font)
 
         # 添加时间
         text = f"{datetime.fromtimestamp(time_now)}"[0:10]
         font = ImageFont.truetype(font=font_shsk_M_path, size=40)
-        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config[draw_model]["color"]["date"], font=font)
+        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config["color"]["date"], font=font)
 
         # 添加标题
         if draw_title is None:
@@ -734,7 +1135,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         else:
             text = draw_title
         font = ImageFont.truetype(font=font_shsk_M_path, size=70)
-        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config[draw_model]["color"]["name"], font=font)
+        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config["color"]["name"], font=font)
 
         # 绘制头像
         if "face_image" in list(user_data) and draw_title is None:
@@ -762,14 +1163,26 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if draw_box is True:
             x = 914  # 卡片宽度
             y = 563  # 卡片长度
-            paste_image = Image.new("RGB", (x, y), draw_config[draw_model]["color"]["box_outline"])
+
+            paste_image = Image.new("RGB", (x, y), draw_config["color"]["box_outline"])
             paste_image = circle_corner(paste_image, 30)  # 圆角
             image.paste(paste_image, (draw_x, draw_y), paste_image)
-            paste_image = Image.new("RGB", (x - 6, y - 6), draw_config[draw_model]["color"]["box_bg"])
+            paste_image = Image.new("RGB", (x - 6, y - 6), draw_config["color"]["box_bg"])
             paste_image = circle_corner(paste_image, 28)  # 圆角
             image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
+
+            if draw_config['jellyfish']['box_background'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_background']}.png")
+                paste_image = Image.open(path, "r")
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
+
             paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
             image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
+
+            if draw_config['jellyfish']['box_foreground'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_foreground']}.png")
+                paste_image = Image.open(path, "r")
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
 
             draw_x += 754
             draw_y += 0
@@ -788,31 +1201,38 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             card_y += 14  # 卡片长度 结尾
 
             # 开始绘制卡片
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
             # 添加标题
             font = ImageFont.truetype(font=font_shsk_B_path, size=50)
             draw.text(
                 xy=(32, 20),
-                text=draw_config[draw_model]["text"]["新水母_标题"],
-                fill=draw_config[draw_model]["color"]["title"],
+                text=draw_config["text"]["新水母_标题"],
+                fill=draw_config["color"]["title"],
                 font=font)
             # 添加水母
             card_num = -1
             for data in new_jellyfish:
                 j_id = data["id"]
-                if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None:
-                    j_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None:
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
                 j_name = data["name"]
                 j_group = data["group"]
                 j_number = data["number"]
                 j_message = data["message"]
                 card_num += 1
                 # 添加水母图标
-                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["color"]["icon_outline"])
+                paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
                 paste_image = circle_corner(paste_image, 24)
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
-                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["color"]["icon_bg"])
+                paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
@@ -826,9 +1246,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
-                    int(draw_config[draw_model]["color"]["icon_bg"][1:3], 16),
-                    int(draw_config[draw_model]["color"]["icon_bg"][3:5], 16),
-                    int(draw_config[draw_model]["color"]["icon_bg"][5:7], 16),
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
                     102,
                 )
                 mask_image = Image.new("RGBA", (575, 575), color)
@@ -838,17 +1258,17 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
                 draw.text(xy=(278, 95 + (card_num * 261)), text=j_name,
-                          fill=draw_config[draw_model]["color"]["event_title"], font=font)
+                          fill=draw_config["color"]["event_title"], font=font)
 
                 # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
                     xy=(278 + 150, 152 + (card_num * 261)), text=f"分组：",
-                    fill=draw_config[draw_model]["color"]["event_message"], font=font)
-                if j_group in list(draw_config[draw_model]["color"]["group_color"]):
-                    color = draw_config[draw_model]["color"]["group_color"][j_group]
+                    fill=draw_config["color"]["event_message"], font=font)
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
                 else:
-                    color = draw_config[draw_model]["color"]["event_message"]
+                    color = draw_config["color"]["event_message"]
                 draw.text(
                     xy=(278 + 150 + 120, 152 + (card_num * 261)), text=j_group,
                     fill=color, font=font)
@@ -857,12 +1277,12 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
                     xy=(278, 152 + (card_num * 261)), text=f"x{j_number}",
-                    fill=draw_config[draw_model]["color"]["event_message"], font=font)
+                    fill=draw_config["color"]["event_message"], font=font)
 
                 # 添加消息
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(xy=(278, 200 + (card_num * 261)), text=j_message,
-                          fill=draw_config[draw_model]["color"]["event_message"], font=font)
+                          fill=draw_config["color"]["event_message"], font=font)
 
             paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
@@ -880,27 +1300,27 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             card_y += 14  # 卡片长度 结尾
 
             # 开始绘制卡片
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
             # 添加标题
             # font = ImageFont.truetype(font=font_shsk_B_path, size=50)
-            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config[draw_model]["color"]["title"], font=font)
+            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config["color"]["title"], font=font)
             # 添加水母
             card_num = -1
             for data in jellyfish_menu:
                 j_id = data["id"]
-                if draw_config[draw_model]["jellyfish"]["replace_jellyfish"] is not None and (
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None and (
                         draw_title is None or draw_title in ["水母统计表"]):
-                    j_id = draw_config[draw_model]["jellyfish"]["replace_jellyfish"]
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
                 j_name = data["name"]
                 j_group = data["group"]
                 j_message = data["message"]
                 card_num += 1
                 # 添加水母图标
-                paste_image = Image.new("RGB", (248, 248), draw_config[draw_model]["color"]["icon_outline"])
+                paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
                 paste_image = circle_corner(paste_image, 24)
                 paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
-                paste_image = Image.new("RGB", (234, 234), draw_config[draw_model]["color"]["icon_bg"])
+                paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
@@ -914,9 +1334,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
-                    int(draw_config[draw_model]["color"]["icon_bg"][1:3], 16),
-                    int(draw_config[draw_model]["color"]["icon_bg"][3:5], 16),
-                    int(draw_config[draw_model]["color"]["icon_bg"][5:7], 16),
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
                     102,
                 )
                 mask_image = Image.new("RGBA", (575, 575), color)
@@ -926,19 +1346,19 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 # 添加水母名字
                 font = ImageFont.truetype(font=font_shsk_M_path, size=50)
                 draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name,
-                          fill=draw_config[draw_model]["color"]["event_title"], font=font)
+                          fill=draw_config["color"]["event_title"], font=font)
 
                 # 添加水母分组
                 font = ImageFont.truetype(font=font_shsk_M_path, size=40)
                 draw.text(
                     xy=(278, -69 + 152 + (card_num * 261)),
                     text=f"分组：",
-                    fill=draw_config[draw_model]["color"]["event_message"],
+                    fill=draw_config["color"]["event_message"],
                     font=font)
-                if j_group in list(draw_config[draw_model]["color"]["group_color"]):
-                    color = draw_config[draw_model]["color"]["group_color"][j_group]
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
                 else:
-                    color = draw_config[draw_model]["color"]["event_message"]
+                    color = draw_config["color"]["event_message"]
                 draw.text(
                     xy=(278 + 120, -69 + 152 + (card_num * 261)), text=j_group,
                     fill=color, font=font)
@@ -949,7 +1369,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=40,
                     textlen=12,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["color"]["event_message"]
+                    text_color=draw_config["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_text, (278, -69 + 200 + (card_num * 261)), paste_text)
 
@@ -972,7 +1392,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["color"]["event_message"],
+                    text_color=draw_config["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -981,16 +1401,21 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
             draw_event_y += 20
             font = ImageFont.truetype(font=font_shsk_B_path, size=45)
             draw.text(
                 xy=(32, draw_event_y),
-                text=draw_config[draw_model]["text"]["事件_标题"],
-                fill=draw_config[draw_model]["color"]["title"],
+                text=draw_config["text"]["事件_标题"],
+                fill=draw_config["color"]["title"],
                 font=font)
 
             # 添加事件
@@ -1004,7 +1429,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加标题
                 font = ImageFont.truetype(font=font_shsk_M_path, size=42)
-                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["color"]["event_title"],
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
                           font=font)
                 draw_event_y += 52  # 标题高度
 
@@ -1014,7 +1439,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["color"]["event_message"]
+                    text_color=draw_config["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
                 draw_event_y += paste_image.size[1] + 15
@@ -1039,7 +1464,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
-                    text_color=draw_config[draw_model]["color"]["event_message"],
+                    text_color=draw_config["color"]["event_message"],
                     calculate=True
                 )
                 w, h = paste_image.size
@@ -1048,16 +1473,22 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
             # 开始绘制卡片
             draw_event_y = 0
-            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config[draw_model]["color"]["card"])
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
             draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
             draw_event_y += 20
             font = ImageFont.truetype(font=font_shsk_B_path, size=45)
             draw.text(
                 xy=(32, draw_event_y),
-                text=draw_config[draw_model]["text"]["指令_标题"],
-                fill=draw_config[draw_model]["color"]["title"],
+                text=draw_config["text"]["指令_标题"],
+                fill=draw_config["color"]["title"],
                 font=font)
 
             # 添加事件
@@ -1071,7 +1502,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
                 # 添加标题
                 font = ImageFont.truetype(font=font_shsk_M_path, size=42)
-                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config[draw_model]["color"]["event_title"],
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
                           font=font)
                 draw_event_y += 52  # 标题高度
 
@@ -1080,12 +1511,539 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     size=35,
                     textlen=21,
                     fontfile=font_shsk_M_path,
-                    text_color=draw_config[draw_model]["color"]["event_message"]
+                    text_color=draw_config["color"]["event_message"]
                 )
                 paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
                 draw_event_y += paste_image.size[1] + 15
 
             paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (43, draw_y), paste_card_image)
+            draw_event_y += 20  # 卡片结尾高度
+
+            draw_x += 0
+            draw_y += draw_event_y  # 卡片高度
+
+        return save_image(image)
+
+    async def draw_jellyfish_box_freehand(draw_box=True, draw_title=None) -> str:
+        """
+        绘制状态图
+        :return: 图片路径 save_image(image)
+        """
+        """
+        内容：
+        :param bd: 水母箱数据 user_box_data
+        :param news: 新增的水母列表
+        :param new_jellyfish: 新闻列表，显示最近的动态
+        :param command_prompt_list: 指令列表，建议可以输入的指令
+        """
+        font_shsk_H_path = await get_file_path("SourceHanSansK-Heavy.ttf")
+        font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
+        font_shsk_B_path = await get_file_path("SourceHanSansK-Bold.ttf")
+        muyao_softbrush = await get_file_path("Muyao-Softbrush-2.ttf")
+
+        # 计算长度
+        x = 1000
+        y = 0
+        # 添加基础高度（图片头）
+        y += 258
+        # 添加水母箱高度
+        if draw_box is True:
+            y += 563
+        # 添加新水母高度
+        if len(new_jellyfish) > 0:
+            y += 36  # 空行
+            y += 60  # 标题
+            for data in new_jellyfish:
+                y += 261
+            y += 14  # 结尾
+        # 添加水母图鉴
+        if len(jellyfish_menu) > 0:
+            y += 36  # 空行
+            y += 60  # 标题
+            for data in jellyfish_menu:
+                y += 261
+            y += 14  # 结尾
+        # 添加事件高度
+        if len(news) > 0:
+            y += 36  # 空行
+            y += 60  # 标题
+            for data in news:
+                y += 20  # 空行
+                y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                y += h + 15  # 事件介绍
+            y += 14  # 结尾
+        # 添加指令提示高度
+        if len(command_prompt_list) > 0:
+            y += 36  # 空行
+            y += 60  # 事件标题
+            for data in command_prompt_list:
+                y += 20  # 空行
+                y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                y += h + 15  # 事件介绍
+            y += 14  # 结尾
+        # 添加图片尾
+        y += 43
+
+        # 创建底图
+        image = Image.new("RGB", (x, y), draw_config["color"]["bg"])
+        draw = ImageDraw.Draw(image)
+        # 添加底色
+        file_path = await get_image_path(f"jellyfish_box-freehand_background.png")
+        paste_image = Image.open(file_path, "r")
+        image.paste(paste_image, (0, 0), paste_image)
+        if y > 2000:
+            image.paste(paste_image, (0, 2000), paste_image)
+
+        # 绘制内容
+        # 添加背景大字
+        draw_x = 0
+        draw_y = 0
+        font = ImageFont.truetype(font=muyao_softbrush, size=300)
+        draw.text(
+            xy=(draw_x + 136, draw_y + 28),
+            text=draw_config["text"]["背景大字"],
+            fill=draw_config["color"]["背景大字"],
+            font=font)
+
+        # 添加时间
+        text = f"{datetime.fromtimestamp(time_now)}"[0:10]
+        font = ImageFont.truetype(font=muyao_softbrush, size=40)
+        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config["color"]["date"], font=font)
+
+        # 添加标题
+        if draw_title is None:
+            text = user_name
+        else:
+            text = draw_title
+        font = ImageFont.truetype(font=muyao_softbrush, size=70)
+        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config["color"]["name"], font=font)
+
+        # 绘制头像
+        if "face_image" in list(user_data) and draw_title is None:
+            user_avatar = user_data["face_image"]
+            try:
+                if user_avatar in [None, "None", "none"]:
+                    user_image = await draw_text("图片", 50, 10)
+                elif user_avatar.startswith("http"):
+                    user_image = await connect_api("image", user_avatar)
+                else:
+                    user_image = Image.open(user_avatar, "r")
+            except Exception as e:
+                user_image = await draw_text("头像", 50, 10)
+                logger.error(f"获取图片出错:{e}")
+            user_image = user_image.resize((158, 158))
+            user_image = circle_corner(user_image, 79)
+            paste_image = Image.new("RGB", (160, 160), (255, 255, 255))
+            paste_image = circle_corner(paste_image, 80)
+            image.paste(paste_image, (draw_x + 744, draw_y + 62), paste_image)
+            image.paste(user_image, (draw_x + 745, draw_y + 63), user_image)
+
+        draw_x += 43
+        draw_y += 258
+        # 添加水母箱
+        if draw_box is True:
+            x = 914  # 卡片宽度
+            y = 563  # 卡片长度
+
+            file_path = await get_image_path(f"jellyfish_box-freehand_box_background.png")
+            paste_alpha = Image.open(file_path, "r")
+            paste_alpha = paste_alpha.resize((x, y))
+            paste_image = Image.new("RGBA", (x, y), draw_config["color"]["box_bg"])
+            image.paste(paste_image, (draw_x, draw_y), paste_alpha)
+
+            if draw_config['jellyfish']['box_background'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_background']}.png")
+                paste_image = Image.open(path, "r")
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
+
+            paste_image = await draw_jellyfish((x - 6 - 40, y - 6 - 40))  # 水母们
+            image.paste(paste_image, (draw_x + 3 + 20, draw_y + 3 + 20), paste_image)
+
+            if draw_config['jellyfish']['box_foreground'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_foreground']}.png")
+                paste_image = Image.open(path, "r")
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
+
+            draw_x += 754
+            draw_y += 0
+            # 添加水母箱状态
+
+            draw_x -= 754
+            draw_y += 563
+
+        # 添加新水母
+        if len(new_jellyfish) > 0:
+            draw_y += 36  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 69  # 卡片长度 标题
+            for data in new_jellyfish:
+                card_y += 261  # 卡片长度 水母
+            card_y += 14  # 卡片长度 结尾
+
+            # 开始绘制卡片
+            file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
+            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
+            paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
+
+            paste_card_image = Image.new("RGBA", (card_x, card_y), (0, 0, 0, 0))
+
+            # paste_card_image = Image.new("RGBA", (card_x, card_y), color)
+            draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            font = ImageFont.truetype(font=muyao_softbrush, size=50)
+            draw.text(
+                xy=(32, 20),
+                text=draw_config["text"]["新水母_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+            # 添加水母
+            card_num = -1
+            for data in new_jellyfish:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None:
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_number = data["number"]
+                j_message = data["message"]
+                card_num += 1
+                # 添加水母图标
+                # paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
+                # paste_image = circle_corner(paste_image, 24)
+                # paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
+                # paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
+                # paste_image = circle_corner(paste_image, 18)
+                # paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = Image.open(file_path, "r")
+                paste_image = paste_image.resize((248, 248))
+                paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
+
+                # 添加水母背景
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = Image.open(file_path, "r")
+                paste_image = paste_image.resize((575, 575))
+                paste_image = paste_image.rotate(30)
+                color = (
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
+                    102,
+                )
+                mask_image = Image.new("RGBA", (575, 575), color)
+                mask_image.paste(paste_image, (0, 0), mask_image)
+                paste_card_image.paste(mask_image, (542, -27 + (card_num * 261)), paste_image)
+
+                # 添加水母名字
+                font = ImageFont.truetype(font=font_shsk_M_path, size=50)
+                draw.text(xy=(278, 95 + (card_num * 261)), text=j_name,
+                          fill=draw_config["color"]["event_title"], font=font)
+
+                # 添加水母分组
+                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
+                draw.text(
+                    xy=(278 + 150, 152 + (card_num * 261)), text=f"分组：",
+                    fill=draw_config["color"]["event_message"], font=font)
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
+                else:
+                    color = draw_config["color"]["event_message"]
+                draw.text(
+                    xy=(278 + 150 + 120, 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
+
+                # 添加水母数量
+                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
+                draw.text(
+                    xy=(278, 152 + (card_num * 261)), text=f"x{j_number}",
+                    fill=draw_config["color"]["event_message"], font=font)
+
+                # 添加消息
+                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
+                draw.text(xy=(278, 200 + (card_num * 261)), text=j_message,
+                          fill=draw_config["color"]["event_message"], font=font)
+
+            # paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
+
+            draw_x += 0
+            draw_y += card_y  # 卡片高度
+
+        # 添加水母图鉴
+        if len(jellyfish_menu) > 0:
+            draw_y += 0  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 33  # 卡片长度 标题
+            for data in jellyfish_menu:
+                card_y += 261  # 卡片长度 水母
+            card_y += 14  # 卡片长度 结尾
+
+            # 开始绘制卡片
+            file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
+            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
+            paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
+
+            paste_card_image = Image.new("RGBA", (card_x, card_y), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(paste_card_image)
+            # 添加标题
+            # font = ImageFont.truetype(font=font_shsk_B_path, size=50)
+            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config["color"]["title"], font=font)
+            # 添加水母
+            card_num = -1
+            for data in jellyfish_menu:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None and (
+                        draw_title is None or draw_title in ["水母统计表"]):
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_message = data["message"]
+                card_num += 1
+                # 添加水母图标
+                # paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
+                # paste_image = circle_corner(paste_image, 24)
+                # paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
+                # paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
+                # paste_image = circle_corner(paste_image, 18)
+                # paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = Image.open(file_path, "r")
+                paste_image = paste_image.resize((248, 248))
+                paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
+
+                # 添加水母背景
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = Image.open(file_path, "r")
+                paste_image = paste_image.resize((575, 575))
+                paste_image = paste_image.rotate(30)
+                color = (
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
+                    102,
+                )
+                mask_image = Image.new("RGBA", (575, 575), color)
+                mask_image.paste(paste_image, (0, 0), mask_image)
+                paste_card_image.paste(mask_image, (542, -69 - 27 + (card_num * 261)), paste_image)
+
+                # 添加水母名字
+                font = ImageFont.truetype(font=font_shsk_M_path, size=50)
+                draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name,
+                          fill=draw_config["color"]["event_title"], font=font)
+
+                # 添加水母分组
+                font = ImageFont.truetype(font=font_shsk_M_path, size=40)
+                draw.text(
+                    xy=(278, -69 + 152 + (card_num * 261)),
+                    text=f"分组：",
+                    fill=draw_config["color"]["event_message"],
+                    font=font)
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
+                else:
+                    color = draw_config["color"]["event_message"]
+                draw.text(
+                    xy=(278 + 120, -69 + 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
+
+                # 添加消息
+                paste_text = await draw_text(
+                    texts=f"简介：{j_message}",
+                    size=40,
+                    textlen=12,
+                    fontfile=font_shsk_M_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_text, (278, -69 + 200 + (card_num * 261)), paste_text)
+
+            # paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
+
+            draw_x += 0
+            draw_y += card_y  # 卡片高度
+
+        # 添加事件
+        if len(news) > 0:
+            draw_y += 20  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 60  # 卡片长度 标题
+            for data in news:
+                card_y += 20  # 空行
+                card_y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
+
+            # 开始绘制卡片
+            draw_event_y = 0
+
+            file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
+            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
+            paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
+
+            paste_card_image = Image.new("RGBA", (card_x, card_y), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(paste_card_image)
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            draw_event_y += 20
+            font = ImageFont.truetype(font=muyao_softbrush, size=45)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config["text"]["事件_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+
+            # 添加事件
+            draw_event_y += 55
+            event_num = -1
+            for data in news:
+                event_num += 1
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+
+                # 添加标题
+                font = ImageFont.truetype(font=font_shsk_B_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
+                          font=font)
+                draw_event_y += 52  # 标题高度
+
+                # 添加消息
+                paste_image = await draw_text(
+                    message,
+                    size=35,
+                    textlen=21,
+                    fontfile=font_shsk_M_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
+                draw_event_y += paste_image.size[1] + 15
+
+            # paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (43, draw_y), paste_card_image)
+            draw_event_y += 20  # 卡片结尾高度
+
+            draw_x += 0
+            draw_y += draw_event_y  # 卡片高度
+
+        # 添加指令介绍
+        if len(command_prompt_list) > 0:
+            draw_y += 20  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 60  # 卡片长度 标题
+            for data in command_prompt_list:
+                card_y += 20  # 空行
+                card_y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=font_shsk_M_path,
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
+
+            # 开始绘制卡片
+            draw_event_y = 0
+
+            file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
+            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
+            paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
+
+            paste_card_image = Image.new("RGBA", (card_x, card_y), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = Image.open(path, "r")
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            draw_event_y += 20
+            font = ImageFont.truetype(font=muyao_softbrush, size=45)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config["text"]["指令_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+
+            # 添加事件
+            draw_event_y += 55
+            event_num = -1
+            for data in command_prompt_list:
+                event_num += 1
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+
+                # 添加标题
+                font = ImageFont.truetype(font=font_shsk_B_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
+                          font=font)
+                draw_event_y += 52  # 标题高度
+
+                paste_image = await draw_text(
+                    message,
+                    size=35,
+                    textlen=21,
+                    fontfile=font_shsk_M_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
+                draw_event_y += paste_image.size[1] + 15
+
+            # paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (43, draw_y), paste_card_image)
             draw_event_y += 20  # 卡片结尾高度
 
@@ -1114,15 +2072,29 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             returunpath = save_image(image)
         code = 2
     elif command == "水母箱":
-        # 测试指令
-        # news.append({"icon": None, "title": "title", "message": "event_message"})
-        # command_prompt_list.append({"title": "title", "message": "event_message"})
-        # new_jellyfish.append(
-        #     {"id": "j2", "number": 20, "group": "good", "name": "jellyfish_name22", "message": f"抓到了???只"})
-        command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
-        command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
-        returunpath = await draw_jellyfish_box()
-        code = 2
+        if user_id == test_id:
+            # 测试指令
+            news.append({"icon": None, "title": "title", "message": "event_message"})
+            # command_prompt_list.append({"title": "title", "message": "event_message"})
+            new_jellyfish.append(
+                {"id": "j2", "number": 20, "group": "good", "name": "jellyfish_name22", "message": f"抓到了???只"})
+            # test_new_j_list = ["j13", "j15", "j16", "j28", "j29"]
+            # for j_id in test_new_j_list:
+            #     new_j_data = {
+            #         "id": j_id,
+            #         "number": 1,
+            #         "group": jellyfish_datas[j_id]["group"],
+            #         "name": jellyfish_datas[j_id]["name"],
+            #         "message": jellyfish_datas[j_id]["message"]}
+            #     new_jellyfish.append(new_j_data)
+        if draw_model == "text":
+            code = 1
+            message = await draw_jellyfish_box()
+        else:
+            command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
+            command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
+            returunpath = await draw_jellyfish_box()
+            code = 2
     elif command == "抓水母":
         # 抓水母 每2小时7200秒抓一次
         time_difference = time_now - box_data["sign_in_time"]
@@ -1158,13 +2130,16 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     grab_quantity = random.randint(1, 2)
                 else:
                     grab_quantity = 1
-            if jellyfish_num > 200:
+            if jellyfish_num > 250:
                 code = 1
                 message = "别抓啦，水母箱已经满啦"
             else:
                 # 随机水母类型
                 group = ["perfect", "great", "good", "normal", "special", "ocean"]
-                group_probability = [0.00, 0.02, 0.09, 0.89, 0.00, 0.00]
+                if date_m == "05" and date_d == "11":
+                    group_probability = [0.00, 0.05, 0.30, 0.55, 0.10, 0.00]
+                else:
+                    group_probability = [0.00, 0.02, 0.15, 0.83, 0.00, 0.00]
                 p = numpy.array(group_probability).ravel()
                 choose_group = numpy.random.choice(group, p=p)
                 choose_list = []
@@ -1187,6 +2162,31 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                      "message": f"抓到了{grab_quantity}只"}
                 )
 
+                trace.append(f"抓到水母：{choose_jellyfish}， 数量：{grab_quantity}")
+
+                # 节日抓水母事件
+                if date_m == "05" and date_d == "11":
+                    number = random.randint(1, 3)
+                    choose_jellyfish = "j31"
+                    if "j31" not in list(box_data["jellyfish"]):
+                        new_jellyfish.append(
+                            {"id": choose_jellyfish,
+                             "number": number,
+                             "name": jellyfish_datas[choose_jellyfish]["name"],
+                             "group": jellyfish_datas[choose_jellyfish]["group"],
+                             "message": f"抓到了{number}只"}
+                        )
+                        box_data["jellyfish"]["j31"] = {"number": number}
+                    elif box_data["jellyfish"]["j31"]["number"] < 7:
+                        if random.randint(0, 5) == 5:
+                            new_jellyfish.append(
+                                {"id": choose_jellyfish,
+                                 "number": number,
+                                 "name": jellyfish_datas[choose_jellyfish]["name"],
+                                 "group": jellyfish_datas[choose_jellyfish]["group"],
+                                 "message": f"抓到了{number}只"}
+                            )
+                            box_data["jellyfish"]["j31"]["number"] += number
                 # 写入水母箱数据
                 conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
                 cursor = conn.cursor()
@@ -1201,21 +2201,13 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                 conn.close()
 
                 # 绘制
-                command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
-                command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "统计水母箱内水母数量"})
-                command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
-                returunpath = await draw_jellyfish_box()
-                code = 2
-    elif command == "投喂":
-        # 投喂
-
-        # 保存
-
-        # 绘制
-        returunpath = await draw_jellyfish_box()
-        code = 2
-    elif command == "换水":
-        pass
+                if draw_model == "text":
+                    code = 1
+                    message = await draw_jellyfish_box(draw_box=False)
+                else:
+                    command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
+                    returunpath = await draw_jellyfish_box()
+                    code = 2
     elif command == "水母统计表":
         # 读取水母箱内容并分组
 
@@ -1273,98 +2265,148 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if cache_group:
             cache_groups.append(cache_group)
 
-        if len(cache_groups) == 1:
+        if draw_model == "text":
             for cache_data in cache_groups[0]:
                 jellyfish_menu.append(cache_data)
-            returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+            code = 1
+            message = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
         else:
-            num_x = 0
-            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["color"]["bg"])
-            for cache_group in cache_groups:
-                jellyfish_menu = []
-                for cache_data in cache_group:
+            if len(cache_groups) == 1:
+                for cache_data in cache_groups[0]:
                     jellyfish_menu.append(cache_data)
-                cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
-                paste_image = Image.open(cache_path, "r")
-                image.paste(paste_image, ((1000 * num_x), 0))
-                num_x += 1
-            returunpath = save_image(image)
-        code = 2
-
-    elif command in ["丢弃", "放生"]:
+                returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+            else:
+                num_x = 0
+                image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config["color"]["bg"])
+                for cache_group in cache_groups:
+                    jellyfish_menu = []
+                    for cache_data in cache_group:
+                        jellyfish_menu.append(cache_data)
+                    cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+                    paste_image = Image.open(cache_path, "r")
+                    image.paste(paste_image, ((1000 * num_x), 0))
+                    num_x += 1
+                returunpath = save_image(image)
+            code = 2
+    elif command in ["丢弃", "抛弃", "放生"]:
         if command2 is None:
             code = 1
             message = "请添加水母名称以及数量\n例：“/水母箱 丢弃 普通水母 10”"
         else:
             commands = get_command(command2)
-            jellyfish_name = commands[0]
-            if len(commands) > 1:
-                number = commands[1]
-            else:
-                number = 1
-            try:
-                if number in ["all", "所有", "全部"]:
-                    number = "all"
-                else:
-                    number = abs(int(number))
-            except Exception as e:
-                number = None
-            if number is None:
-                code = 1
-                message = "数量错误，请检查填写数量\n例：“/水母箱 丢弃 普通水母 10”"
-            else:
-                jellyfish_id = None
-                for jellyfish_id_temp in jellyfish_datas:
-                    if jellyfish_name == jellyfish_datas[jellyfish_id_temp]["name"]:
-                        jellyfish_id = jellyfish_id_temp
-                        break
-                if jellyfish_id is None:
-                    code = 1
-                    message = f"错误，找不到“{jellyfish_name}”"
-                else:
-                    if jellyfish_id not in list(box_data["jellyfish"]):
-                        code = 1
-                        message = "水母箱没有这只水母哦"
-                    else:
-                        if number != "all" and box_data["jellyfish"][jellyfish_id]["number"] < number:
-                            code = 1
-                            message = "水母箱里没这么多水母哦"
-                        else:
-                            if number == "all" or box_data["jellyfish"][jellyfish_id]["number"] == number:
-                                box_data["jellyfish"].pop(jellyfish_id)
-                                code = 1
-                                message = f"成功丢弃了所有的{jellyfish_name}"
-                            else:
-                                box_data["jellyfish"][jellyfish_id]["number"] -= number
-                                code = 1
-                                message = f"成功丢弃了{number}只{jellyfish_name}"
+            jellyfish_name: str = commands[0]
+            command2 = commands[1] if len(commands) > 1 else None
 
-                            # 写入水母箱数据
-                            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-                            cursor = conn.cursor()
-                            try:
-                                cursor.execute(
-                                    f"replace into 'jellyfish_box' ('user_id','data') "
-                                    f"values('{user_id}','{json_to_str(box_data)}')")
-                                conn.commit()
-                            except:
-                                logger.error("水母箱保存用户数据出错")
-                                news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
-                            cursor.close()
-                            conn.close()
-    elif command == "水母榜":
-        pass
-    elif command == "装饰":
-        pass
-    elif command == "帮助":
-        command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
-        command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
-        command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
-        command_prompt_list.append({"title": "/水母箱 丢弃 普通水母 5", "message": "将5只普通水母丢弃"})
-        command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
-        command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "查看目前水母箱有多少水母"})
-        returunpath = await draw_jellyfish_box(draw_box=False)
-        code = 2
+            if "x" in jellyfish_name and jellyfish_name not in jellyfish_group_list:
+                names = jellyfish_name.split("x")
+                jellyfish_name = names[0]
+                commands.append(names[1])
+
+            if jellyfish_name in jellyfish_group_list and command2 not in ["全部", "所有", "all"]:
+                code = 1
+                message = "丢弃分组无法指定数量，\n“/水母箱 丢弃 normal”"
+            elif jellyfish_name in jellyfish_group_list:
+                data = {}
+                for jellyfish_group in jellyfish_group_list:
+                    data[jellyfish_group] = []
+                for jellyfish_id in box_data['jellyfish']:
+                    jellyfish_group = jellyfish_datas[jellyfish_id]["group"]
+                    data[jellyfish_group].append(jellyfish_id)
+
+                if len(data[jellyfish_name]) == 0:
+                    code = 1
+                    message = f"水母箱没有“{jellyfish_name}”分类的水母哦"
+                else:
+                    if jellyfish_name in []:
+                        code = 1
+                        message = "成功丢弃了{num}只水母，分别是："
+                    else:
+                        code = 1
+                        message = "成功丢弃了{num}只水母，分别是："
+                        number = 0
+                        for jellyfish_id in data[jellyfish_name]:
+                            message += jellyfish_datas[jellyfish_id]["name"]
+                            message += str(box_data["jellyfish"][jellyfish_id]["number"])
+                            number += box_data["jellyfish"][jellyfish_id]["number"]
+                            message += "只, "
+                            box_data["jellyfish"].pop(jellyfish_id)
+
+                        message = message.removesuffix(", ")
+                        message = message.replace("{num}", str(number))
+                        trace.append(message)
+
+                        # 写入水母箱数据
+                        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                        cursor = conn.cursor()
+                        try:
+                            cursor.execute(
+                                f"replace into 'jellyfish_box' ('user_id','data') "
+                                f"values('{user_id}','{json_to_str(box_data)}')")
+                            conn.commit()
+                        except:
+                            logger.error("水母箱保存用户数据出错")
+                            news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                        cursor.close()
+                        conn.close()
+            else:
+                if len(commands) > 1:
+                    number = commands[1]
+                else:
+                    number = 1
+                try:
+                    if type(number) is str and number.endswith("只"):
+                        number.removesuffix("只")
+                    if number in ["all", "所有", "全部"]:
+                        number = "all"
+                    else:
+                        number = abs(int(number))
+                except Exception as e:
+                    number = None
+
+                if number is None:
+                    code = 1
+                    message = "数量错误，请检查填写数量\n例：“/水母箱 丢弃 普通水母 10”"
+                else:
+                    jellyfish_id = None
+                    for jellyfish_id_temp in jellyfish_datas:
+                        if jellyfish_name == jellyfish_datas[jellyfish_id_temp]["name"]:
+                            jellyfish_id = jellyfish_id_temp
+                            break
+                    if jellyfish_id is None:
+                        code = 1
+                        message = f"错误，找不到“{jellyfish_name}”"
+                    else:
+                        if jellyfish_id not in list(box_data["jellyfish"]):
+                            code = 1
+                            message = "水母箱没有这只水母哦"
+                        else:
+                            if number != "all" and box_data["jellyfish"][jellyfish_id]["number"] < number:
+                                code = 1
+                                message = "水母箱里没这么多水母哦"
+                            else:
+                                if number == "all" or box_data["jellyfish"][jellyfish_id]["number"] == number:
+                                    box_data["jellyfish"].pop(jellyfish_id)
+                                    code = 1
+                                    message = f"成功丢弃了所有的{jellyfish_name}"
+                                else:
+                                    box_data["jellyfish"][jellyfish_id]["number"] -= number
+                                    code = 1
+                                    message = f"成功丢弃了{number}只{jellyfish_name}"
+
+                                trace.append(message)
+                                # 写入水母箱数据
+                                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                                cursor = conn.cursor()
+                                try:
+                                    cursor.execute(
+                                        f"replace into 'jellyfish_box' ('user_id','data') "
+                                        f"values('{user_id}','{json_to_str(box_data)}')")
+                                    conn.commit()
+                                except:
+                                    logger.error("水母箱保存用户数据出错")
+                                    news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                                cursor.close()
+                                conn.close()
     elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
 
@@ -1388,7 +2430,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         cache_group = []
         for group in list(j_list):
             for jellyfish_id in j_list[group]:
-                if len(cache_group) > 9:
+                if len(cache_group) > 11:
                     cache_groups.append(cache_group)
                     cache_group = []
 
@@ -1402,29 +2444,115 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         if cache_group:
             cache_groups.append(cache_group)
 
-        if len(cache_groups) == 1:
-            # for cache_group in cache_groups:
-            for cache_data in cache_groups[0]:
-                jellyfish_menu.append(cache_data)
-            returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
-        else:
-            num_x = 0
-            image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config[draw_model]["color"]["bg"])
+        if draw_model == "text":
+            code = 1
+            message = "水母图鉴\n"
+            num = 0
             for cache_group in cache_groups:
-                jellyfish_menu = []
                 for cache_data in cache_group:
+                    message += f"🪼{cache_data['name']}"
+                    if num == 0:
+                        num = 1
+                    else:
+                        num = 0
+                        message += "\n"
+        else:
+            if len(cache_groups) == 1:
+                # for cache_group in cache_groups:
+                for cache_data in cache_groups[0]:
                     jellyfish_menu.append(cache_data)
-                cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
-                paste_image = Image.open(cache_path, "r")
-                image.paste(paste_image, ((1000 * num_x), 0))
-                num_x += 1
-            returunpath = save_image(image)
+                returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
+            else:
+                num_x = 0
+                image = Image.new("RGB", ((1000 * len(cache_groups)), 3516), draw_config["color"]["bg"])
+                for cache_group in cache_groups:
+                    jellyfish_menu = []
+                    for cache_data in cache_group:
+                        jellyfish_menu.append(cache_data)
+                    cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
+                    paste_image = Image.open(cache_path, "r")
+                    image.paste(paste_image, ((1000 * num_x), 0))
+                    num_x += 1
+                returunpath = save_image(image)
+            code = 2
+    elif command == "水母箱样式":
+        draw_model_list = {
+            "normal": {"name": "默认"},
+            "freehand": {"name": "手绘"},
+            "text": {"name": "文字"},
+        }
+        if command2 is None:
+            code = 1
+            message = "可更换样式："
+            num = 0
+            for name in list(draw_model_list):
+                if num == 0:
+                    num = 1
+                    message += f"\n| {draw_model_list[name]['name']}"
+                elif num == 1:
+                    num = 2
+                    message += f" | {draw_model_list[name]['name']}"
+                elif num == 2:
+                    num = 0
+                    message += f" | {draw_model_list[name]['name']} |"
+            message += "\n例：”水母箱样式 手绘“"
+        else:
+            # 查找配置名称
+            model_name = None
+            for name in list(draw_model_list):
+                if command2 == draw_model_list[name]["name"]:
+                    model_name = name
+                    break
+
+            if model_name is None:
+                code = 1
+                message = "找不到该样式，请检查名称"
+            else:
+                box_data["draw_model"] = model_name
+
+                # 写入水母箱数据
+                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        f"replace into 'jellyfish_box' ('user_id','data') values('{user_id}','{json_to_str(box_data)}')")
+                    conn.commit()
+                except:
+                    logger.error("水母箱保存用户数据出错")
+                cursor.close()
+                conn.close()
+
+                code = 1
+                message = "替换样式成功"
+    elif command == "投喂":
+        # 投喂
+
+        # 保存
+
+        # 绘制
+        returunpath = await draw_jellyfish_box()
+        code = 2
+    elif command == "换水":
+        pass
+    elif command == "水母榜":
+        pass
+    elif command == "装饰":
+        pass
+    elif command == "帮助":
+        command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
+        command_prompt_list.append({"title": "/水母箱 查看水母箱", "message": "发送水母箱的图片"})
+        command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
+        command_prompt_list.append({"title": "/水母箱 丢弃 普通水母 5", "message": "将5只普通水母丢弃"})
+        command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
+        command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "查看目前水母箱有多少水母"})
+        command_prompt_list.append({"title": "/水母箱 水母箱样式 手绘", "message": "更换显示样式"})
+        returunpath = await draw_jellyfish_box(draw_box=False)
         code = 2
     else:
         code = 1
         message = "错误命令"
 
-    return code, message, returunpath
+    return code, message, returunpath, trace
 
 
 async def draw_jellyfish_live(
@@ -1469,8 +2597,29 @@ async def draw_jellyfish_live(
 
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
     jellyfish_datas = jellyfish_box_datas["jellyfish_datas"]  # 所有水母
+    if "draw_model" not in list(draw_data):
+        draw_data["draw_model"] = "normal"
+    draw_model = draw_data["draw_model"]
+    draw_config = jellyfish_box_draw_config(draw_model)
 
-    image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
+    if "draw_model" in list(draw_data) and draw_data["draw_model"] == "freehand":
+        # 创建底图
+        image_base = Image.new("RGB", draw_data["size"], draw_config["color"]["bg"])
+        draw = ImageDraw.Draw(image_base)
+        # 添加底色
+        file_path = await get_image_path(f"jellyfish_box-freehand_background.png")
+        paste_image = Image.open(file_path, "r")
+        paste_image = paste_image.resize(draw_data["size"])
+        image_base.paste(paste_image, (0, 0))
+
+        file_path = await get_image_path(f"jellyfish_box-freehand_box_background.png")
+        paste_alpha = Image.open(file_path, "r")
+        paste_alpha = paste_alpha.resize(draw_data["size"])
+        paste_image = Image.new("RGBA", draw_data["size"], draw_config["color"]["box_bg"])
+        image_base.paste(paste_image, (0, 0), paste_alpha)
+    else:
+        image_base = Image.new("RGBA", draw_data["size"], draw_data["background_color"])
+
     x, y = draw_data["size"]
     # 计算水母的大小
     num = 0
@@ -1581,6 +2730,7 @@ async def draw_jellyfish_live(
 
             # 绘制转向效果
             angle = - 90 - azimuthangle((0, 0), (j_data["x_speed"], j_data["y_speed"]))
+            angle += jellyfish_datas[jellyfish_data[j_id]["jellyfish_id"]]["draw"]["rotate"]
             paste_image = paste_image.rotate(angle)
             image_box.paste(paste_image, (j_data["x"], j_data["y"]), mask=paste_image)
 
@@ -1602,7 +2752,10 @@ async def draw_jellyfish_live(
 
             # 如果游得很慢，那就加速一次
             if (abs(jellyfish_data[j_id]["x_speed"]) + abs(jellyfish_data[j_id]["x_speed"])) < (j_size * 0.005):
-                jellyfish_data[j_id]["jumping"] = 1.0
+                if jellyfish_datas[jellyfish_data[j_id]["jellyfish_id"]]["draw"]["bounce"] is True:
+                    jellyfish_data[j_id]["jumping"] = 1.0
+                else:
+                    jellyfish_data[j_id]["jumping"] = 0.0
                 living_locations = jellyfish_datas[j_data["jellyfish_id"]]["living_location"]
                 if living_locations:
                     living_location = random.choice(living_locations)
@@ -1655,36 +2808,17 @@ async def draw_jellyfish_live(
         return returnpath_list
 
 
-def plugin_config(command: str, command2, guild_id: str, channel_id: str):
+def plugin_config(command: str, command2: str | None, channel_id: str):
     # 默认变量 & 插件数据
-    message = ""
+    message = None
     returnpath = None
     config_list = _config_list()
-
-    # 重解析命令，
-    command_help = ["帮助 ", "菜单 ", "使用说明 ", "help ", "查询 ", "查询功能 ", "列表 ", "功能列表 "]
-    if command2 is not None and command == "菜单" and (
-            start_with_list(command2, command_help) or
-            start_with_list(command2, ["开启", "关闭"])):
-        print("重解析")
-        commands = get_command(command2)
-        command = commands[0]
-        command2 = commands[1] if len(commands) > 1 else None
-
-    # 同义命令转换
-    if command in ["帮助", "菜单", "使用说明", "help", "查询", "查询功能", "列表", "功能列表"]:
-        command = "菜单"
-
-    # 不匹配任何命令
-    if command not in ["菜单", "开启", "关闭"]:
-        command2 = command if command2 is None else f"{command} {command2}"
 
     # 解析参数中的实际命令名称（命令id）
     command_id = None
     if command2 is not None:
-        for name in config_list:
-            config = config_list[name]
-            if command2 == config["name"]:
+        for name in list(config_list):
+            if command2 == config_list[name]["name"]:
                 command_id = name
                 break
 
@@ -1692,13 +2826,13 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
     if command == "开启":
         command_state = True
         if command2 is None:
-            return "请添加要关闭的功能名字，例：“开启 猜猜看”", None
+            return "请添加要关闭的功能名字，例：“开启 签到”", None
         if command_id is None:
             return f"无法找到命令“{command2}”，请检查命令名是否正确", None
     elif command == "关闭":
         command_state = False
         if command2 is None:
-            return "请添加要关闭的功能名字，例：“关闭 猜猜看”", None
+            return "请添加要关闭的功能名字，例：“关闭 签到”", None
         if command_id is None:
             return f"无法找到命令“{command2}”，请检查命令名是否正确", None
     else:
@@ -1714,7 +2848,8 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
     if not os.path.exists(db_path):
         # 数据库文件 如果文件不存在，会自动在当前目录中创建
         cursor.execute(
-            f"create table command_state(command VARCHAR(10) primary key, state BOOLEAN(10), channel_id VARCHAR(10))")
+            f"create table command_state(id_ INTEGER primary key AUTOINCREMENT, "
+            f"command VARCHAR(10), state BOOLEAN(10), channel_id VARCHAR(10))")
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
     tables = []
@@ -1723,7 +2858,8 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
             tables.append(data[1])
     if "command_state" not in tables:
         cursor.execute(
-            f"create table command_state(command VARCHAR(10) primary key, state BOOLEAN(10), channel_id VARCHAR(10))")
+            f"create table command_state(id_ INTEGER primary key AUTOINCREMENT, "
+            f"command VARCHAR(10), state BOOLEAN(10), channel_id VARCHAR(10))")
 
     # 判断要运行的命令
     if command in ["开启", "关闭"]:
@@ -1732,7 +2868,7 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
             f'SELECT * FROM command_state WHERE "command" = "{command_id}" AND "channel_id" = "{channel_id}"')
         data = cursor.fetchone()
         if data is not None:
-            state = True if data[1] == 1 else False
+            state = True if data[2] == 1 else False
             if state == command_state:
                 pass
             else:
@@ -1746,20 +2882,20 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
                 f'values("{command_id}",{command_state},"{channel_id}")')
             conn.commit()
         message = f"{command2}已{command}"
-    else:
+    elif command == "菜单":
         # 查询开启的功能
         state = {
             "开启": [],
             "关闭": []
         }
-        for command_id in config_list:
+        for command_id in list(config_list):
             cursor.execute(
                 f'SELECT * FROM command_state WHERE "command" = "{command_id}" AND "channel_id" = "{channel_id}"')
             data = cursor.fetchone()
             if data is None:
                 command_state = config_list[command_id]["state"]
             else:
-                command_state = True if data[1] == 1 else False
+                command_state = True if data[2] == 1 else False
             if command_state is True:
                 state["开启"].append(command_id)
             else:
@@ -1773,15 +2909,6 @@ def plugin_config(command: str, command2, guild_id: str, channel_id: str):
             command_name = config_list[command_id]["name"]
             message += f"{command_name}\n"
         message = message.removesuffix("\n")
-
-        message_del = ("功能列表："
-                       "\n现支持的功能列表"
-                       "\n1.合成emoji"
-                       "\n2.一直"
-                       "\n3.猜猜看"
-                       "\n4.水母箱"
-                       "\n5.签到"
-                       " ")
 
     cursor.close()
     conn.close()
@@ -1999,11 +3126,8 @@ async def plugin_emoji_keai(user_avatar: str, user_name: str):
 
     text = f'请问你们看到{user_name}了吗？'
     image_paste = await draw_text(text, 50, 30)
-    u, v = image_paste.size
-    y = 48
-    x = int(y / v * u)
-    image_paste.resize((x, y))
-    image.paste(image_paste, (9, 9), mask=image_paste)
+    image_paste = image_resize2(image_paste, (730, 82), overturn=False)
+    image.paste(image_paste, (19, 10), mask=image_paste)
 
     font_file = await get_file_path("SourceHanSansK-Bold.ttf")
     font = ImageFont.truetype(font=font_file, size=60)
@@ -2147,7 +3271,7 @@ async def plugin_emoji_momo(user_avatar):
 #     return save_image(image)
 
 
-async def plugin_game_cck(command, channel_id, platform):
+async def plugin_game_cck(command: str, channel_id: str, platform: str):
     """
     cck插件内容
     返回：
@@ -2159,6 +3283,7 @@ async def plugin_game_cck(command, channel_id, platform):
     :param channel_id: 频道号
     :return: code, message, returnpath
     """
+    global kn_cache
     time_now = int(time.time())
     code = 0
     message = " "
@@ -2167,6 +3292,11 @@ async def plugin_game_cck(command, channel_id, platform):
     if not kn_config("kanon_api-state"):
         logger.error("未开启api，已经退出cck")
         return 0, message, returnpath
+
+    # 获取游戏基本数据（卡牌列表）
+    filepath = await get_file_path("plugin-cck-member_list.json")
+    data = open(filepath, 'r', encoding='utf8')
+    cck_game_data = json.load(data)
 
     conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
     cursor = conn.cursor()
@@ -2192,7 +3322,7 @@ async def plugin_game_cck(command, channel_id, platform):
         gameing = data[3]
         if gameing == 1:
             # 有正在进行的game
-            gamename = data[1]
+            gamename: str = data[1]
             if gamename == "小游戏-猜猜看":
                 # 正在进行的是猜猜看
                 if int(time_now) <= (int(data[2]) + 600):
@@ -2213,6 +3343,8 @@ async def plugin_game_cck(command, channel_id, platform):
             else:
                 # 正在进行其他游戏
                 code = 1
+                if "-" in gamename:
+                    gamename = gamename.split("-")[1]
                 message = f"正在进行{gamename}，请先结束{gamename}。\n结束指令“/{gamename} 结束”"
         else:
             # 没有正在进行的game
@@ -2232,39 +3364,85 @@ async def plugin_game_cck(command, channel_id, platform):
             code = 1
             message = "没有在猜猜看哦。"
 
-    if game_state == "new":
+    if "plugin_game_cck" not in list(kn_cache):
+        kn_cache["plugin_game_cck"] = {"game_data": {}}
+    if "game_data" not in list(kn_cache["plugin_game_cck"]):
+        kn_cache["plugin_game_cck"]["game_data"] = {}
+    if command in list(kn_cache["plugin_game_cck"]["game_data"]):
+        member_id: str = kn_cache["plugin_game_cck"]["game_data"][command]["member_id"]
+        member_name: str = kn_cache["plugin_game_cck"]["game_data"][command]["member_name"]
+        image_name: str = kn_cache["plugin_game_cck"]["game_data"][command]["image_name"]
+        if kn_cache["plugin_game_cck"]["game_data"][command]["gameing"] is False:
+            message = f"是{member_name}哦（{image_name.removesuffix('.png')}）"
+            code = 1
+        else:
+            message = "游戏未完成，不能查询结果哦"
+            code = 1
+
+    if code == 1 and message != " ":
+        pass
+    elif game_state == "new":
         logger.debug('新建游戏')
-        # 获取游戏基本数据（卡牌列表）
-        filepath = await get_file_path("plugin-cck-member_list.json")
-        data = open(filepath, 'r', encoding='utf8')
-        json_data = json.load(data)
-        member_ids = list(json_data["member_data"])
+        member_ids = list(cck_game_data["member_data"])
         member_id = random.choice(member_ids)  # 选择一个角色
-        image_name = random.choice(json_data["member_data"][member_id]["images"])  # 选择一张卡牌
-        member_name = json_data["member_data"][member_id]["member_name"]
-        member_alias = json_data["member_data"][member_id]["alias"]
+
+        image_name = random.choice(cck_game_data["member_data"][member_id]["images"])  # 选择一张卡牌
+        member_name = cck_game_data["member_data"][member_id]["member_name"]
+        member_alias = cck_game_data["member_data"][member_id]["alias"]
 
         # 收集本次游戏数据
         gameinfo = {
             "member_id": member_id,  # 角色id
             "member_name": member_name,  # 角色名称
             "image_name": image_name,  # 卡牌的文件名
-            "member_alias": member_alias  # 角色别称
+            "member_alias": member_alias,  # 角色别称
         }
 
         # 获取卡牌png文件
-        returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/"
+        if cck_game_data["info"]["version"] == "1":
+            returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/"
+        else:
+            returnpath = f"{basepath}cache/plugin/bangdream-card/"
+
         if not os.path.exists(returnpath):
             os.makedirs(returnpath)
         returnpath += image_name
         if not os.path.exists(returnpath):
-            url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-cck-{member_id}-{image_name}"
+            url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-"
+
+            if cck_game_data["info"]["version"] == "1":
+                url += f"cck-{member_id}-{image_name}"
+            else:
+                url += f"bangdream_card-{image_name}"
+
             try:
                 image = await connect_api("image", url)
                 image.save(returnpath)
             except Exception as e:
                 logger.error(f"获取图片出错:{e}")
                 return 1, "图片下载出错"
+
+        # 保存缓存
+        num = 50
+        game_id = "0"
+        while num > 0:
+            num -= 1
+            if num < 5:
+                game_id = str(random.randint(10000000, 99999999))
+            elif num < 10:
+                game_id = str(random.randint(1000000, 9999999))
+            else:
+                game_id = str(random.randint(10000, 99999))
+            if game_id in list(kn_cache["plugin_game_cck"]["game_data"]) and num > 1:
+                continue
+            kn_cache["plugin_game_cck"]["game_data"][game_id] = {
+                "member_id": member_id,
+                "member_name": member_name,
+                "image_name": image_name,
+                "gameing": True,
+            }
+            break
+        gameinfo["game_id"] = game_id
 
         # 保存数据
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -2330,7 +3508,8 @@ async def plugin_game_cck(command, channel_id, platform):
         message += ("\n游戏限制5分钟内"
                     "\n@bot并发送/猜猜看+名字"
                     "\n例：“@kanon/猜猜看 花音”"
-                    "\n发送“/猜猜看 不知道”结束游戏")
+                    "\n发送“/猜猜看 不知道”结束游戏"
+                    f"\ncck_id: {game_id}")
 
         if kn_config("plugin_cck", "draw_type") == 1:
             image = Image.new("RGB", (150, 150), "#FFFFFF")
@@ -2338,7 +3517,7 @@ async def plugin_game_cck(command, channel_id, platform):
             returnpath = save_image(image)
             code = 3
         elif kn_config("plugin_cck", "draw_type") == 2:
-            image = Image.new("RGB", (410, 150), "#FFFFFF")
+            image = Image.new("RGB", (440, 150), "#FFFFFF")
             image.paste(cck_imane, (0, 0))
 
             paste_image = await draw_text(
@@ -2405,13 +3584,21 @@ async def plugin_game_cck(command, channel_id, platform):
         if command == "不知道":
             # 读取游戏数据
             gamedata = json.loads(data[4].replace("'", '"'))
-            member_id = gamedata["member_id"]
-            member_name = gamedata["member_name"]
-            image_name = gamedata["image_name"]
+            member_id: str = gamedata["member_id"]
+            member_name: str = gamedata["member_name"]
+            image_name: str = gamedata["image_name"]
+            if "game_id" in list(gamedata):
+                game_id = gamedata["game_id"]
+                if game_id in list(kn_cache["plugin_game_cck"]["game_data"]):
+                    kn_cache["plugin_game_cck"]["game_data"][game_id]["gameing"] = False
 
             # 返回卡牌图片和句子
-            returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
-            message = f"是{member_name}哦"
+            if cck_game_data["info"]["version"] == "1":
+                returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
+            else:
+                returnpath = f"{basepath}cache/plugin/bangdream-card/{image_name}"
+
+            message = f"是{member_name}哦（{image_name.removesuffix('.png')}）"
             code = 3
 
             # 将”结束游戏状态“写入到数据库
@@ -2426,16 +3613,23 @@ async def plugin_game_cck(command, channel_id, platform):
         else:
             # 读取游戏内容
             gamedata = json.loads(data[4].replace("'", '"'))
-            member_id = gamedata["member_id"]
-            member_name = gamedata["member_name"]
-            image_name = gamedata["image_name"]
+            member_id: str = gamedata["member_id"]
+            member_name: str = gamedata["member_name"]
+            image_name: str = gamedata["image_name"]
             member_alias = gamedata["member_alias"]
 
             # 判断用户发送词是否符合
-            if command in member_alias:
+            if command.lower() in member_alias:
+                if "game_id" in list(gamedata):
+                    game_id = gamedata["game_id"]
+                    if game_id in list(kn_cache["plugin_game_cck"]["game_data"]):
+                        kn_cache["plugin_game_cck"]["game_data"][game_id]["gameing"] = False
                 # 添加回复句子与图
-                message = f"恭喜猜中，她就是{command}"
-                returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
+                message = f"恭喜猜中，她就是{command}（{image_name.removesuffix('.png')}）"
+                if cck_game_data["info"]["version"] == "1":
+                    returnpath = f"{basepath}cache/plugin/cck-card/{member_id}/{image_name}"
+                else:
+                    returnpath = f"{basepath}cache/plugin/bangdream-card/{image_name}"
                 code = 3
 
                 # 将”结束游戏状态“写入到数据库
@@ -2452,6 +3646,16 @@ async def plugin_game_cck(command, channel_id, platform):
                 code = 0
     elif game_state == "exit":
         # 手动退出game状态
+        # 读取游戏数据
+        try:
+            gamedata = json.loads(data[4].replace("'", '"'))
+            if "game_id" in list(gamedata):
+                game_id = gamedata["game_id"]
+                if game_id in list(kn_cache["plugin_game_cck"]["game_data"]):
+                    kn_cache["plugin_game_cck"]["game_data"][game_id]["gameing"] = False
+        except Exception as e:
+            logger.error("保存游戏状态出错")
+
         # 将”结束游戏状态“写入到数据库
         conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
         cursor = conn.cursor()
@@ -2526,6 +3730,8 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                         message = f"{gamename}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
+                if "-" in gamename:
+                    gamename = gamename.split("-")[1]
                 code = 1
                 message = f"正在进行{gamename}，请先结束{gamename}。\n结束指令“/{gamename} 结束”"
         else:
@@ -2719,7 +3925,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
 
         message = '游戏已生成，发送/炸飞机+坐标进行游戏。' \
                   '\n例：“@kanon/炸飞机 a1”' \
-                  '\n请在10分钟内完成游戏。' \
+                  '\n请在5分钟内完成游戏。' \
                   '\n你拥有13颗炸弹' \
                   '\n发送“/炸飞机 结束”可以提前结束游戏'
         code = 3
@@ -3263,3 +4469,410 @@ async def plugin_game_blowplane(command: str, channel_id: str):
         conn.commit()
         conn.close()
     return code, message, returnpath
+
+
+async def plugin_game_different(command: str, channel_id: str):
+    """
+    找不同插件内容
+    返回：
+    当code = 0时，不做任何回复；
+    当code = 1时，回复message消息；
+    当code = 2时，回复returnpath目录中的图片
+    当code = 3时，回复message消息和returnpath目录中的图片
+    :param command: 命令
+    :param channel_id: 频道号
+    :return: code, message, returnpath
+    """
+    code = 0
+    message = ""
+    returnpath = ""
+    returnpath2 = ""
+    time_now = str(int(time.time()))
+    trace = []
+
+    # 获取游戏基本数据（卡牌列表）
+    filepath = await get_file_path("plugin-different_data.json")
+    data = open(filepath, 'r', encoding='utf8')
+    different_game_data = json.load(data)
+
+    def region_to_coord(region: str):
+        region = region.lower()
+        x = None
+        y = None
+        alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t"]
+        number = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"]
+        num = -1
+        for a in alphabet:
+            num += 1
+            if region.startswith(a):
+                region = region.removeprefix(a)
+                x = num
+                break
+        for n in number:
+            if region == n:
+                y = int(n) - 1
+                break
+        if x is None or y is None:
+            logger.error(f"无法转换位置“{region}”, x:{x}, y:{y}")
+            raise f"无法转换位置“{region}”, x:{x}, y:{y}"
+        return x, y
+
+    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    if "gameinglist" not in tables:
+        cursor.execute(
+            'CREATE TABLE gameinglist (channelid VARCHAR (10) PRIMARY KEY, gamename VARCHAR (10), '
+            'lasttime VARCHAR (10), gameing BOOLEAN (10), gamedata VARCHAR (10))')
+    cursor.execute(f'select * from gameinglist where channelid = "{channel_id}"')
+    data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    logger.debug(f"该群正在进行的游戏{data}")
+
+    game_state = None
+    if data is not None:
+        # 有game数据
+        gameing = data[3]
+        if gameing == 1:
+            # 有正在进行的game
+            gamename = data[1]
+            if gamename == "小游戏-找不同":
+                # 正在进行的是找不同
+                if int(time_now) <= (int(data[2]) + 300):
+                    # 正在运行的找不同最后一次运行时间相隔现在5分钟内
+                    if command == "找不同":
+                        message = "已经在找不同了"
+                        code = 1
+                    else:
+                        game_state = "gameing"
+                else:
+                    # 正在运行的炸飞机最后一次运行时间相隔现在5分钟后
+                    if command == "找不同":
+                        game_state = "new"
+                    else:
+                        game_state = "exit"
+                        code = 1
+                        message = f"{gamename}时间超时，请重新开始"
+            else:
+                # 正在进行其他游戏
+                if "-" in gamename:
+                    gamename = gamename.split("-")[1]
+                code = 1
+                message = f"正在进行{gamename}，请先结束{gamename}。\n结束指令“/{gamename} 结束”"
+        else:
+            # 没有正在进行的game
+            if command == "找不同":
+                game_state = "new"
+            else:
+                code = 1
+                message = "没有在找不同哦"
+    else:
+        # data is None
+        if command == "找不同":
+            game_state = "new"
+        else:
+            code = 1
+            message = "没有在找不同哦。"
+
+    trace.append(f"game_state: {game_state}")
+    if game_state == "new":
+        # 生成游戏数据
+        card_id = random.choice(list(different_game_data['data']))
+        card_data = different_game_data['data'][card_id]
+        choose_list = []
+        num = 15
+        while num > 1:
+            num -= 1
+            if len(choose_list) == len(card_data['different_list']):
+                break
+            if len(choose_list) >= 4:
+                break
+            choose_id = random.choice(list(card_data['different_list']))
+            if choose_id not in choose_list:
+                choose_list.append(choose_id)
+
+        trace.append(f"card_id={card_id}")
+        trace.append(f"choose_list={choose_list}")
+        # 绘制图片
+        path = await get_image_path("different-shade.png")
+        shade_image = await load_image(path)
+
+        path = await get_image_path(f"bangdream_card-{card_id}.png")
+        image_1 = await load_image(path)
+        image_2 = image_1.copy()
+        image_1.paste(shade_image, (0, 0), mask=shade_image)
+
+        for choose_id in choose_list:
+            path = await get_image_path(f"different-image-{card_id}-{choose_id}.png")
+            paste_image = await load_image(path)
+            paste_box = (
+                card_data['different_list'][choose_id]['coord'][0],
+                card_data['different_list'][choose_id]['coord'][1]
+            )
+            image_2.paste(paste_image, paste_box)
+
+        image_2.paste(shade_image, (0, 0), mask=shade_image)
+        returnpath = save_image(image_1)
+        returnpath2 = save_image(image_2)
+
+        gameinfo = {
+            "card_id": card_id,
+            "image_1": returnpath,
+            "image_2": returnpath2,
+            "different": choose_list,
+            "seek_out": []
+        }
+        # 保存数据
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f"'{channel_id}','小游戏-找不同','{time_now}',True,'{json.dumps(gameinfo)}')")
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+        message = '游戏已生成，发送/找不同+坐标进行游戏。' \
+                  '\n例：“@kanon/找不同 a1”' \
+                  '\n请在5分钟内完成游戏。' \
+                  '\n发送“/找不同 结束”可以提前结束游戏'
+        code = 4
+    elif game_state == "gameing":
+        # 读取游戏数据
+        gamedata = json.loads(data[4])
+        card_id = gamedata["card_id"]
+        card_data = different_game_data['data'][card_id]
+        image_1_path = (gamedata["image_1"])
+        image_2_path = (gamedata["image_2"])
+        different_list = gamedata["different"]
+        seek_out = gamedata["seek_out"]
+
+        if command == "结束":
+            # 绘制不同的位置
+            paste_image = await load_image(await get_image_path("different-different.png"))
+            image_2 = await load_image(image_2_path)
+
+            for different in different_list:
+                if different in seek_out:
+                    continue
+                location = region_to_coord(different_game_data["data"][card_id]["different_list"][different]["region"])
+                x, y = location
+                x = 111 - 100 + (x * 222)
+                y = 100 - 100 + (y * 200)
+                image_2.paste(paste_image, (x, y), paste_image)
+
+            # 保存图片
+            returnpath = save_image(image_2)
+            message = "游戏已结束"
+            code = 3
+
+            # 将”结束游戏状态“写入到数据库
+            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                f'"{channel_id}","none","0",False,"none")')
+            cursor.close()
+            conn.commit()
+            conn.close()
+        else:
+            if command.startswith("在"):
+                command = command.removeprefix('在')
+            # 判断是否找到
+            find = False
+            different = None
+            for different in different_list:
+                if different in seek_out:
+                    continue
+                if command == card_data["different_list"][different]["region"] and command not in seek_out:
+                    find = True
+                    break
+
+            if  command in seek_out:
+                code = 1
+                message = "这里已经找到啦，找找别的地方吧"
+            elif find is False:
+                code = 1
+                message = "不是这里哦"
+            else:
+                seek_out.append(command)
+                # 绘制图片
+                paste_image = await load_image(await get_image_path("different-different.png"))
+                image_2 = await load_image(image_2_path)
+                location = region_to_coord(different_game_data["data"][card_id]["different_list"][different]["region"])
+                x, y = location
+                x = 111 - 100 + (x * 222)
+                y = 100 - 100 + (y * 200)
+                image_2.paste(paste_image, (x, y), paste_image)
+
+                if len(seek_out) == len(different_list):
+                    code = 3
+                    message = "恭喜找到所有不同"
+                    returnpath = save_image(image_2)
+
+                    # 将”结束游戏状态“写入到数据库
+                    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                        f'"{channel_id}","none","0",False,"none")')
+                    cursor.close()
+                    conn.commit()
+                    conn.close()
+                else:
+                    code = 3
+                    message = f"找到了{len(seek_out)}/{len(different_list)}处不同"
+                    returnpath = save_image(image_2)
+                    gameinfo = {
+                        "card_id": card_id,
+                        "image_1": image_1_path,
+                        "image_2": returnpath,
+                        "different": different_list,
+                        "seek_out": seek_out
+                    }
+
+                    # 保存数据
+                    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+                        f"'{channel_id}','小游戏-找不同','{time_now}',True,'{json.dumps(gameinfo)}')")
+                    cursor.close()
+                    conn.commit()
+                    conn.close()
+
+    elif game_state == "exit":
+        # 手动退出game状态
+        # 将”结束游戏状态“写入到数据库
+        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            f'replace into gameinglist ("channelid","gamename","lasttime","gameing","gamedata") values('
+            f'"{channel_id}","none","0",False,"none")')
+        cursor.close()
+        conn.commit()
+        conn.close()
+    return {
+        "code": code,
+        "message": message,
+        "returnpath": returnpath,
+        "returnpath2": returnpath2,
+        "trace": trace
+    }
+
+
+async def plugin_function_jrlp(
+        user_id: str,
+        channel_id: str,
+        channel_member_datas: dict,
+        time_now: int,
+        cachepath: str,
+        platform: str
+):
+    date: str = time.strftime("%Y-%m-%d", time.localtime(time_now))
+    return_data = {
+        "code": 0,
+        "message": None,
+        "returnpath": None,
+        "trace": [],
+    }
+
+    conn = sqlite3.connect(f"{cachepath}jrlp.db")
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        # 数据库列表转为序列
+        tables = []
+        for data in datas:
+            if data[1] != "sqlite_sequence":
+                tables.append(data[1])
+        if "jrlp" not in tables:
+            cursor.execute('create table jrlp (userid varchar(10) primary key, data varchar(10), time varchar(10))')
+        cursor.execute(f'select * from jrlp where userid = "{channel_id}_{user_id}" AND time = "{date}"')
+        data = cursor.fetchone()
+    finally:
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    if len(list(channel_member_datas)) == 0:
+        return_data["code"] = 0
+        return_data["message"] = "获取群列表出错"
+        return return_data
+
+    # 判断状态
+    lp_state = "None"
+    if data is None:
+        lp_state = "new"
+    else:
+        lp_state = "load"
+
+    # 执行
+    if lp_state == "new":
+        lp_id = random.choice(list(channel_member_datas))
+        lp_unity_id = get_unity_user_id(platform, lp_id)
+        lp_unity_data = get_unity_user_data(lp_unity_id)
+
+        if len(list(lp_unity_data)) == 0:
+            lp_data = channel_member_datas[lp_id]
+        else:
+            lp_data = lp_unity_data
+
+        # 获取lp名称
+        if "nick_name" in list(lp_data) and lp_data["nick_name"] is not None:
+            lp_name = lp_data["nick_name"]
+        elif "name" in list(lp_data) and lp_data["name"] is not None:
+            lp_name = lp_data["name"]
+        else:
+            lp_name = "name"
+
+        # 获取lp图像
+        if "face_image" in list(lp_data) and lp_data["face_image"] is not None:
+            lp_image = lp_data["face_image"]
+        elif "avatar" in list(lp_data) and lp_data["avatar"] is not None:
+            image = await connect_api("image", lp_data["avatar"])
+            lp_image = save_image(image)
+        else:
+            lp_image = None
+
+        # 存储lp数据
+        data = {
+            "lp_name": lp_name,
+            "lp_image": lp_image
+        }
+
+        # 写入水母箱数据
+        conn = sqlite3.connect(f"{cachepath}jrlp.db")
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"replace into 'jrlp' ('userid','data','time') "
+                f"values('{channel_id}_{user_id}','{json.dumps(data)}','{date}')")
+            conn.commit()
+        except:
+            logger.error("jrlp保存用户数据出错")
+        cursor.close()
+        conn.close()
+
+        # 总结消息
+        return_data["code"] = 3 if lp_image is not None else 1
+        return_data["message"] = f"今日老婆是：{lp_name}"
+        return_data["returnpath"] = lp_image
+
+    elif lp_state == "load":
+        lp_data = json.loads(data[1])
+        lp_name = lp_data["lp_name"]
+        lp_image = lp_data["lp_image"]
+
+        return_data["code"] = 3 if lp_image is not None else 1
+        return_data["message"] = f"今日老婆是：{lp_name}"
+        return_data["returnpath"] = lp_image
+
+    return return_data

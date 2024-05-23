@@ -14,6 +14,7 @@ import os
 import shutil
 import asyncio
 import time
+
 kn_cache = {}
 
 
@@ -149,6 +150,21 @@ def get_command(msg: str) -> list:
                 command = msg.removeprefix(command_start)
                 break
         commands.append(command)
+
+    if len(commands) > 1:
+        command2 = commands[1]
+        for _ in range(3):
+            if command2.startswith(" "):
+                command2 = command2.removeprefix(" ")
+            else:
+                break
+        for _ in range(3):
+            if command2.endswith(" "):
+                command2 = command2.removesuffix(" ")
+            else:
+                break
+        commands[1] = command2
+
     return commands
 
 
@@ -213,19 +229,11 @@ def kn_config(config_name: str, config_name2: str = None):
             "user_white_list": [],
             "user_black_list": [],
             "bot_list": [],
-            "none_markdown": "",
-            "log": True
-        },
-        "image_api": {
-            "url": None
+            "log": True,
+            "log_trace_data": False,
         },
         "plugin_cck": {
-            "draw_type": 1,
             "send_button": False,
-            "button_1_id": "",
-            "button_2_id": "",
-            "markdown_id": "",
-            "send_markdown": False,
         },
         "plugin_jellyfish_box": {
             "draw_gif": False,
@@ -301,7 +309,8 @@ async def connect_api(
             try:
                 image = Image.open(BytesIO(httpx.get(url).content))
             except Exception as e:
-                image = await draw_text("获取图片出错", 50, 10)
+                logger.error(url)
+                raise "获取图片出错"
         return image
     elif type == "file":
         cache_file_path = file_path + "cache"
@@ -331,20 +340,44 @@ async def get_file_path(file_name) -> str:
     file_path += file_name
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
-        logger.info("正在下载" + file_name)
+        logger.debug("正在下载" + file_name)
         url = f"{kn_config('kanon_api-url')}/file/{file_name}"
         await connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
 
-async def load_image(path: str):
-    if path.startswith("http"):
-        return await connect_api("image", path)
-    else:
-        return Image.open(path, "r")
+async def get_image_path(image_name) -> str:
+    """
+    获取图片的路径信息，如果没下载就下载下来
+    :param image_name: 文件名。例：“jellyfish_box-j1.png”
+    :return: 文件路径。例："c:/bot/cache/file/file.zip"
+    """
+    file_path = basepath + "file/image/"
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    file_path += image_name
+    if not os.path.exists(file_path):
+        # 如果文件未缓存，则缓存下来
+        logger.debug("正在下载" + image_name)
+        url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-{image_name}"
+        image = await connect_api(type="image", url=url)
+        image.save(file_path)
+    return file_path
 
 
-async def lockst():
+async def load_image(path: str, size=(100, 100)):
+    try:
+        if path.startswith("http"):
+            return await connect_api("image", path)
+        else:
+            return Image.open(path, "r")
+    except Exception as e:
+        logger.error(f"读取图片错误：{path}")
+        logger.error(e)
+        return Image.new("RGBA", size, (0, 0, 0, 0))
+
+
+async def lockst(lockdb=None):
     """
     如有其他指令在运行，则暂停该函数
     :param lockdb: 数据库路径
@@ -370,102 +403,68 @@ async def lockst():
     return True
 
 
-def locked():
+def locked(text=None):
     kn_cache["lock"] = False
     return True
 
 
-def command_cd(user_id, groupcode, timeshort: int, coolingdb):
-    cooling = 'off'
-    # 冷却时间，单位S
-    coolingtime = '60'
+def command_cd2(
+        command_name: str,
+        group_id: str,
+        time_now: str,
+):
+    if "command_cd" not in list(kn_cache):
+        kn_cache["command_cd"] = {}
+
+    return False
+
+
+def command_cd(cd_id: str, time_now: int):
+    """
+    指令冷却
+    :param time_now: 现在时间码
+    :param cd_id: 群号
+    :return: False | int
+    """
+    # 冷却间隔，单位S
+    coolingtime = 60
     # 冷却数量，单位条
     coolingnum = 12
     # 冷却长度，单位S
     coolinglong = 150
 
-    # 尝试创建数据库
-    coolingnumber = str('0')
+    # 初始化变量
+    global kn_cache
+    cd_id: str = str(cd_id)
+    if "command_cd" not in list(kn_cache):
+        kn_cache["command_cd"] = {}
+    if cd_id not in list(kn_cache["command_cd"]):
+        kn_cache["command_cd"][cd_id] = {
+            "cd": 0,
+            "times": []
+        }
 
-    conn = sqlite3.connect(coolingdb)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-    datas = cursor.fetchall()
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
-    if groupcode not in tables:
-        # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        cursor.execute(
-            f'create table {groupcode} (userid VARCHAR(10) primary key,'
-            f' number VARCHAR(20), time VARCHAR(30), cooling VARCHAR(30))')
-    # 读取数据库内容：日期文件，群号表，用户数据
-    # 查询数据
-    cursor.execute(f'select * from "{groupcode}" where userid = "{user_id}"')
-    data = cursor.fetchone()
-    try:
-        if data is None:
-            coolingnumber = '1'
-            cooling = 'off'
-            cursor.execute(
-                f'replace into {groupcode}(userid,number,time,cooling) '
-                f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
-        else:
-            # 判断是否正在冷却
-            cooling = data[3]
-            if cooling == 'off':
-                #  判断时间，time-冷却时间再判断
-                timeshortdata = int(data[2]) + int(coolingtime)
-                if timeshortdata >= timeshort:
-                    # 小于冷却时间，冷却次数+1
-                    coolingnumber = int(data[1]) + 1
-                    #    判断冷却次数，次数>=冷却数量
-                    if coolingnumber >= coolingnum:
-                        cooling = 'on'
-                        # 大于次数，开启冷却,写入
-                        coolingnumber = str(coolingnumber)
-                        cursor.execute(
-                            f'replace into {groupcode}(userid,number,time,cooling) '
-                            f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
-                        timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                        coolingtime = str(timeshortdata - timeshort)
-                    else:
-                        # 小于写入
+    # 计算冷却
+    cd = kn_cache["command_cd"][cd_id]["cd"]
 
-                        cooling = 'off'
-                        coolingnumber = str(coolingnumber)
-                        cursor.execute(
-                            f'replace into {groupcode}(userid,number,time,cooling) '
-                            f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
-                else:
-                    # 大于冷却时间，重新写入
-                    coolingnumber = '1'
-                    cooling = 'off'
-                    cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
-            else:
-                timeshortdata = int(data[2]) + int(coolingtime) + coolinglong
-                if timeshortdata >= timeshort:
-                    coolingtime = str(timeshortdata - timeshort)
-                else:
-                    coolingnumber = '1'
-                    cooling = 'off'
-                    cursor.execute(
-                        f'replace into {groupcode}(userid,number,time,cooling) '
-                        f'values("{user_id}","{coolingnumber}","{timeshort}","{cooling}")')
-        if cooling != 'off':
-            cooling = str(coolingtime)
-    except Exception as e:
-        logger.error("冷却数据库操作出错")
-        logger.error(coolingdb)
-        cooling = "off"
-    finally:
-        conn.commit()
-        cursor.close()
-        conn.close()
-    return cooling
+    if (cd - time_now) > 0:
+        return cd - time_now
+    else:
+        kn_cache["command_cd"][cd_id]["cd"] = 0
+
+    kn_cache["command_cd"][cd_id]["times"].append(time_now)
+
+    times2 = []
+    for t in kn_cache["command_cd"][cd_id]["times"]:
+        if t + coolingtime > time_now:
+            times2.append(t)
+    kn_cache["command_cd"][cd_id]["times"] = times2
+
+    if len(times2) > coolingnum:
+        kn_cache["command_cd"][cd_id]["cd"] = time_now + coolinglong
+        return coolinglong
+
+    return False
 
 
 async def draw_text(
@@ -779,7 +778,7 @@ def image_resize2(image, size: [int, int], overturn=False):
     重缩放图像
     :param image: 要缩放的图像
     :param size: 缩放后的大小
-    :param overturn:
+    :param overturn: 是否放大到全屏
     :return: 缩放后的图像
     """
     image_background = Image.new("RGBA", size=size, color=(0, 0, 0, 0))
@@ -1108,3 +1107,19 @@ def del_files2(dir_path):
         # 第二步：删除空文件夹
         for name in dirs:
             os.rmdir(os.path.join(root, name))  # 删除一个空目录
+
+
+def statistics_list(input: list) -> dict:
+    """
+    统计字符出现次数
+    :param input: 输入数列
+    :return: 统计数
+    """
+    data = {}
+    for d in input:
+        d = str(d)
+        if d not in list(data):
+            data[d] = 1
+        else:
+            data[d] += 1
+    return data
