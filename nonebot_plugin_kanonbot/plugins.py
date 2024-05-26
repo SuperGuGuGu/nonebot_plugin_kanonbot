@@ -17,9 +17,6 @@ from datetime import datetime
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
 kn_cache = {}
-test_id = "KnTest"
-
-run = True  # 代码折叠助手
 
 
 async def plugin_zhanbu(user_id, cachepath):
@@ -229,9 +226,6 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     medal_datas = jellyfish_box_datas["medal_datas"]  # 所有勋章
     user_data = get_unity_user_data(user_id)
 
-    if user_id == test_id:
-        # time_now = 1615439118
-        pass
     date_y: str = time.strftime("%Y", time.localtime(time_now))
     date_m: str = time.strftime("%m", time.localtime(time_now))
     date_d: str = time.strftime("%d", time.localtime(time_now))
@@ -391,11 +385,6 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     if "draw_model" in list(box_data) and draw_model == "normal":
         draw_model = box_data["draw_model"]
 
-    if user_id == test_id:
-        box_data["draw_model"] = draw_model = "text"
-        draw_dark_model = True
-        logger.info(f"(draw_model, {draw_model})(draw_dark_model, {draw_dark_model})(time_h, {time_h})")
-
     draw_config = jellyfish_box_draw_config(draw_model, draw_dark_model)
 
     # 更新水母箱状态，并写入
@@ -416,9 +405,6 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
 
     trace.append(f"将刷新{refresh_period}次")
 
-    if user_id == test_id:
-        refresh = True
-        refresh_period = 1
     if refresh:
         # 更新数据
         logger.debug("正在刷新水母箱")
@@ -484,15 +470,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                         box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
 
             for jellyfish_id in list(new):
-                if user_id == test_id:
-                    pass
-                    # news.append({
-                    #     "icon": None,
-                    #     "title": "水母繁殖",
-                    #     "message": f"{jellyfish_datas[jellyfish_id]['name']} 增加了 {new[jellyfish_id]}只"})
-                    # box_data["jellyfish"][jellyfish_id]["number"] += new[jellyfish_id]
-                trace.append(f"水母繁殖，trace， ”{jellyfish_id}“增加{new[jellyfish_id]}只")
-
+                pass
             # 按周期更新数据
             while refresh_period > 0:
                 refresh_period -= 1
@@ -507,10 +485,6 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     choose = random.randint(0, 100000) / 100000
                     if choose < event_datas[event_id]["probability"]:
                         event_list.append(event_id)
-
-                if user_id == test_id:
-                    pass
-                    # event_list = ["e9"]
 
                 if event_list:
                     event_id = random.choice(event_list)
@@ -2072,21 +2046,6 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             returunpath = save_image(image)
         code = 2
     elif command == "水母箱":
-        if user_id == test_id:
-            # 测试指令
-            news.append({"icon": None, "title": "title", "message": "event_message"})
-            # command_prompt_list.append({"title": "title", "message": "event_message"})
-            new_jellyfish.append(
-                {"id": "j2", "number": 20, "group": "good", "name": "jellyfish_name22", "message": f"抓到了???只"})
-            # test_new_j_list = ["j13", "j15", "j16", "j28", "j29"]
-            # for j_id in test_new_j_list:
-            #     new_j_data = {
-            #         "id": j_id,
-            #         "number": 1,
-            #         "group": jellyfish_datas[j_id]["group"],
-            #         "name": jellyfish_datas[j_id]["name"],
-            #         "message": jellyfish_datas[j_id]["message"]}
-            #     new_jellyfish.append(new_j_data)
         if draw_model == "text":
             code = 1
             message = await draw_jellyfish_box()
