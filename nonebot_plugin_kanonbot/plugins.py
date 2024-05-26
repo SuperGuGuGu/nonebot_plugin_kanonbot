@@ -9,7 +9,7 @@ import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas, jellyfish_box_draw_config
 from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
     circle_corner, get_command, get_unity_user_data, json_to_str, _config, imgpath_to_url, del_files2, \
-    statistics_list, get_unity_user_id, get_image_path, load_image
+    statistics_list, get_unity_user_id, get_image_path, load_image, list_in_list
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
@@ -130,7 +130,7 @@ async def plugin_checkin(user_id: str, date: str):
     :param date: 今日日期
     :return: {"state": state, "message": message}
     """
-    state = 2
+    state = 0
     message = ""
     date: str = time.strftime("%Y-%m-%d", time.localtime())
 
@@ -179,10 +179,8 @@ async def plugin_checkin(user_id: str, date: str):
     # 创建返回的消息
     if state == 0:
         message = f"签到成功，获得{add_point}根薯条，现在有{point}根薯条"
-    elif state == 1:
-        message = f"今天签到过啦，{point}根薯条还不够吃嘛…QAQ…"
     else:
-        message = f"出错惹QAQ…"
+        message = f"今天签到过啦，{point}根薯条还不够吃嘛…QAQ…"
 
     return state, message
 
@@ -320,6 +318,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     else:
         box_data = json.loads(data[1])
 
+    # 绘制样式
     draw_dark_model = False if 5 <= time_h <= 20 else True
     draw_model_list = {
         "04-01": "mixieer",
@@ -808,6 +807,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         cursor.close()
         conn.close()
 
+    # 绘制
     async def draw_jellyfish(size=(910, 558)):
         """
         绘制水母的图片
@@ -2252,120 +2252,181 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
             code = 1
             message = "请添加水母名称以及数量\n例：“/水母箱 丢弃 普通水母 10”"
         else:
-            commands = get_command(command2)
-            jellyfish_name: str = commands[0]
-            command2 = commands[1] if len(commands) > 1 else None
+            numbers = ["1", "2", "3", "4", "5", "7", "8", "9", "0"]
+            command = command2
 
-            if "x" in jellyfish_name and jellyfish_name not in jellyfish_group_list:
-                names = jellyfish_name.split("x")
-                jellyfish_name = names[0]
-                commands.append(names[1])
+            # 指令解析
+            # 获取水母名称列表
+            jellyfish_list = {}
+            for jellyfish_id in list(jellyfish_datas):
+                jellyfish_list[jellyfish_datas[jellyfish_id]["name"]] = jellyfish_id
+            # 指令间加空格
+            command = command.lower()
+            for group in jellyfish_group_list:
+                command = command.replace(group, f" {group} ")
+            if "x" in command:
+                num = -1
+                for c in command:
+                    num += 1
+                    if c == "x":
+                        for n in numbers:
+                            if num < len(command) and command[num + 1:num + 2].startswith(n):
+                                command = command[:num] + " " + command[num + 1:]
+            if "-" in command:
+                command = command.replace("-", " ")
+            if "只" in command:
+                command = command.replace("只", "")
+            if "全部" in command:
+                command = command.replace("all", "全部")
+            if "所有" in command:
+                command = command.replace("all", "所有")
+            if "all" in command:
+                command = command.replace("all", "all")
+            num = -1
+            for c in command:
+                num += 1
+                if c == "a":
+                    if command[num:].startswith("all") and command[num - 1] != " ":
+                        command = command[:num] + " " + command[num:]
+                        num += 1
+                    if command[num:].startswith("all") and (command[num:] == "all" or command[num + 3] != " "):
+                        command = command[:num + 3] + " " + command[num + 3:]
+                        num += 1
 
-            if jellyfish_name in jellyfish_group_list and command2 not in ["全部", "所有", "all"]:
-                code = 1
-                message = "丢弃分组无法指定数量，\n“/水母箱 丢弃 normal”"
-            elif jellyfish_name in jellyfish_group_list:
-                data = {}
-                for jellyfish_group in jellyfish_group_list:
-                    data[jellyfish_group] = []
-                for jellyfish_id in box_data['jellyfish']:
-                    jellyfish_group = jellyfish_datas[jellyfish_id]["group"]
-                    data[jellyfish_group].append(jellyfish_id)
-
-                if len(data[jellyfish_name]) == 0:
-                    code = 1
-                    message = f"水母箱没有“{jellyfish_name}”分类的水母哦"
-                else:
-                    if jellyfish_name in []:
-                        code = 1
-                        message = "成功丢弃了{num}只水母，分别是："
+            if list_in_list(command, numbers):
+                num = -1
+                for c in command:
+                    num += 1
+                    if c in numbers:
+                        if command[num - 1:num] != " " and command[num - 1:num] not in numbers and num > 0:
+                            command = command[:num] + " " + command[num:]
+                            num += 1
                     else:
-                        code = 1
-                        message = "成功丢弃了{num}只水母，分别是："
-                        number = 0
-                        for jellyfish_id in data[jellyfish_name]:
-                            message += jellyfish_datas[jellyfish_id]["name"]
-                            message += str(box_data["jellyfish"][jellyfish_id]["number"])
-                            number += box_data["jellyfish"][jellyfish_id]["number"]
-                            message += "只, "
-                            box_data["jellyfish"].pop(jellyfish_id)
+                        if command[num - 1:num] != " " and command[num - 1:num] in numbers and num > 0:
+                            command = command[:num] + " " + command[num:]
+                            num += 1
+            for jellyfish_id in list(jellyfish_datas):
+                name = jellyfish_datas[jellyfish_id]['name']
+                command = command.replace(name, f" {name} ")
+            commands = command.split()
 
-                        message = message.removesuffix(", ")
-                        message = message.replace("{num}", str(number))
-                        trace.append(message)
+            # 转数字
+            num = -1
+            commands2 = []
+            for command in commands:
+                num += 1
+                if command == "0":
+                    num -= 1
+                    commands2.remove(commands2[num])
+                elif list_in_list(command, numbers):
+                    commands2.append(int(command))
+                elif command == "all":
+                    commands2.append(0)
+                else:
+                    commands2.append(command)
 
-                        # 写入水母箱数据
-                        conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-                        cursor = conn.cursor()
-                        try:
-                            cursor.execute(
-                                f"replace into 'jellyfish_box' ('user_id','data') "
-                                f"values('{user_id}','{json_to_str(box_data)}')")
-                            conn.commit()
-                        except:
-                            logger.error("水母箱保存用户数据出错")
-                            news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
-                        cursor.close()
-                        conn.close()
+            # 如果只有结尾为全部，则所有都丢弃
+            num = 0
+            for command in commands2:
+                if type(command) is int:
+                    num += 1
+            if num == 1 and commands2[-1] == 0:
+                commands3 = []
+                for command in commands2:
+                    if type(command) is str:
+                        commands3.append(command)
+                        commands3.append(0)
             else:
-                if len(commands) > 1:
-                    number = commands[1]
-                else:
-                    number = 1
-                try:
-                    if type(number) is str and number.endswith("只"):
-                        number.removesuffix("只")
-                    if number in ["all", "所有", "全部"]:
-                        number = "all"
+                commands3 = commands2
+            drop_list = {}
+            num = -1
+            for command in commands3:
+                num += 1
+                if type(command) is not str:
+                    continue
+                if command in list(jellyfish_list):
+                    if num < len(commands3) - 1 and type(commands3[num + 1]) is int:
+                        drop_list[jellyfish_list[command]] = commands3[num + 1]
                     else:
-                        number = abs(int(number))
-                except Exception as e:
-                    number = None
-
-                if number is None:
-                    code = 1
-                    message = "数量错误，请检查填写数量\n例：“/水母箱 丢弃 普通水母 10”"
-                else:
-                    jellyfish_id = None
-                    for jellyfish_id_temp in jellyfish_datas:
-                        if jellyfish_name == jellyfish_datas[jellyfish_id_temp]["name"]:
-                            jellyfish_id = jellyfish_id_temp
-                            break
-                    if jellyfish_id is None:
-                        code = 1
-                        message = f"错误，找不到“{jellyfish_name}”"
-                    else:
-                        if jellyfish_id not in list(box_data["jellyfish"]):
-                            code = 1
-                            message = "水母箱没有这只水母哦"
+                        drop_list[jellyfish_list[command]] = 1
+                elif command in jellyfish_group_list:
+                    if len(commands3) > num and type(commands3[num + 1]) is int:
+                        if commands3[num + 1] != 0:
+                            drop_list[command] = "无法指定数量"
                         else:
-                            if number != "all" and box_data["jellyfish"][jellyfish_id]["number"] < number:
-                                code = 1
-                                message = "水母箱里没这么多水母哦"
-                            else:
-                                if number == "all" or box_data["jellyfish"][jellyfish_id]["number"] == number:
-                                    box_data["jellyfish"].pop(jellyfish_id)
-                                    code = 1
-                                    message = f"成功丢弃了所有的{jellyfish_name}"
-                                else:
-                                    box_data["jellyfish"][jellyfish_id]["number"] -= number
-                                    code = 1
-                                    message = f"成功丢弃了{number}只{jellyfish_name}"
+                            drop_list[command] = 0
+                    else:
+                        logger.warning(len(commands3))
+                        logger.warning(num)
+                        drop_list[command] = "无法指定数量-"
+                else:
+                    drop_list[command] = "不在水母箱"
 
-                                trace.append(message)
-                                # 写入水母箱数据
-                                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-                                cursor = conn.cursor()
-                                try:
-                                    cursor.execute(
-                                        f"replace into 'jellyfish_box' ('user_id','data') "
-                                        f"values('{user_id}','{json_to_str(box_data)}')")
-                                    conn.commit()
-                                except:
-                                    logger.error("水母箱保存用户数据出错")
-                                    news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
-                                cursor.close()
-                                conn.close()
+            logger.debug(drop_list)
+
+            # 检查丢弃数量
+            for jellyfish_id in list(drop_list):
+                if jellyfish_id in jellyfish_group_list:
+                    continue
+                else:
+                    if jellyfish_id not in list(box_data["jellyfish"]):
+                        drop_list[jellyfish_id] = "不在水母箱"
+                    elif drop_list[jellyfish_id] > box_data["jellyfish"][jellyfish_id]["number"]:
+                        drop_list[jellyfish_id] = "没有这么多哦"
+                    elif drop_list[jellyfish_id] == box_data["jellyfish"][jellyfish_id]["number"]:
+                        drop_list[jellyfish_id] = 0
+
+            if len(drop_list) == 0:
+                message = "丢弃失败，请检查输入信息。例：“丢弃 普通水母 5”"
+            else:
+                remove_group = []
+                message = "成功丢弃"
+                for jellyfish_id in list(drop_list):
+                    if type(drop_list[jellyfish_id]) is int:
+                        if drop_list[jellyfish_id] == 0:
+                            if jellyfish_id in jellyfish_group_list:
+                                remove_group.append(jellyfish_id)
+                            else:
+                                message += f"全部{jellyfish_datas[jellyfish_id]['name']}"
+                                message += f"{box_data['jellyfish'][jellyfish_id]['number']}只、"
+                                box_data["jellyfish"].pop(jellyfish_id)
+                        else:
+                            box_data["jellyfish"][jellyfish_id]["number"] -= drop_list[jellyfish_id]
+                            message += f"{jellyfish_datas[jellyfish_id]['name']}{drop_list[jellyfish_id]}只、"
+                message = message.removesuffix("、")
+                for jellyfish_id in list(box_data["jellyfish"]):
+                    if jellyfish_datas[jellyfish_id]["group"] in remove_group:
+                        box_data["jellyfish"].pop(jellyfish_id)
+                        message += f"全部{jellyfish_datas[jellyfish_id]['name']}、"
+
+                if message == "成功丢弃":
+                    message = ""
+                message += "\n出错："
+                for jellyfish_id in list(drop_list):
+                    if type(drop_list[jellyfish_id]) is not int:
+                        if jellyfish_id in list(jellyfish_datas):
+                            name = jellyfish_datas[jellyfish_id]["name"]
+                        else:
+                            name = jellyfish_id
+                        message += f"”{name}“:{drop_list[jellyfish_id]}\n"
+                if message.endswith("\n出错："):
+                    message = message.removesuffix("\n出错：")
+                code = 1
+
+                # 写入水母箱数据
+                conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        f"replace into 'jellyfish_box' ('user_id','data') "
+                        f"values('{user_id}','{json_to_str(box_data)}')")
+                    conn.commit()
+                except:
+                    logger.error("水母箱保存用户数据出错")
+                    news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                cursor.close()
+                conn.close()
+
     elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
 
@@ -4577,8 +4638,8 @@ async def plugin_game_different(command: str, channel_id: str):
             image_2.paste(paste_image, paste_box)
 
         image_2.paste(shade_image, (0, 0), mask=shade_image)
-        returnpath = save_image(image_1)
-        returnpath2 = save_image(image_2)
+        returnpath2 = save_image(image_1)   # 将有变化的图和文字一起发出
+        returnpath = save_image(image_2)
 
         gameinfo = {
             "card_id": card_id,
