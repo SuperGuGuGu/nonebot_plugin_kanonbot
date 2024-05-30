@@ -20,7 +20,7 @@ kn_cache = {}
 
 
 async def botrun(msg_info):
-    logger.info("KanonBot-0.3.14")
+    logger.info("KanonBot-0.3.15")
     global kn_cache
     err_path = None
     return_json = {"code": -1}

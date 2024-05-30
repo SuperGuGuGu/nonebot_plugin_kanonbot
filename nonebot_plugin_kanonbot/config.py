@@ -522,8 +522,8 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
         },
         "freehand": {
             "color": {
-                "bg": "#EAEBEE",
-                "背景大字": "#e7eaec",
+                "bg": "#FFFFFF",
+                "背景大字": "#e0e3e6",
                 "box_bg": "#0d70a4",
                 "box_outline": "#FFFFFF",
                 "card": (255, 255, 255, 255),
