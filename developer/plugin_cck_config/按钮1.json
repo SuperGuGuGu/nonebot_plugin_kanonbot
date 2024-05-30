@@ -101,8 +101,8 @@
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "28",
-          "render_data": {"label": "kan","visited_label": "kan","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 kan",
+          "render_data": {"label": "kno","visited_label": "kno","style": 0},
+          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 kno",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "29",

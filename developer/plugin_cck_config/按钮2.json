@@ -99,8 +99,8 @@
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "107",
-          "render_data": {"label": "syr","visited_label": "syr","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 syr",
+          "render_data": {"label": "syo","visited_label": "syo","style": 0},
+          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 syo",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "108",
