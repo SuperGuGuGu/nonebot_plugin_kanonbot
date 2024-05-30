@@ -545,7 +545,7 @@ async def plugin_jellyfish_box(
                         subtract_quantity -= 1
                         choose_jellyfish = random.choice(jellyfish_list)
                         jellyfish_list.remove(choose_jellyfish)
-                        choose_list.append(jellyfish_list)
+                        choose_list.append(choose_jellyfish)
                     # 修改现有数据
                     for jellyfish_id in choose_list:
                         box_data["jellyfish"][jellyfish_id]["number"] -= 1
@@ -617,6 +617,8 @@ async def plugin_jellyfish_box(
                     jellyfish_list = []
                     for jellyfish_id in box_data["jellyfish"]:
                         num = box_data["jellyfish"][jellyfish_id]["number"]
+                        if jellyfish_datas[jellyfish_id]["group"] not in ["normal", "good"]:
+                            num = 0
                         while num > 0:
                             num -= 1
                             jellyfish_list.append(jellyfish_id)
@@ -2109,7 +2111,7 @@ async def plugin_jellyfish_box(
                 if date_m == "05" and date_d == "11":
                     group_probability = [0.00, 0.05, 0.30, 0.55, 0.10, 0.00]
                 else:
-                    group_probability = [0.00, 0.02, 0.15, 0.83, 0.00, 0.00]
+                    group_probability = [0.00, 0.03, 0.25, 0.72, 0.00, 0.00]
                 p = numpy.array(group_probability).ravel()
                 choose_group = numpy.random.choice(group, p=p)
                 choose_list = []
