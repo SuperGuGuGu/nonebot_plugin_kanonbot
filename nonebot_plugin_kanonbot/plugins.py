@@ -237,7 +237,10 @@ async def plugin_jellyfish_box(
     date_d: str = time.strftime("%d", time.localtime(time_now))
     time_h: int = int(time.strftime("%H", time.localtime(time_now)))
 
+    # 加载缓存
     global kn_cache
+    if "jellyfish_box_image" not in list(kn_cache):
+        kn_cache['jellyfish_box_image'] = {}
 
     # 添加数据参数
     news = []
@@ -2459,6 +2462,11 @@ async def plugin_jellyfish_box(
 
     elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
+        # 读取是否有缓存
+        draw_new = True
+        if f"menu_{draw_model}" in list(kn_cache['jellyfish_box_image']):
+            if time_now - kn_cache['jellyfish_box_image'][f"menu_{draw_model}"]["time"] < 10800:
+                draw_new = False
 
         # 获取分组
         group_list = jellyfish_group_list.copy()
@@ -2507,24 +2515,33 @@ async def plugin_jellyfish_box(
                         num = 0
                         message += "\n"
         else:
-            if len(cache_groups) == 1:
-                # for cache_group in cache_groups:
-                for cache_data in cache_groups[0]:
-                    jellyfish_menu.append(cache_data)
-                returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
-            else:
-                num_x = 0
-                image = Image.new("RGB", ((1000 * len(cache_groups)), 3516), draw_config["color"]["bg"])
-                for cache_group in cache_groups:
-                    jellyfish_menu = []
-                    for cache_data in cache_group:
+            if draw_new is True:
+                if len(cache_groups) == 1:
+                    # for cache_group in cache_groups:
+                    for cache_data in cache_groups[0]:
                         jellyfish_menu.append(cache_data)
-                    cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
-                    paste_image = Image.open(cache_path, "r")
-                    image.paste(paste_image, ((1000 * num_x), 0))
-                    num_x += 1
-                returunpath = save_image(image)
-            code = 2
+                    returnpath = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
+                else:
+                    num_x = 0
+                    image = Image.new("RGB", ((1000 * len(cache_groups)), 3516), draw_config["color"]["bg"])
+                    for cache_group in cache_groups:
+                        jellyfish_menu = []
+                        for cache_data in cache_group:
+                            jellyfish_menu.append(cache_data)
+                        cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
+                        paste_image = Image.open(cache_path, "r")
+                        image.paste(paste_image, ((1000 * num_x), 0))
+                        num_x += 1
+                    returnpath = save_image(image)
+                code = 2
+
+                kn_cache['jellyfish_box_image'][f"menu_{draw_model}"] = {
+                    "time": time_now,
+                    "image_path": returnpath
+                }
+            else:
+                returnpath = kn_cache['jellyfish_box_image'][f"menu_{draw_model}"]["image_path"]
+                code = 2
     elif command == "水母箱样式":
         draw_model_list = {
             "normal": {"name": "默认"},
