@@ -3627,7 +3627,7 @@ async def plugin_game_cck(command: str, channel_id: str, platform: str):
                 code = 0
             # 转换图片为md
             markdown = {
-                "id": kn_config("plugin", "markdown_id"),
+                "id": kn_config("plugin", "image_markdown"),
                 "params": [
                     {"key": "text", "values": ["img"]},
                     {"key": "imagex", "values": [f"{image.size[0]}"]},
@@ -3635,19 +3635,18 @@ async def plugin_game_cck(command: str, channel_id: str, platform: str):
                     {"key": "image", "values": [f"{await imgpath_to_url(returnpath)}"]},
                 ]
             }
-
         if platform == "qq_Official" and kn_config("plugin_cck", "send_button"):
-            if 11 <= int(member_id) <= 30:
+            if 1 <= int(member_id) <= 15 or 21 <= int(member_id) <= 25:
                 button_id = "button_1_id"
-            elif 31 <= int(member_id) <= 45 or 106 <= int(member_id) <= 110:
+            elif  16 <= int(member_id) <= 20 or 26 <= int(member_id) <= 25:
                 button_id = "button_2_id"
             else:
                 button_id = None
 
             if button_id is not None:
                 keyboard = {"id": kn_config("plugin_cck", button_id)}
-                markdown = {"id": kn_config("plugin_cck", "markdown_id")}
-
+                if platform != "qq_Official" or kn_config("plugin_cck", "send_markdown") is False:
+                    markdown = {"id": kn_config("plugin", "none_markdown")}
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
         if command == "不知道":
