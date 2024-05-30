@@ -21,7 +21,7 @@ def _config_list():
         "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
         "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
         "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
-        "找不同": {"state": False, "message": "测试功能z", "group": "小游戏", "name": "测试功能z"},
+        "找不同": {"state": True, "message": "找不同", "group": "小游戏", "name": "找不同"},
         "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
         "塔罗牌": {"state": False, "message": "塔罗牌 (发送：塔罗牌)", "group": "群聊功能", "name": "塔罗牌"},
         "今日老婆": {"state": True, "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"}
