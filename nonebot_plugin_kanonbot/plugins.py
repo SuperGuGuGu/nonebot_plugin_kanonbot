@@ -2047,14 +2047,14 @@ async def plugin_jellyfish_box(
                 "duration": 5.0,  # 时长（秒）
                 "background_color": (22, 84, 123, 255),  # 背景颜色
             }
-            returunpath = await draw_jellyfish_live(draw_data=draw_data)
+            returnpath = await draw_jellyfish_live(draw_data=draw_data)
         elif os.path.exists(f"{basepath}cache/jellyfish_box/{user_id}.gif"):
-            returunpath = f"{basepath}cache/jellyfish_box/{user_id}.gif"
+            returnpath = f"{basepath}cache/jellyfish_box/{user_id}.gif"
         else:
             image = Image.new("RGB", (2000, 1500), "#16547b")
             paste_image = await draw_jellyfish((1900, 1400))
             image.paste(paste_image, (50, 50), paste_image)
-            returunpath = save_image(image)
+            returnpath = save_image(image)
         code = 2
     elif command == "水母箱":
         if draw_model == "text":
@@ -2063,7 +2063,7 @@ async def plugin_jellyfish_box(
         else:
             command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
             command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
-            returunpath = await draw_jellyfish_box()
+            returnpath = await draw_jellyfish_box()
             code = 2
     elif command == "抓水母":
         # 抓水母 每2小时7200秒抓一次
@@ -2176,7 +2176,7 @@ async def plugin_jellyfish_box(
                     message = await draw_jellyfish_box(draw_box=False)
                 else:
                     command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
-                    returunpath = await draw_jellyfish_box()
+                    returnpath = await draw_jellyfish_box()
                     code = 2
 
                     if platform == "qq_Official":
@@ -2266,7 +2266,7 @@ async def plugin_jellyfish_box(
             if len(cache_groups) == 1:
                 for cache_data in cache_groups[0]:
                     jellyfish_menu.append(cache_data)
-                returunpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
+                returnpath = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
             else:
                 num_x = 0
                 image = Image.new("RGB", ((1000 * len(cache_groups)), 2994), draw_config["color"]["bg"])
@@ -2278,7 +2278,7 @@ async def plugin_jellyfish_box(
                     paste_image = Image.open(cache_path, "r")
                     image.paste(paste_image, ((1000 * num_x), 0))
                     num_x += 1
-                returunpath = save_image(image)
+                returnpath = save_image(image)
             code = 2
     elif command in ["丢弃", "抛弃", "放生"]:
         if command2 is None:
@@ -2597,7 +2597,7 @@ async def plugin_jellyfish_box(
         # 保存
 
         # 绘制
-        returunpath = await draw_jellyfish_box()
+        returnpath = await draw_jellyfish_box()
         code = 2
     elif command == "换水":
         pass
@@ -2613,7 +2613,7 @@ async def plugin_jellyfish_box(
         command_prompt_list.append({"title": "/水母箱 水母图鉴", "message": "查看水母图鉴"})
         command_prompt_list.append({"title": "/水母箱 水母统计表", "message": "查看目前水母箱有多少水母"})
         command_prompt_list.append({"title": "/水母箱 水母箱样式 手绘", "message": "更换显示样式"})
-        returunpath = await draw_jellyfish_box(draw_box=False)
+        returnpath = await draw_jellyfish_box(draw_box=False)
         code = 2
     else:
         code = 1
