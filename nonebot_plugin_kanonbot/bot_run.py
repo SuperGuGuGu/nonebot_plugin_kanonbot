@@ -374,12 +374,13 @@ async def botrun(msg_info):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath, trace = await plugin_jellyfish_box(
+                    code, message, returnpath, markdown, keyboard, trace = await plugin_jellyfish_box(
                         user_id=user_id,
                         user_name=user_name,
                         channel_id=channel_id,
                         msg=command,
-                        time_now=time_now
+                        time_now=time_now,
+                        platform=platform
                     )
                     for t in trace:
                         trace_data["plugin"].append(t)

@@ -185,7 +185,13 @@ async def plugin_checkin(user_id: str, date: str):
     return state, message
 
 
-async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, msg: str, time_now: int):
+async def plugin_jellyfish_box(
+        user_id: str,
+        user_name: str,
+        channel_id: str,
+        msg: str,
+        time_now: int,
+        platform: str = "None"):
     """
     群聊功能-水母箱
     :return:
@@ -213,7 +219,9 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
     # 添加必要参数
     code = 0
     message = None
-    returunpath = None
+    returnpath = None
+    markdown = None
+    keyboard = None
     trace = []  # 用于日志记录插件运行内容
     jellyfish_group_list = ["perfect", "great", "good", "normal", "special", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
@@ -2167,6 +2175,28 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
                     command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
                     returunpath = await draw_jellyfish_box()
                     code = 2
+
+                    if platform == "qq_Official":
+                        if kn_config("plugin_jellyfish_box", "send_markdown"):
+                            # 转换图片为md
+                            image = Image.open(returnpath, "r")
+                            markdown = {
+                                "id": kn_config("plugin", "image_markdown"),
+                                "params": [
+                                    {"key": "text", "values": ["img"]},
+                                    {"key": "imagex", "values": [f"{int(image.size[0] / 8)}"]},
+                                    {"key": "imagey", "values": [f"{int(image.size[1] / 8)}"]},
+                                    {"key": "image", "values": [f"{await imgpath_to_url(returnpath)}"]},
+                                ]
+                            }
+                            code = 0
+
+                        if kn_config("plugin_jellyfish_box", "send_button"):
+                            keyboard = {"id": kn_config("plugin_jellyfish_box", "button_id")}
+                            if (platform != "qq_Official" or
+                                    kn_config("plugin_jellyfish_box", "send_markdown") is False):
+                                markdown = {"id": kn_config("plugin", "none_markdown")}
+
     elif command == "水母统计表":
         # 读取水母箱内容并分组
 
@@ -2572,7 +2602,7 @@ async def plugin_jellyfish_box(user_id: str, user_name: str, channel_id: str, ms
         code = 1
         message = "错误命令"
 
-    return code, message, returunpath, trace
+    return code, message, returnpath, markdown, keyboard, trace
 
 
 async def draw_jellyfish_live(
