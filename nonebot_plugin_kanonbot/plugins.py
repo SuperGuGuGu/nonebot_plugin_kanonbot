@@ -4724,7 +4724,7 @@ async def plugin_game_different(command: str, channel_id: str):
         if command == "结束":
             # 绘制不同的位置
             paste_image = await load_image(await get_image_path("different-different.png"))
-            image_2 = await load_image(image_2_path)
+            image_1 = await load_image(image_1_path)
 
             for different in different_list:
                 if different in seek_out:
@@ -4733,10 +4733,10 @@ async def plugin_game_different(command: str, channel_id: str):
                 x, y = location
                 x = 111 - 100 + (x * 222)
                 y = 100 - 100 + (y * 200)
-                image_2.paste(paste_image, (x, y), paste_image)
+                image_1.paste(paste_image, (x, y), paste_image)
 
             # 保存图片
-            returnpath = save_image(image_2)
+            returnpath = save_image(image_1)
             message = "游戏已结束"
             code = 3
 
@@ -4762,7 +4762,7 @@ async def plugin_game_different(command: str, channel_id: str):
                     find = True
                     break
 
-            if  command in seek_out:
+            if command in seek_out:
                 code = 1
                 message = "这里已经找到啦，找找别的地方吧"
             elif find is False:
@@ -4772,17 +4772,17 @@ async def plugin_game_different(command: str, channel_id: str):
                 seek_out.append(command)
                 # 绘制图片
                 paste_image = await load_image(await get_image_path("different-different.png"))
-                image_2 = await load_image(image_2_path)
+                image_1 = await load_image(image_1_path)
                 location = region_to_coord(different_game_data["data"][card_id]["different_list"][different]["region"])
                 x, y = location
                 x = 111 - 100 + (x * 222)
                 y = 100 - 100 + (y * 200)
-                image_2.paste(paste_image, (x, y), paste_image)
+                image_1.paste(paste_image, (x, y), paste_image)
 
                 if len(seek_out) == len(different_list):
                     code = 3
                     message = "恭喜找到所有不同"
-                    returnpath = save_image(image_2)
+                    returnpath = save_image(image_1)
 
                     # 将”结束游戏状态“写入到数据库
                     conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -4796,11 +4796,11 @@ async def plugin_game_different(command: str, channel_id: str):
                 else:
                     code = 3
                     message = f"找到了{len(seek_out)}/{len(different_list)}处不同"
-                    returnpath = save_image(image_2)
+                    returnpath = save_image(image_1)
                     gameinfo = {
                         "card_id": card_id,
-                        "image_1": image_1_path,
-                        "image_2": returnpath,
+                        "image_1": returnpath,
+                        "image_2": image_1_path,
                         "different": different_list,
                         "seek_out": seek_out
                     }
