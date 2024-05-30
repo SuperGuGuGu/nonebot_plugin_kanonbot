@@ -191,7 +191,7 @@ def kn_config(config_name: str, config_name2: str = None):
                 "Kanon_Config": {
                     "KanonBot": "https://github.com/SuperGuGuGu/nonebot_plugin_kanonbot"},
                 "knapi": {
-                    "url": "http://cdn.kanon.ink"}}
+                    "url": "https://cdn.kanon.ink"}}
             save_config()
             nonebot.logger.info("未存在KanonBot配置文件，正在创建")
         config = toml.load(path)
@@ -231,11 +231,20 @@ def kn_config(config_name: str, config_name2: str = None):
             "bot_list": [],
             "log": True,
             "log_trace_data": False,
+            "image_markdown": None,
+            "none_markdown": None,
         },
         "plugin_cck": {
+            "draw_type": 1,
+            "send_markdown": False,
             "send_button": False,
+            "button_1_id": None,
+            "button_2_id": None,
         },
         "plugin_jellyfish_box": {
+            "send_markdown": False,
+            "send_button": False,
+            "button_id": None,
             "draw_gif": False,
         },
     }
@@ -270,11 +279,12 @@ def get_qq_face(qq, size: int = 640):
     return image_face
 
 
-def list_in_list(list_1: list, list_2: list):
+def list_in_list(list_1: list | str, list_2: list | str)  -> bool:
     """
     判断数列是否在数列内
     :param list_1: list or str。例：["a", "b"], "abc"
-    :param list_2: list。例：["a", "b"]
+    :param list_2: list。例：["a", "b"], "abc"
+    :return bool
     """
     for cache_list_2 in list_2:
         if cache_list_2 in list_1:
