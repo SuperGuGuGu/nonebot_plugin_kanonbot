@@ -263,81 +263,88 @@ async def _(event: Event):
 
         # 获取返回信息，进行回复
         code = int(data["code"])
+        if event.chat_type == "group":
+            recv_type = "group"
+            recv_id = event.chat_id
+        else:
+            recv_type = "user"
+            recv_id = event.sender_info.id_
+            
         if code == 1:
             msg = MessageSegment.text(data["message"])
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
         elif code == 2:
             file_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
         elif code == 3:
             msg = MessageSegment.text(data["message"])
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
         elif code == 4:
             msg = MessageSegment.text(data["message"])
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath2"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
         elif code == 5:
             msg = MessageSegment.text(data["message"])
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath2"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
             file_url = await imgpath_to_url(data["returnpath3"])
             msg = MessageSegment.image(fileUrl=file_url)
             await send_message(
-                recv_type=event.chat_type,
-                recv_id=event.chat_id,
+                recv_type=recv_type,
+                recv_id=recv_id,
                 message=msg
             )
