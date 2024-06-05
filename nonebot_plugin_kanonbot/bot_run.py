@@ -97,7 +97,7 @@ async def botrun(msg_info):
             elif channel_id in kn_config("plugin-channel_white_list"):
                 pass
             else:
-                pass
+                pass  # 结束运行
 
             # 用户黑白名单
             if user_id in kn_config("plugin-user_black_list"):
