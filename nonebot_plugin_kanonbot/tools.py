@@ -418,61 +418,61 @@ def locked(text=None):
     return True
 
 
-def command_cd2(
-        command_name: str,
-        group_id: str,
-        time_now: str,
-):
-    if "command_cd" not in list(kn_cache):
-        kn_cache["command_cd"] = {}
-
-    return False
-
-
-def command_cd(cd_id: str, time_now: int):
+def command_cd(cd_id: str, time_now: int, cd_type: str = "channel"):
     """
     指令冷却
     :param time_now: 现在时间码
     :param cd_id: 群号
-    :return: False | int
+    :param cd_type: 冷却方式："user", "channel"
+    :return: False | str: [{冷却间隔}s/{冷却条数}次]{冷却秒数}
     """
-    # 冷却间隔，单位S
-    coolingtime = 60
-    # 冷却数量，单位条
-    coolingnum = 12
-    # 冷却长度，单位S
-    coolinglong = 150
-
-    # 初始化变量
     global kn_cache
-    cd_id: str = str(cd_id)
-    if "command_cd" not in list(kn_cache):
-        kn_cache["command_cd"] = {}
-    if cd_id not in list(kn_cache["command_cd"]):
-        kn_cache["command_cd"][cd_id] = {
-            "cd": 0,
-            "times": []
+    t = cd_type = "channel" if cd_type not in ["channel", "user"] else cd_type
+    c = config = {
+        "user": {
+            "5": {"msg_num": 3, "cool_time": 15},
+            "10": {"msg_num": 5, "cool_time": 20},
+            "30": {"msg_num": 10, "cool_time": 40},
+            "120": {"msg_num": 20, "cool_time": 180},
+            "3600": {"msg_num": 50, "cool_time": 300},
+        },
+        "channel": {
+            "3": {"msg_num": 5, "cool_time": 15},
+            "10": {"msg_num": 15, "cool_time": 20},
+            "120": {"msg_num": 50, "cool_time": 60},
         }
+    }
+    if "cd" not in list(kn_cache):
+        kn_cache["cd"] = {cd_id: {}}
+    if cd_id not in list(kn_cache["cd"]):
+        kn_cache["cd"][cd_id] = {}
+    data = kn_cache["cd"][cd_id]
+    # 判断是否正在冷却
+    for interval in list(c[t]):
+        if interval not in list(data):
+            data[interval] = {"last": time_now, "num": 0}
+        data[interval]["num"] += 1
 
-    # 计算冷却
-    cd = kn_cache["command_cd"][cd_id]["cd"]
+    for interval in list(c[t]):
+        if interval not in list(data):
+            data[interval] = {"last": time_now, "num": 0}
+            continue
 
-    if (cd - time_now) > 0:
-        return cd - time_now
-    else:
-        kn_cache["command_cd"][cd_id]["cd"] = 0
+        # 判断符合数量
+        if data[interval]["num"] >= c[t][interval]['msg_num']:
+            # 超过冷却事件，恢复
+            if int(time_now - data[interval]['last']) > c[t][interval]['cool_time']:
+                data[interval] = {"last": time_now, "num": 0}
+                continue
+            msg = str(c[t][interval]['cool_time'] - int(time_now - data[interval]['last']))
+            if t == "channel":
+                return f"群[{interval}s/{c[t][interval]['msg_num']}次]{msg}"
+            else:
+                return f"[{interval}s/{c[t][interval]['msg_num']}次]{msg}"
 
-    kn_cache["command_cd"][cd_id]["times"].append(time_now)
-
-    times2 = []
-    for t in kn_cache["command_cd"][cd_id]["times"]:
-        if t + coolingtime > time_now:
-            times2.append(t)
-    kn_cache["command_cd"][cd_id]["times"] = times2
-
-    if len(times2) > coolingnum:
-        kn_cache["command_cd"][cd_id]["cd"] = time_now + coolinglong
-        return coolinglong
+        if int(time_now - data[interval]["last"]) > c[t][interval]["cool_time"]:
+            data[interval] = {"last": time_now, "num": 0}
+            continue
 
     return False
 
