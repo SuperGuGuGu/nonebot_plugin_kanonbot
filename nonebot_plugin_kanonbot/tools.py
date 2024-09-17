@@ -1,6 +1,9 @@
 # coding=utf-8
+import io
 import re
 import string
+import traceback
+
 import httpx
 import toml
 from PIL import Image, ImageDraw, ImageFont
@@ -178,14 +181,16 @@ def kn_config(config_name: str, config_name2: str = None):
     """
     global kn_config_data
 
+    path = f"{basepath}kanon_config.toml"
+
     def save_config():
         global kn_config_data
         with open(path, 'w') as config_file:
             toml.dump(config, config_file)
         kn_config_data = config
 
+    kn_config_data = None
     if kn_config_data is None:
-        path = f"{basepath}kanon_config.toml"
         if not os.path.exists(path):
             config = {
                 "Kanon_Config": {
@@ -279,7 +284,7 @@ def get_qq_face(qq, size: int = 640):
     return image_face
 
 
-def list_in_list(list_1: list | str, list_2: list | str)  -> bool:
+def list_in_list(list_1: list | str, list_2: list | str) -> bool:
     """
     判断数列是否在数列内
     :param list_1: list or str。例：["a", "b"], "abc"
@@ -356,6 +361,28 @@ async def get_file_path(file_name) -> str:
     return file_path
 
 
+async def get_file_path_v2(file_name: str) -> str:
+    """
+    获取文件的路径信息，如果没下载就下载下来
+    :param file_name: 文件名。例：“file.zip”
+    :return: 文件路径。例："c:/bot/cache/file/file.zip"
+    """
+    file_path = basepath + "file/"
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    file_path += file_name
+    if not os.path.exists(file_path):
+        # 如果文件未缓存，则缓存下来
+        logger.debug("正在下载" + file_name)
+        names = file_name.split("》")
+        url = f"{kn_config('kanon_api-url')}/v2/file"
+        for name in names:
+            url += f"/{name}" if name != "" else ""
+        logger.debug("url: " + url)
+        await connect_api(type="file", url=url, file_path=file_path)
+    return file_path
+
+
 async def get_image_path(image_name) -> str:
     """
     获取图片的路径信息，如果没下载就下载下来
@@ -366,6 +393,8 @@ async def get_image_path(image_name) -> str:
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     file_path += image_name
+    if "." not in image_name:
+        file_path += ".png"
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.debug("正在下载" + image_name)
@@ -375,16 +404,100 @@ async def get_image_path(image_name) -> str:
     return file_path
 
 
-async def load_image(path: str, size=(100, 100)):
+async def load_image(path: str, size=None):
+    """
+    读取图片或请求网络图片
+    :param path: 图片路径/图片url
+    :param size: 出错时候返回的图片尺寸
+    :return:image
+    """
     try:
         if path.startswith("http"):
             return await connect_api("image", path)
         else:
+            if path.startswith("{basepath}"):
+                image_path = f"{basepath}{path.removeprefix('{basepath}')}"
+                return Image.open(image_path, "r")
             return Image.open(path, "r")
     except Exception as e:
         logger.error(f"读取图片错误：{path}")
         logger.error(e)
-        return Image.new("RGBA", size, (0, 0, 0, 0))
+        if size is not None:
+            return Image.new("RGBA", size, (0, 0, 0, 0))
+        raise "图片读取错误"
+
+
+def images_to_gif(
+        gifs: str,
+        gif_path: str,
+        duration: int | float
+    ):
+    """
+    图片保存为gif
+    :param gifs:图片文件夹路径
+    :param gif_path:保存的gif路径
+    :param duration:gif速度
+    :return:
+    """
+    frames = []
+    png_files = os.listdir(gifs)
+    for frame_id in range(1, len(png_files) + 1):
+        frame = Image.open(os.path.join(gifs, '%d.png' % frame_id))
+        frames.append(frame)
+    frames[0].save(
+        gif_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration,
+        loop=0,
+        disposal=2
+    )
+    return "success"
+
+
+def save_image(
+        image,
+        image_path: str = None,
+        image_name: int | str = None,
+        relative_path=False):
+    """
+    保存图片文件到缓存文件夹
+    :param image:要保存的图片
+    :param image_path: 指定的图片所在文件夹路径，默认为缓存
+    :param image_name:图片名称，不填为随机数字
+    :param relative_path: 是否返回相对路径
+    :return:保存的路径
+    """
+    local_time = time.localtime()
+    date_year = local_time.tm_year
+    date_month = local_time.tm_mon
+    date_day = local_time.tm_mday
+    time_now = int(time.time())
+
+    if image_path is None:
+        image_path = "{basepath}" + f"cache/{date_year}/{date_month}/{date_day}/"
+    real_path = image_path.replace("{basepath}", basepath)
+
+    os.makedirs(real_path, exist_ok=True)
+
+    if image_name is None:
+        image_name = f"{time_now}_{random.randint(1000, 9999)}"
+        num = 50
+        while num > 0:
+            num -= 1
+            random_num = str(random.randint(100000, 999999))
+            if os.path.exists(f"{real_path}{image_name}_{random_num}.png"):
+                continue
+            image_name += f"_{random_num}.png"
+            break
+
+    logger.debug(f"保存图片文件：{real_path}{image_name}")
+    image.save(f"{real_path}{image_name}")
+
+    if relative_path is True:
+        return "{basepath}" + image_path + image_name
+    else:
+        return real_path + image_name
 
 
 async def lockst(lockdb=None):
@@ -430,16 +543,19 @@ def command_cd(cd_id: str, time_now: int, cd_type: str = "channel"):
     t = cd_type = "channel" if cd_type not in ["channel", "user"] else cd_type
     c = config = {
         "user": {
-            "5": {"msg_num": 3, "cool_time": 15},
-            "10": {"msg_num": 5, "cool_time": 20},
-            "30": {"msg_num": 10, "cool_time": 40},
-            "120": {"msg_num": 20, "cool_time": 180},
-            "3600": {"msg_num": 50, "cool_time": 300},
+            "5": {"msg_num": 3, "cool_time": 20},
+            "10": {"msg_num": 5, "cool_time": 30},
+            "30": {"msg_num": 10, "cool_time": 70},
+            "120": {"msg_num": 20, "cool_time": 300},
+            "3600": {"msg_num": 50, "cool_time": 7200},
+            "4000": {"msg_num": 70, "cool_time": 7200},
         },
         "channel": {
-            "3": {"msg_num": 5, "cool_time": 15},
-            "10": {"msg_num": 15, "cool_time": 20},
-            "120": {"msg_num": 50, "cool_time": 60},
+            "3": {"msg_num": 5, "cool_time": 20},
+            "10": {"msg_num": 10, "cool_time": 30},
+            "30": {"msg_num": 13, "cool_time": 50},
+            "60": {"msg_num": 20, "cool_time": 100},
+            "120": {"msg_num": 40, "cool_time": 210},
         }
     }
     if "cd" not in list(kn_cache):
@@ -459,12 +575,28 @@ def command_cd(cd_id: str, time_now: int, cd_type: str = "channel"):
             continue
 
         # 判断符合数量
-        if data[interval]["num"] >= c[t][interval]['msg_num']:
+        if data[interval]["num"] > c[t][interval]['msg_num']:
             # 超过冷却事件，恢复
             if int(time_now - data[interval]['last']) > c[t][interval]['cool_time']:
                 data[interval] = {"last": time_now, "num": 0}
                 continue
-            msg = str(c[t][interval]['cool_time'] - int(time_now - data[interval]['last']))
+            s = int(c[t][interval]['cool_time'] - int(time_now - data[interval]['last']))
+            # 时间转换秒数
+            h = 0
+            m = 0
+            if s > 3600:
+                h = int(s / 3600)
+                s -= h * 3600
+            if s > 60:
+                m = int(s / 60)
+                s -= m * 60
+            msg = ""
+            if h > 0:
+                msg += f"{h}时"
+            if m > 0:
+                msg += f"{m}分"
+            msg += f"{s}秒"
+
             if t == "channel":
                 return f"群[{interval}s/{c[t][interval]['msg_num']}次]{msg}"
             else:
@@ -754,35 +886,6 @@ def mix_image(image_1, image_2, mix_type=1):
     return images
 
 
-def save_image(image, user_id: str = str(random.randint(1000, 9999))):
-    """
-    保存图片文件到缓存文件夹
-    :param image:要保存的图片
-    :param user_id:用户id，减少路径上的冲突，不填为随机数字
-    :return:保存的路径
-    """
-    date_year = str(time.strftime("%Y", time.localtime()))
-    date_month = str(time.strftime("%m", time.localtime()))
-    date_day = str(time.strftime("%d", time.localtime()))
-    time_now = str(int(time.time()))
-    returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/"
-    if not os.path.exists(returnpath):
-        os.makedirs(returnpath)
-    returnpath += f"{time_now}_{user_id}"
-    num = 10
-    while num > 0:
-        num -= 1
-        random_num = str(random.randint(1000, 9999))
-        if os.path.exists(f"{returnpath}_{random_num}.png"):
-            continue
-        else:
-            returnpath = f"{returnpath}_{random_num}.png"
-            break
-    logger.debug(f"保存图片文件：{returnpath}")
-    image.save(returnpath)
-    return returnpath
-
-
 def image_resize2(image, size: [int, int], overturn=False):
     """
     重缩放图像
@@ -936,6 +1039,7 @@ def get_unity_user_id(platform: str, user_id: str):
                 if strr in random_str:
                     # 重新选
                     pass_str = True
+                    break
             if pass_str:
                 continue
 
@@ -1011,7 +1115,7 @@ def get_user_id(platform: str, unity_user_id: str):
 def get_unity_user_data(unity_user_id: str):
     """
     获取统一id
-    :param unity_id: 统一id
+    :param unity_user_id: 统一id
     :return: 用户数据
     """
     unity_user_id = str(unity_user_id)
@@ -1133,3 +1237,38 @@ def statistics_list(input: list) -> dict:
         else:
             data[d] += 1
     return data
+
+
+async def content_compliance(type_: str = "text", data: str = None, user_id: str = "user_id"):
+    """
+    内容合规检测（百度api）
+    :param type_: 类型： "text", "image"
+    :param data: 检测的内容。text: str, image: str = url
+    :param user_id: 被检测的用户id
+    :return: {"conclusion": "合规"}
+    """
+    try:
+        if type_ == "text":
+            access_token = kn_config("content_compliance", "token")
+            request_url = "https://aip.baidubce.com/rest/2.0/solution/v1/text_censor/v2/user_defined"
+            params = {"text": data, "strategyId	": 36222, "userId": user_id}
+            request_url += f"?access_token={access_token}"
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+            # return_data["conclusion"] = "合规""疑似""不合规"
+            # return_data["data"] = {} if return_data["conclusion"] == "合规" else data
+            raturn_data = httpx.post(request_url, data=params, headers=headers)
+            logger.debug(f"内容合规检测： {raturn_data}")
+            return raturn_data.json()
+        elif type_ == "image":
+            return {"conclusion": "合规", "message": "图片检测未完成"}
+        return {"conclusion": "error", "message": "检测类型不存在"}
+    except Exception as e:
+
+        return {
+            "conclusion": "error",
+            "message": "运行错误",
+            "error_message": str(e).replace("'", '"'),
+            "error_traceback": str(traceback.format_exc()).replace("'", '"'),
+        }
+
+

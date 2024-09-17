@@ -1,12 +1,14 @@
 # coding=utf-8
 import json
 import traceback
+
 from .config import _config_list
-from .tools import kn_config, lockst, locked, command_cd, _config, del_files2, connect_api, get_command
+from .tools import kn_config, command_cd, _config, del_files2, get_command, content_compliance
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
-    plugin_emoji_emoji, plugin_jellyfish_box, plugin_function_tsugu, plugin_function_jrlp, plugin_game_different
+    plugin_emoji_emoji, plugin_jellyfish_box, plugin_function_jrlp, plugin_game_different, plugin_function_pic,
+    plugin_emoji_daibu, plugin_emoji_ji, plugin_emoji_ji2, plugin_emoji_pa, plugin_emoji_wlp
 )
 import time
 from nonebot import logger
@@ -16,26 +18,30 @@ import sqlite3
 basepath = _config["basepath"]
 command_starts = _config["command_starts"]
 adminqq = _config["superusers"]
-kn_cache = {}
 
 
-async def botrun(msg_info):
-    logger.info("KanonBot-0.3.15")
-    global kn_cache
-    err_path = None
+async def botrun(msg_info: dict):
+    logger.info("KanonBot-0.4.0")
+    try:
+        log_msg_info = msg_info.copy().pop("channel_member_datas")
+        log_msg_info["channel_member_len"] = len(list(msg_info["channel_member_datas"]))
+        logger.debug(log_msg_info)
+    except Exception as e:
+        logger.debug(msg_info)
     return_json = {"code": -1}
-    trace_data = {"plugin": []}
+    user_id = ""
+    trace_data = {"plugin": [], "content_compliance": []}
     date: str = time.strftime("%Y-%m-%d", time.localtime())
-    date_year: str = time.strftime("%Y", time.localtime())
-    date_month: str = time.strftime("%m", time.localtime())
-    date_day: str = time.strftime("%d", time.localtime())
-    time_h: str = time.strftime("%H", time.localtime())
-    time_m: str = time.strftime("%M", time.localtime())
-    time_s: str = time.strftime("%S", time.localtime())
+    local_time = time.localtime()
+    date_year: int = local_time.tm_year
+    date_month: int = local_time.tm_mon
+    date_day: int = local_time.tm_mday
+    time_h: int = local_time.tm_hour
+    time_m: int = local_time.tm_min
+    time_s: int = local_time.tm_sec
     time_now: int = int(time.time())
     try:
         # ## 初始化 ##
-        await lockst()
 
         # 读取消息
         msg: str = msg_info["msg"] if "msg" in msg_info else ""
@@ -48,8 +54,10 @@ async def botrun(msg_info):
         botid: str = msg_info["bot_id"] if "bot_id" in msg_info else "None_bot_id"
         friend_datas: dict = msg_info["friend_datas"] if "friend_datas" in msg_info else {}
         channel_member_datas: dict = msg_info["channel_member_datas"] if "channel_member_datas" in msg_info else {}
-        event_name: str = msg_info["event_name"] if "event_name" in msg_info else ""
+        event_name: str = msg_info["event_name"] if "event_name" in msg_info else "None_event_name"
         platform: str = msg_info["platform"] if "platform" in msg_info else "None_platform"
+        reply_data: dict | None = msg_info["reply_data"] if "reply_data" in msg_info else None
+        chat_type: str = msg_info["chat_type"] if "chat_type" in msg_info else "None_chat_type"
 
         if "user" not in msg_info:
             msg_info["user"] = {}
@@ -69,7 +77,7 @@ async def botrun(msg_info):
         if "face_image" in list(msg_info["user"]):
             user_face_image = msg_info["user"]["face_image"]
         elif user_avatar is not None:
-            user_face_image = await connect_api("image", msg_info["user"]["avatar"])
+            user_face_image = msg_info["user"]["avatar"]
         else:
             user_face_image = None
 
@@ -84,13 +92,48 @@ async def botrun(msg_info):
         else:
             command2 = None
 
+        if chat_type != "None_chat_type" and event_name != "None_event_name":
+            if event_name.lower() in ["GROUP_AT_MESSAGE_CREATE", "AT_MESSAGE_CREATE"]:
+                chat_type = "channel"
+            elif event_name.lower() in ["C2C_MESSAGE_CREATE"]:
+                chat_type = "private"
+            else:
+                chat_type = "None_chat_type"
+
+        # 读取回复的消息内容
+        if reply_data is not None:
+            conn = sqlite3.connect(f"{basepath}db/send_msg_log_{date_year}-{date_month}.db")
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                datas = cursor.fetchall()
+                tables = []
+                for data in datas:
+                    if data[1] != "sqlite_sequence":
+                        tables.append(data[1])
+                if "send_msg_log" not in tables:
+                    cursor.execute(
+                        f"create table send_msg_log(id INTEGER primary key AUTOINCREMENT, "
+                        f"msg_id VARCHAR(10), msg_data VARCHAR(10))")
+                cursor.execute(
+                    f'SELECT * FROM send_msg_log WHERE "msg_id" = "{reply_data["message_id"]}"')
+                data = cursor.fetchone()
+                if data is not None:
+                    reply_data["plugin_data"] = json.loads(data[2])
+                else:
+                    reply_data["plugin_data"] = None
+            except Exception as e:
+                logger.error("读取send_msg_log.db失败")
+            cursor.close()
+            conn.close()
+
+        reply_trace = None
         keyboard = None  # 按钮
         markdown = None  # markdown
 
         # 黑白名单
-        # 接下来的if为开发者个人使用，如果不慎上传到github，按照“is None”也会正常运行。
-        if (kn_config("developer_sggg", "black_white_list_platform") is None or
-                platform in kn_config("developer_sggg", "black_white_list_platform")):
+        if (kn_config("plugin", "black_white_list_platform") is not None and
+                platform in kn_config("plugin", "black_white_list_platform")):
             # 频道黑白名单
             if channel_id in kn_config("plugin-channel_black_list"):
                 return {"code": 0, "message": "channel in black list"}  # 结束运行
@@ -146,7 +189,6 @@ async def botrun(msg_info):
         at = False
         code = 0
         cut = False
-        run = True
 
         # 添加函数
         # 查询功能开关
@@ -299,7 +341,10 @@ async def botrun(msg_info):
         # 指令冷却
         def _command_cd():
             if getconfig("commandcd") and user_permission < 7 and user_id not in adminqq:
-                return command_cd(cd_id=channel_id, time_now=time_now)
+                cd = command_cd(cd_id=user_id, time_now=time_now, cd_type="user")
+                if cd is False:
+                    cd = command_cd(cd_id=channel_id, time_now=time_now, cd_type="channel")
+                return cd
             else:
                 return False
 
@@ -324,7 +369,12 @@ async def botrun(msg_info):
                     command = "菜单"
 
                 if command in ["菜单", "开启", "关闭"]:
-                    message, returnpath = plugin_config(command=command, command2=command2, channel_id=channel_id)
+                    message, returnpath = await plugin_config(
+                        command=command,
+                        command2=command2,
+                        channel_id=channel_id,
+                        user_id=user_id
+                    )
                     if message is not None:
                         code = 1
                     elif returnpath is not None:
@@ -374,16 +424,24 @@ async def botrun(msg_info):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath, markdown, keyboard, trace = await plugin_jellyfish_box(
+                    (code,
+                     message,
+                     returnpath,
+                     markdown,
+                     keyboard,
+                     trace,
+                     reply_trace
+                     ) = await plugin_jellyfish_box(
                         user_id=user_id,
                         user_name=user_name,
                         channel_id=channel_id,
                         msg=command,
                         time_now=time_now,
-                        platform=platform
+                        platform=platform,
+                        reply_data=reply_data["plugin_data"] if reply_data is not None else None,
+                        channel_member_datas=channel_member_datas
                     )
-                    for t in trace:
-                        trace_data["plugin"].append(t)
+                    trace_data["plugin"].extend(trace)
             elif "今日老婆" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -403,8 +461,42 @@ async def botrun(msg_info):
                     code = data["code"]
                     message = data["message"]
                     returnpath = data["returnpath"]
-                    for t in data["trace"]:
-                        trace_data["plugin"].append(t)
+                    trace_data["plugin"].extend(data["trace"])
+            elif "图库" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    message, images, trace = await plugin_function_pic(
+                        msg=msg,
+                        user_id=user_id,
+                    )
+
+                    if message is None and images is None:
+                        code = 0
+                    elif images is None:
+                        code = 1
+                    elif message is None:
+                        code = 2
+                        returnpath = images[0]
+                    elif len(images) == 1:
+                        code = 3
+                        returnpath = images[0]
+                    elif len(images) == 2:
+                        code = 4
+                        returnpath = images[0]
+                        returnpath2 = images[1]
+                    elif len(images) == 3:
+                        code = 5
+                        returnpath = images[0]
+                        returnpath2 = images[1]
+                        returnpath3 = images[2]
+
+                    trace = []
+                    trace_data["plugin"].extend(trace)
 
         elif commandname.startswith("表情功能-") and botswitch is True:
             commandname = commandname.removeprefix("表情功能-")
@@ -423,7 +515,6 @@ async def botrun(msg_info):
                         code = 1
                     else:
                         code = 2
-
             elif "喜报" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -432,9 +523,15 @@ async def botrun(msg_info):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
+
+                    if kn_config("content_compliance", "state") is True:
+                        content_compliance_data = await content_compliance("text", command2, user_id=user_id)
+                        if content_compliance_data["conclusion"] in ["不合规"]:
+                            command2 = "message"
+                            trace_data["content_compliance"].append(content_compliance_data)
+
                     returnpath = await plugin_emoji_xibao(command, command2, imgmsgs)
                     code = 2
-
             elif "一直" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -448,7 +545,6 @@ async def botrun(msg_info):
                     else:
                         returnpath = await plugin_emoji_yizhi(user_avatar)
                     code = 2
-
             elif "可爱" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -461,13 +557,13 @@ async def botrun(msg_info):
                     name1 = user_name
 
                     at_data = at_datas[0] if at_datas else None
-                    if command2 is not None:
+                    if command2 is not None and not at_datas:
                         name2 = command2
-                    elif at_datas and "name" in list(at_data):
+                    elif at_datas and "username" in list(at_data):
                         if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
                             name2 = at_data["nick_name"]
                         else:
-                            name2 = at_data["name"]
+                            name2 = at_data["username"]
                     else:
                         name2 = "ta"
 
@@ -486,7 +582,6 @@ async def botrun(msg_info):
                     if image is not None:
                         returnpath = await plugin_emoji_keai(image, name2)
                         code = 2
-
             elif "结婚" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -499,13 +594,13 @@ async def botrun(msg_info):
                     name1 = user_name
 
                     at_data = at_datas[0] if at_datas else None
-                    if command2 is not None:
+                    if command2 is not None and not at_datas:
                         name2 = command2
-                    elif at_datas and "name" in list(at_data):
+                    elif at_datas and "username" in list(at_data):
                         if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
                             name2 = at_data["nick_name"]
                         else:
-                            name2 = at_data["name"]
+                            name2 = at_data["username"]
                     else:
                         name2 = " "
 
@@ -524,7 +619,6 @@ async def botrun(msg_info):
                     if image is not None:
                         returnpath = await plugin_emoji_jiehun(image, name1, name2)
                         code = 2
-
             elif "摸摸" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -537,13 +631,13 @@ async def botrun(msg_info):
                     name1 = user_name
 
                     at_data = at_datas[0] if at_datas else None
-                    if command2 is not None:
+                    if command2 is not None and not at_datas:
                         name2 = command2
-                    elif at_datas and "name" in list(at_data):
+                    elif at_datas and "username" in list(at_data):
                         if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
                             name2 = at_data["nick_name"]
                         else:
-                            name2 = at_data["name"]
+                            name2 = at_data["username"]
                     else:
                         name2 = " "
 
@@ -560,7 +654,148 @@ async def botrun(msg_info):
                         image = None
 
                     if image is not None:
-                        returnpath = await plugin_emoji_momo(image)
+                        returnpath = await plugin_emoji_momo(image, cachepath)
+                        code = 2
+            elif "逮捕" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+
+                    name1 = user_name
+
+                    at_data = at_datas[0] if at_datas else None
+                    if command2 is not None and not at_datas:
+                        name2 = command2
+                    elif at_datas and "username" in list(at_data):
+                        if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
+                            name2 = at_data["nick_name"]
+                        else:
+                            name2 = at_data["username"]
+                    else:
+                        name2 = "ta"
+
+                    if imgmsgs:
+                        image = imgmsgs[0]
+                    elif at_datas:
+                        if "face_image" in list(at_data):
+                            image = at_data["face_image"]
+                        elif "avatar" in list(at_data):
+                            image = at_data["avatar"]
+                        else:
+                            image = None
+                    else:
+                        image = None
+
+                    if image is not None:
+                        returnpath = await plugin_emoji_daibu(image, name2)
+                        code = 2
+            elif "寄" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    returnpath = await plugin_emoji_ji()
+                    code = 2
+            elif "急" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    returnpath = await plugin_emoji_ji2()
+                    code = 2
+            elif "爬" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+                    returnpath = await plugin_emoji_pa()
+                    code = 2
+            elif "我老婆" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+
+                    image = user_face_image
+
+                    at_data = at_datas[0] if at_datas else None
+                    if command2 is not None and not at_datas:
+                        name2 = command2
+                    elif at_datas and "username" in list(at_data):
+                        if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
+                            name2 = at_data["nick_name"]
+                        else:
+                            name2 = at_data["username"]
+                    else:
+                        name2 = "ta"
+
+                    if imgmsgs:
+                        image2 = imgmsgs[0]
+                    elif at_datas:
+                        if "face_image" in list(at_data):
+                            image2 = at_data["face_image"]
+                        elif "avatar" in list(at_data):
+                            image2 = at_data["avatar"]
+                        else:
+                            image2 = None
+                    else:
+                        image2 = None
+
+                    if image is not None and image2 is not None:
+                        returnpath = await plugin_emoji_wlp(image, image2, name2)
+                        code = 2
+            elif "结婚证--" == commandname and getconfig(commandname):
+                commandcd = _command_cd()
+                if commandcd is not False:
+                    code = 1
+                    message = f"指令冷却中（{commandcd}s)"
+                    logger.info("指令冷却中")
+                else:
+                    logger.info(f"run-{commandname}")
+
+                    image = user_face_image
+
+                    at_data = at_datas[0] if at_datas else None
+                    if command2 is not None and not at_datas:
+                        name2 = command2
+                    elif at_datas and "username" in list(at_data):
+                        if "nick_name" in list(at_data) and at_data["nick_name"] is not None:
+                            name2 = at_data["nick_name"]
+                        else:
+                            name2 = at_data["username"]
+                    else:
+                        name2 = "ta"
+
+                    if imgmsgs:
+                        image2 = imgmsgs[0]
+                    elif at_datas:
+                        if "face_image" in list(at_data):
+                            image2 = at_data["face_image"]
+                        elif "avatar" in list(at_data):
+                            image2 = at_data["avatar"]
+                        else:
+                            image2 = None
+                    else:
+                        image2 = None
+
+                    if image is not None and image2 is not None:
+                        returnpath = await plugin_emoji_wlp(image, image2, name2)
                         code = 2
 
         elif commandname.startswith("小游戏") and botswitch is True:
@@ -623,14 +858,12 @@ async def botrun(msg_info):
                     message = data["message"]
                     returnpath = data["returnpath"]
                     returnpath2 = data["returnpath2"]
-                    for t in data["trace"]:
-                        trace_data["plugin"].append(t)
+                    trace_data["plugin"].extend(data["trace"])
 
         elif "###" == commandname:
             pass
 
         # 返回消息处理
-        locked()
         return_json = {
             "code": code,
             "message": message,
@@ -641,6 +874,7 @@ async def botrun(msg_info):
             "keyboard": keyboard,
             "markdown": markdown,
             "trace": trace_data,
+            "reply_trace": reply_trace,
             }
 
     except Exception as e:
@@ -651,6 +885,14 @@ async def botrun(msg_info):
 
         logger.error(e)
         logger.error(traceback.format_exc())
+
+    # 合规检测
+    # if return_json["code"] in [1, 3, 4, 5]:
+    #     if kn_config("content_compliance", "state") is True:
+    #         content_compliance_data = await content_compliance("text", return_json["message"], user_id=user_id)
+    #         if content_compliance_data["conclusion"] in ["不合规"]:
+    #             return_json["message"] = "message"
+    #             trace_data["content_compliance"].append(content_compliance_data)
 
     # 日志记录
     if kn_config("plugin", "log") is True:
@@ -682,12 +924,15 @@ async def botrun(msg_info):
             cursor.execute(sql_text)
             conn.commit()
         except Exception as e:
+            logger.error("写入日志失败（1/3）")
+            logger.error(e)
             try:
                 cursor.execute(
                     f'replace into "log" ("time","input") '
                     f"values('{time_now}','{json.dumps({'code': -2})}')")
                 conn.commit()
             except Exception as e:
+                logger.error("写入日志失败（2/3）")
                 logger.error(e)
                 path = f"{basepath}cache/log/"
                 if not os.path.exists(path):

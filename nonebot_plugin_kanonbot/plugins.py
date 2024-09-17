@@ -7,16 +7,19 @@ from nonebot import logger
 import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, _jellyfish_box_datas, jellyfish_box_draw_config
-from .tools import kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
+from .tools import (kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background, \
     circle_corner, get_command, get_unity_user_data, json_to_str, _config, imgpath_to_url, del_files2, \
-    statistics_list, get_unity_user_id, get_image_path, load_image, list_in_list
+    statistics_list, get_unity_user_id, get_image_path, load_image, list_in_list, get_file_path_v2, images_to_gif,
+    kn_cache)
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
-kn_cache = {}
+test_id = "KnTest"
+
+run = True  # 代码折叠助手
 
 
 async def plugin_zhanbu(user_id, cachepath):
@@ -191,11 +194,16 @@ async def plugin_jellyfish_box(
         channel_id: str,
         msg: str,
         time_now: int,
-        platform: str = "None"):
+        platform: str = "None",
+        reply_data: dict | None = None,
+        channel_member_datas=None
+):
     """
     群聊功能-水母箱
     :return:
     """
+    if channel_member_datas is None:
+        channel_member_datas = {}
     """
     命令列表：
     水母箱：总命令，输入可查看水母箱和相关指令列表
@@ -206,6 +214,7 @@ async def plugin_jellyfish_box(
     换水: 恢复水质状态（未实装）
     丢弃: 丢弃指定水母
     装饰: 开启装饰模式指令（未实装）
+    拜访水母箱: 拜访其他人的水母箱（未实装）
     结束: 关闭水母箱对话进程（未实装）
     """
     # 指令解析
@@ -222,6 +231,10 @@ async def plugin_jellyfish_box(
     returnpath = None
     markdown = None
     keyboard = None
+    reply_trace = {
+        "plugin_name": "群聊功能-水母箱",
+        "data": {}
+    }
     trace = []  # 用于日志记录插件运行内容
     jellyfish_group_list = ["perfect", "great", "good", "normal", "special", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
@@ -232,9 +245,12 @@ async def plugin_jellyfish_box(
     medal_datas = jellyfish_box_datas["medal_datas"]  # 所有勋章
     user_data = get_unity_user_data(user_id)
 
-    date_y: str = time.strftime("%Y", time.localtime(time_now))
-    date_m: str = time.strftime("%m", time.localtime(time_now))
-    date_d: str = time.strftime("%d", time.localtime(time_now))
+    if user_id == test_id:
+        # time_now = 1615439118
+        pass
+    date_y: int = int(time.strftime("%Y", time.localtime(time_now)))
+    date_m: int = int(time.strftime("%m", time.localtime(time_now)))
+    date_d: int = int(time.strftime("%d", time.localtime(time_now)))
     time_h: int = int(time.strftime("%H", time.localtime(time_now)))
 
     # 加载缓存
@@ -309,8 +325,9 @@ async def plugin_jellyfish_box(
     except:
         logger.error("水母箱读取用户数据出错")
         data = "error"
-    cursor.close()
-    conn.close()
+    finally:
+        cursor.close()
+        conn.close()
 
     if data is None:
         box_data = {
@@ -326,6 +343,8 @@ async def plugin_jellyfish_box(
             "temperature": 25,  # 温度
             "draw_style": "normal"  # 绘制风格
         }
+    elif data == "error":
+        raise "获取水母箱数据错误"
     else:
         box_data = json.loads(data[1])
 
@@ -387,13 +406,18 @@ async def plugin_jellyfish_box(
         "06-26": "birthday_uika",
         "06-01": "birthday_祐天寺若麦",
     }
-    if f"{date_m}-{date_d}" in list(draw_model_list):
+    if f"{date_m}-{date_d}-del" in list(draw_model_list):
         draw_model = draw_model_list[f"{date_m}-{date_d}"]
     else:
         draw_model = "normal"
 
     if "draw_model" in list(box_data) and draw_model == "normal":
         draw_model = box_data["draw_model"]
+
+    if user_id == test_id:
+        box_data["draw_model"] = draw_model = "starlight"
+        draw_dark_model = False
+        logger.info(f"(draw_model, {draw_model})(draw_dark_model, {draw_dark_model})(time_h, {time_h})")
 
     draw_config = jellyfish_box_draw_config(draw_model, draw_dark_model)
 
@@ -415,6 +439,9 @@ async def plugin_jellyfish_box(
 
     trace.append(f"将刷新{refresh_period}次")
 
+    if user_id == test_id:
+        refresh = True
+        refresh_period = 1
     if refresh:
         # 更新数据
         logger.debug("正在刷新水母箱")
@@ -480,7 +507,15 @@ async def plugin_jellyfish_box(
                         box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
 
             for jellyfish_id in list(new):
-                pass
+                if user_id == test_id:
+                    pass
+                    # news.append({
+                    #     "icon": None,
+                    #     "title": "水母繁殖",
+                    #     "message": f"{jellyfish_datas[jellyfish_id]['name']} 增加了 {new[jellyfish_id]}只"})
+                    # box_data["jellyfish"][jellyfish_id]["number"] += new[jellyfish_id]
+                trace.append(f"水母繁殖，trace， ”{jellyfish_id}“增加{new[jellyfish_id]}只")
+
             # 按周期更新数据
             while refresh_period > 0:
                 refresh_period -= 1
@@ -862,7 +897,7 @@ async def plugin_jellyfish_box(
 
             # 读取水母图片
             file_path = await get_file_path(f"plugin-jellyfish_box-{jellyfish_id}.png")
-            jellyfish_image = Image.open(file_path, "r")
+            jellyfish_image = await load_image(file_path)
             jellyfish_image = jellyfish_image.resize((j_size, j_size))
 
             # 绘制旋转
@@ -911,7 +946,7 @@ async def plugin_jellyfish_box(
                 if draw_config["jellyfish"]["jellyfish_foreground"] is not None:
                     choose_foreground = random.choice(draw_config['jellyfish']['jellyfish_foreground'])
                     file_path = await get_file_path(f"plugin-jellyfish_box-{choose_foreground}.png")
-                    foreground_image = Image.open(file_path, "r")
+                    foreground_image = await load_image(file_path)
                     foreground_image = foreground_image.resize((j_size, j_size))
                     paste_image.paste(foreground_image, (0, 0), mask=foreground_image)
 
@@ -925,6 +960,8 @@ async def plugin_jellyfish_box(
             return await draw_jellyfish_box_freehand(draw_box, draw_title)
         elif draw_model == "text":
             return await draw_jellyfish_box_text(draw_box, draw_title)
+        elif draw_model == "starlight":
+            return await draw_jellyfish_box_starlight(draw_box, draw_title)
         else:
             return await draw_jellyfish_box_normal(draw_box, draw_title)
 
@@ -1130,10 +1167,8 @@ async def plugin_jellyfish_box(
             try:
                 if user_avatar in [None, "None", "none"]:
                     user_image = await draw_text("图片", 50, 10)
-                elif user_avatar.startswith("http"):
-                    user_image = await connect_api("image", user_avatar)
                 else:
-                    user_image = Image.open(user_avatar, "r")
+                    user_image = await load_image(user_avatar, (50, 10))
             except Exception as e:
                 user_image = await draw_text("头像", 50, 10)
                 logger.error(f"获取图片出错:{e}")
@@ -1160,7 +1195,7 @@ async def plugin_jellyfish_box(
 
             if draw_config['jellyfish']['box_background'] is not None:
                 path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_background']}.png")
-                paste_image = Image.open(path, "r")
+                paste_image = await load_image(path)
                 image.paste(paste_image, (0, draw_y - 45), paste_image)
 
             paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
@@ -1168,7 +1203,7 @@ async def plugin_jellyfish_box(
 
             if draw_config['jellyfish']['box_foreground'] is not None:
                 path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_foreground']}.png")
-                paste_image = Image.open(path, "r")
+                paste_image = await load_image(path)
                 image.paste(paste_image, (0, draw_y - 45), paste_image)
 
             draw_x += 754
@@ -1194,7 +1229,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -1223,13 +1258,13 @@ async def plugin_jellyfish_box(
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((248, 248))
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
 
                 # 添加水母背景
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
@@ -1311,13 +1346,13 @@ async def plugin_jellyfish_box(
                 paste_image = circle_corner(paste_image, 18)
                 paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((248, 248))
                 paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
 
                 # 添加水母背景
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
@@ -1393,7 +1428,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -1466,7 +1501,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -1595,7 +1630,7 @@ async def plugin_jellyfish_box(
         draw = ImageDraw.Draw(image)
         # 添加底色
         file_path = await get_image_path(f"jellyfish_box-freehand_background.png")
-        paste_image = Image.open(file_path, "r")
+        paste_image = await load_image(file_path)
         image.paste(paste_image, (0, 0), paste_image)
         if y > 2000:
             image.paste(paste_image, (0, 2000), paste_image)
@@ -1633,7 +1668,7 @@ async def plugin_jellyfish_box(
                 elif user_avatar.startswith("http"):
                     user_image = await connect_api("image", user_avatar)
                 else:
-                    user_image = Image.open(user_avatar, "r")
+                    user_image = await load_image(user_avatar)
             except Exception as e:
                 user_image = await draw_text("头像", 50, 10)
                 logger.error(f"获取图片出错:{e}")
@@ -1652,14 +1687,14 @@ async def plugin_jellyfish_box(
             y = 563  # 卡片长度
 
             file_path = await get_image_path(f"jellyfish_box-freehand_box_background.png")
-            paste_alpha = Image.open(file_path, "r")
+            paste_alpha = await load_image(file_path)
             paste_alpha = paste_alpha.resize((x, y))
             paste_image = Image.new("RGBA", (x, y), draw_config["color"]["box_bg"])
             image.paste(paste_image, (draw_x, draw_y), paste_alpha)
 
             if draw_config['jellyfish']['box_background'] is not None:
                 path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_background']}.png")
-                paste_image = Image.open(path, "r")
+                paste_image = await load_image(path)
                 image.paste(paste_image, (0, draw_y - 45), paste_image)
 
             paste_image = await draw_jellyfish((x - 6 - 40, y - 6 - 40))  # 水母们
@@ -1667,7 +1702,7 @@ async def plugin_jellyfish_box(
 
             if draw_config['jellyfish']['box_foreground'] is not None:
                 path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_foreground']}.png")
-                paste_image = Image.open(path, "r")
+                paste_image = await load_image(path)
                 image.paste(paste_image, (0, draw_y - 45), paste_image)
 
             draw_x += 754
@@ -1688,7 +1723,7 @@ async def plugin_jellyfish_box(
 
             # 开始绘制卡片
             file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
-            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = await load_image(file_path)
             paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
             paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
@@ -1701,7 +1736,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -1730,13 +1765,13 @@ async def plugin_jellyfish_box(
                 # paste_image = circle_corner(paste_image, 18)
                 # paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((248, 248))
                 paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
 
                 # 添加水母背景
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
@@ -1795,7 +1830,7 @@ async def plugin_jellyfish_box(
 
             # 开始绘制卡片
             file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
-            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = await load_image(file_path)
             paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
             paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
@@ -1824,13 +1859,13 @@ async def plugin_jellyfish_box(
                 # paste_image = circle_corner(paste_image, 18)
                 # paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((248, 248))
                 paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
 
                 # 添加水母背景
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
-                paste_image = Image.open(file_path, "r")
+                paste_image = await load_image(file_path)
                 paste_image = paste_image.resize((575, 575))
                 paste_image = paste_image.rotate(30)
                 color = (
@@ -1903,7 +1938,7 @@ async def plugin_jellyfish_box(
             draw_event_y = 0
 
             file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
-            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = await load_image(file_path)
             paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
             paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
@@ -1913,7 +1948,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -1982,7 +2017,7 @@ async def plugin_jellyfish_box(
             draw_event_y = 0
 
             file_path = await get_image_path(f"jellyfish_box-freehand_card_background.png")
-            paste_card_alpha = Image.open(file_path, "r")
+            paste_card_alpha = await load_image(file_path)
             paste_card_alpha = paste_card_alpha.resize((card_x, card_y))
             paste_card_image = Image.new("RGBA", (card_x, card_y), draw_config["color"]["card"])
             image.paste(paste_card_image, (draw_x, draw_y), paste_card_alpha)
@@ -1993,7 +2028,7 @@ async def plugin_jellyfish_box(
             if draw_config["jellyfish"]["card_background"] is not None:
                 choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
                 path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
-                card_background = Image.open(path, "r")
+                card_background = await load_image(path)
                 paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
 
             # 添加标题
@@ -2031,6 +2066,493 @@ async def plugin_jellyfish_box(
                 draw_event_y += paste_image.size[1] + 15
 
             # paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (43, draw_y), paste_card_image)
+            draw_event_y += 20  # 卡片结尾高度
+
+            draw_x += 0
+            draw_y += draw_event_y  # 卡片高度
+
+        return save_image(image)
+
+    async def draw_jellyfish_box_starlight(draw_box=True, draw_title=None) -> str:
+        """
+        绘制状态图
+        :return: 图片路径 save_image(image)
+        """
+        """
+        内容：
+        :param bd: 水母箱数据 user_box_data
+        :param news: 新增的水母列表
+        :param new_jellyfish: 新闻列表，显示最近的动态
+        :param command_prompt_list: 指令列表，建议可以输入的指令
+        """
+        font_path = await get_file_path("caerw01.ttf")
+
+        # 计算长度
+        x = 1000
+        y = 0
+        # 添加基础高度（图片头）
+        y += 258
+        # 添加水母箱高度
+        if draw_box is True:
+            y += 563
+        # 添加新水母高度
+        if len(new_jellyfish) > 0:
+            y += 36  # 空行
+            y += 33  # 标题
+            for data in new_jellyfish:
+                y += 261
+            y += 14  # 结尾
+        # 添加水母图鉴
+        if len(jellyfish_menu) > 0:
+            y += 36  # 空行
+            y += 33  # 标题
+            for data in jellyfish_menu:
+                y += 261
+            y += 14  # 结尾
+        # 添加事件高度
+        if len(news) > 0:
+            y += 20  # 空行
+            y += 60  # 标题
+            for data in news:
+                y += 20  # 空行
+                y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                y += h + 15  # 事件介绍
+            y += 60  # 结尾
+        # 添加指令提示高度
+        if len(command_prompt_list) > 0:
+            y += 20  # 空行
+            y += 60  # 事件标题
+            for data in command_prompt_list:
+                y += 20  # 空行
+                y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                y += h + 15  # 事件介绍
+            y += 60  # 结尾
+        # 添加图片尾
+        y += 43
+
+        # 创建底图
+        image = Image.new("RGB", (x, y), draw_config["color"]["bg"])
+        draw = ImageDraw.Draw(image)
+        # 添加底色
+        file_path = await get_image_path(f"jellyfish_box-starlight_background.png")
+        paste_image = await load_image(file_path)
+        image.paste(paste_image, (0, 0), paste_image)
+        # 绘制内容
+        # 添加背景大字
+        draw_x = 0
+        draw_y = 0
+        font = ImageFont.truetype(font=font_path, size=300)
+        draw.text(
+            xy=(draw_x + 136, draw_y + 28),
+            text=draw_config["text"]["背景大字"],
+            fill=draw_config["color"]["背景大字"],
+            font=font)
+
+        # 添加时间
+        text = f"{datetime.fromtimestamp(time_now)}"[0:10]
+        font = ImageFont.truetype(font=font_path, size=40)
+        draw.text(xy=(draw_x + 64, draw_y + 68), text=text, fill=draw_config["color"]["date"], font=font)
+
+        # 添加标题
+        if draw_title is None:
+            text = user_name
+        else:
+            text = draw_title
+        font = ImageFont.truetype(font=font_path, size=70)
+        draw.text(xy=(draw_x + 54, draw_y + 112), text=text, fill=draw_config["color"]["name"], font=font)
+
+        # 绘制头像
+        if "face_image" in list(user_data) and draw_title is None:
+            user_avatar = user_data["face_image"]
+            try:
+                if user_avatar in [None, "None", "none"]:
+                    user_image = await draw_text("图片", 50, 10)
+                elif user_avatar.startswith("http"):
+                    user_image = await connect_api("image", user_avatar)
+                else:
+                    user_image = await load_image(user_avatar)
+            except Exception as e:
+                user_image = await draw_text("头像", 50, 10)
+                logger.error(f"获取图片出错:{e}")
+            user_image = user_image.resize((158, 158))
+            user_image = circle_corner(user_image, 79)
+            paste_image = Image.new("RGB", (160, 160), (255, 255, 255))
+            paste_image = circle_corner(paste_image, 80)
+            image.paste(paste_image, (draw_x + 744, draw_y + 62), paste_image)
+            image.paste(user_image, (draw_x + 745, draw_y + 63), user_image)
+
+        draw_x += 43
+        draw_y += 258
+        # 添加水母箱
+        if draw_box is True:
+            x = 914  # 卡片宽度
+            y = 563  # 卡片长度
+
+            if draw_config['jellyfish']['box_background'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_background']}.png")
+                paste_image = await load_image(path)
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
+
+            paste_image = await draw_jellyfish((x - 6, y - 6))  # 水母们
+            image.paste(paste_image, (draw_x + 3, draw_y + 3), paste_image)
+
+            if draw_config['jellyfish']['box_foreground'] is not None:
+                path = await get_file_path(f"plugin-jellyfish_box-{draw_config['jellyfish']['box_foreground']}.png")
+                paste_image = await load_image(path)
+                image.paste(paste_image, (0, draw_y - 45), paste_image)
+
+            draw_x += 754
+            draw_y += 0
+            # 添加水母箱状态
+
+            draw_x -= 754
+            draw_y += 563
+
+        # 添加新水母
+        if len(new_jellyfish) > 0:
+            draw_y += 36  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 69  # 卡片长度 标题
+            for data in new_jellyfish:
+                card_y += 261  # 卡片长度 水母
+            card_y += 14  # 卡片长度 结尾
+
+            # 开始绘制卡片
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
+            draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = await load_image(path)
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            font = ImageFont.truetype(font=font_path, size=50)
+            draw.text(
+                xy=(32, 20),
+                text=draw_config["text"]["新水母_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+            # 添加水母
+            card_num = -1
+            for data in new_jellyfish:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None:
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_number = data["number"]
+                j_message = data["message"]
+                card_num += 1
+                # 添加水母图标
+                paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
+                paste_image = circle_corner(paste_image, 24)
+                paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
+                paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
+                paste_image = circle_corner(paste_image, 18)
+                paste_card_image.paste(paste_image, (11 + 7, 69 + 20 + (card_num * 261) + 7), paste_image)
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = await load_image(file_path)
+                paste_image = paste_image.resize((248, 248))
+                paste_card_image.paste(paste_image, (11, 69 + 20 + (card_num * 261)), paste_image)
+
+                # 添加水母背景
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = await load_image(file_path)
+                paste_image = paste_image.resize((575, 575))
+                paste_image = paste_image.rotate(30)
+                color = (
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
+                    102,
+                )
+                mask_image = Image.new("RGBA", (575, 575), color)
+                mask_image.paste(paste_image, (0, 0), mask_image)
+                paste_card_image.paste(mask_image, (542, -27 + (card_num * 261)), paste_image)
+
+                # 添加水母名字
+                font = ImageFont.truetype(font=font_path, size=50)
+                draw.text(xy=(278, 95 + (card_num * 261)), text=j_name,
+                          fill=draw_config["color"]["event_title"], font=font)
+
+                # 添加水母分组
+                font = ImageFont.truetype(font=font_path, size=40)
+                draw.text(
+                    xy=(278 + 150, 152 + (card_num * 261)), text=f"分组：",
+                    fill=draw_config["color"]["event_message"], font=font)
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
+                else:
+                    color = draw_config["color"]["event_message"]
+                draw.text(
+                    xy=(278 + 150 + 120, 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
+
+                # 添加水母数量
+                font = ImageFont.truetype(font=font_path, size=40)
+                draw.text(
+                    xy=(278, 152 + (card_num * 261)), text=f"x{j_number}",
+                    fill=draw_config["color"]["event_message"], font=font)
+
+                # 添加消息
+                font = ImageFont.truetype(font=font_path, size=40)
+                draw.text(xy=(278, 200 + (card_num * 261)), text=j_message,
+                          fill=draw_config["color"]["event_message"], font=font)
+
+            paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
+
+            draw_x += 0
+            draw_y += card_y  # 卡片高度
+
+        # 添加水母图鉴
+        if len(jellyfish_menu) > 0:
+            draw_y += 0  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 33  # 卡片长度 标题
+            for data in jellyfish_menu:
+                card_y += 261  # 卡片长度 水母
+            card_y += 14  # 卡片长度 结尾
+
+            # 开始绘制卡片
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
+            draw = ImageDraw.Draw(paste_card_image)
+            # 添加标题
+            # font = ImageFont.truetype(font=font_shsk_B_path, size=50)
+            # draw.text(xy=(32, 20), text="新增水母", fill=draw_config["color"]["title"], font=font)
+            # 添加水母
+            card_num = -1
+            for data in jellyfish_menu:
+                j_id = data["id"]
+                if draw_config["jellyfish"]["replace_jellyfish"] is not None and (
+                        draw_title is None or draw_title in ["水母统计表"]):
+                    j_id = random.choice(draw_config["jellyfish"]["replace_jellyfish"])
+                j_name = data["name"]
+                j_group = data["group"]
+                j_message = data["message"]
+                card_num += 1
+                # 添加水母图标
+                paste_image = Image.new("RGB", (248, 248), draw_config["color"]["icon_outline"])
+                paste_image = circle_corner(paste_image, 24)
+                paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
+                paste_image = Image.new("RGB", (234, 234), draw_config["color"]["icon_bg"])
+                paste_image = circle_corner(paste_image, 18)
+                paste_card_image.paste(paste_image, (11 + 7, 0 + 20 + (card_num * 261) + 7), paste_image)
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = await load_image(file_path)
+                paste_image = paste_image.resize((248, 248))
+                paste_card_image.paste(paste_image, (11, 0 + 20 + (card_num * 261)), paste_image)
+
+                # 添加水母背景
+                file_path = await get_file_path(f"plugin-jellyfish_box-{j_id}.png")
+                paste_image = await load_image(file_path)
+                paste_image = paste_image.resize((575, 575))
+                paste_image = paste_image.rotate(30)
+                color = (
+                    int(draw_config["color"]["icon_bg"][1:3], 16),
+                    int(draw_config["color"]["icon_bg"][3:5], 16),
+                    int(draw_config["color"]["icon_bg"][5:7], 16),
+                    102,
+                )
+                mask_image = Image.new("RGBA", (575, 575), color)
+                mask_image.paste(paste_image, (0, 0), mask_image)
+                paste_card_image.paste(mask_image, (542, -69 - 27 + (card_num * 261)), paste_image)
+
+                # 添加水母名字
+                font = ImageFont.truetype(font=font_path, size=50)
+                draw.text(xy=(278, -69 + 95 + (card_num * 261)), text=j_name,
+                          fill=draw_config["color"]["event_title"], font=font)
+
+                # 添加水母分组
+                font = ImageFont.truetype(font=font_path, size=40)
+                draw.text(
+                    xy=(278, -69 + 152 + (card_num * 261)),
+                    text=f"分组：",
+                    fill=draw_config["color"]["event_message"],
+                    font=font)
+                if j_group in list(draw_config["color"]["group_color"]):
+                    color = draw_config["color"]["group_color"][j_group]
+                else:
+                    color = draw_config["color"]["event_message"]
+                draw.text(
+                    xy=(278 + 120, -69 + 152 + (card_num * 261)), text=j_group,
+                    fill=color, font=font)
+
+                # 添加消息
+                paste_text = await draw_text(
+                    texts=f"简介：{j_message}",
+                    size=40,
+                    textlen=12,
+                    fontfile=font_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_text, (278, -69 + 200 + (card_num * 261)), paste_text)
+
+            paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (draw_x, draw_y), paste_card_image)
+
+            draw_x += 0
+            draw_y += card_y  # 卡片高度
+
+        # 添加事件
+        if len(news) > 0:
+            draw_y += 20  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 60  # 卡片长度 标题
+            for data in news:
+                card_y += 20  # 空行
+                card_y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
+
+            # 开始绘制卡片
+            draw_event_y = 0
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
+            draw = ImageDraw.Draw(paste_card_image)
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = await load_image(path)
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            draw_event_y += 20
+            font = ImageFont.truetype(font=font_path, size=45)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config["text"]["事件_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+
+            # 添加事件
+            draw_event_y += 55
+            event_num = -1
+            for data in news:
+                event_num += 1
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+
+                # 添加标题
+                font = ImageFont.truetype(font=font_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
+                          font=font)
+                draw_event_y += 52  # 标题高度
+
+                # 添加消息
+                paste_image = await draw_text(
+                    message,
+                    size=35,
+                    textlen=21,
+                    fontfile=font_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
+                draw_event_y += paste_image.size[1] + 15
+
+            paste_card_image = circle_corner(paste_card_image, 30)
+            image.paste(paste_card_image, (43, draw_y), paste_card_image)
+            draw_event_y += 20  # 卡片结尾高度
+
+            draw_x += 0
+            draw_y += draw_event_y  # 卡片高度
+
+        # 添加指令介绍
+        if len(command_prompt_list) > 0:
+            draw_y += 20  # 空行
+            card_x = 914  # 卡片宽度
+            card_y = 60  # 卡片长度 标题
+            for data in command_prompt_list:
+                card_y += 20  # 空行
+                card_y += 22  # 事件标题
+                paste_image = await draw_text(
+                    data["message"],
+                    size=35,
+                    textlen=21,
+                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf"),
+                    text_color=draw_config["color"]["event_message"],
+                    calculate=True
+                )
+                w, h = paste_image.size
+                card_y += h + 15  # 事件介绍
+            card_y += 30  # 结尾
+
+            # 开始绘制卡片
+            draw_event_y = 0
+            paste_card_image = Image.new("RGB", (card_x, card_y), draw_config["color"]["card"])
+            draw = ImageDraw.Draw(paste_card_image)
+
+            if draw_config["jellyfish"]["card_background"] is not None:
+                choose_card_background = random.choice(draw_config['jellyfish']['card_background'])
+                path = await get_file_path(f"plugin-jellyfish_box-{choose_card_background}.png")
+                card_background = await load_image(path)
+                paste_card_image.paste(card_background, (0, card_y - card_background.size[1]), card_background)
+
+            # 添加标题
+            draw_event_y += 20
+            font = ImageFont.truetype(font=font_path, size=45)
+            draw.text(
+                xy=(32, draw_event_y),
+                text=draw_config["text"]["指令_标题"],
+                fill=draw_config["color"]["title"],
+                font=font)
+
+            # 添加事件
+            draw_event_y += 55
+            event_num = -1
+            for data in command_prompt_list:
+                event_num += 1
+                # icon = data["icon"]  # 暂时用不上
+                title = data["title"]
+                message = data["message"]
+
+                # 添加标题
+                font = ImageFont.truetype(font=font_path, size=42)
+                draw.text(xy=(23, draw_event_y), text=title, fill=draw_config["color"]["event_title"],
+                          font=font)
+                draw_event_y += 52  # 标题高度
+
+                paste_image = await draw_text(
+                    message,
+                    size=35,
+                    textlen=21,
+                    fontfile=font_path,
+                    text_color=draw_config["color"]["event_message"]
+                )
+                paste_card_image.paste(paste_image, (23, draw_event_y), paste_image)
+                draw_event_y += paste_image.size[1] + 15
+
+            paste_card_image = circle_corner(paste_card_image, 30)
             image.paste(paste_card_image, (43, draw_y), paste_card_image)
             draw_event_y += 20  # 卡片结尾高度
 
@@ -2108,7 +2630,7 @@ async def plugin_jellyfish_box(
             else:
                 # 随机水母类型
                 group = ["perfect", "great", "good", "normal", "special", "ocean"]
-                if date_m == "05" and date_d == "11":
+                if date_m == 5 and date_d == 11:
                     group_probability = [0.00, 0.05, 0.30, 0.55, 0.10, 0.00]
                 else:
                     group_probability = [0.00, 0.03, 0.25, 0.72, 0.00, 0.00]
@@ -2133,11 +2655,16 @@ async def plugin_jellyfish_box(
                      "group": jellyfish_datas[choose_jellyfish]["group"],
                      "message": f"抓到了{grab_quantity}只"}
                 )
-
+                reply_trace["data"] = {
+                    "抓水母": {
+                        "jellyfish_id": choose_jellyfish,
+                        "number": grab_quantity,
+                        "user": user_id
+                    }}
                 trace.append(f"抓到水母：{choose_jellyfish}， 数量：{grab_quantity}")
 
                 # 节日抓水母事件
-                if date_m == "05" and date_d == "11":
+                if date_m == 5 and date_d == 11:
                     number = random.randint(1, 3)
                     choose_jellyfish = "j31"
                     if "j31" not in list(box_data["jellyfish"]):
@@ -2148,6 +2675,7 @@ async def plugin_jellyfish_box(
                              "group": jellyfish_datas[choose_jellyfish]["group"],
                              "message": f"抓到了{number}只"}
                         )
+                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
                         box_data["jellyfish"]["j31"] = {"number": number}
                     elif box_data["jellyfish"]["j31"]["number"] < 7:
                         if random.randint(0, 5) == 5:
@@ -2158,7 +2686,47 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
+                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
                             box_data["jellyfish"]["j31"]["number"] += number
+                elif (
+                        (date_y == 2024 and date_m == 9 and date_d == 17) or
+                        (date_y == 2025 and date_m == 10 and date_d == 17) or
+                        (date_y == 2026 and date_m == 9 and date_d == 25)
+                ):
+                    number = random.randint(2, 3)
+                    choose_jellyfish = "j16"
+                    if choose_jellyfish not in list(box_data["jellyfish"]):
+                        new_jellyfish.append(
+                            {"id": choose_jellyfish,
+                             "number": number,
+                             "name": jellyfish_datas[choose_jellyfish]["name"],
+                             "group": jellyfish_datas[choose_jellyfish]["group"],
+                             "message": f"抓到了{number}只"}
+                        )
+                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        box_data["jellyfish"][choose_jellyfish] = {"number": number}
+                    elif box_data["jellyfish"][choose_jellyfish]["number"] < 7:
+                        if random.randint(0, 2) == 0:
+                            new_jellyfish.append(
+                                {"id": choose_jellyfish,
+                                 "number": number,
+                                 "name": jellyfish_datas[choose_jellyfish]["name"],
+                                 "group": jellyfish_datas[choose_jellyfish]["group"],
+                                 "message": f"抓到了{number}只"}
+                            )
+                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            box_data["jellyfish"][choose_jellyfish]["number"] += number
+                    else:
+                        if random.randint(0, 5) == 0:
+                            new_jellyfish.append(
+                                {"id": choose_jellyfish,
+                                 "number": number,
+                                 "name": jellyfish_datas[choose_jellyfish]["name"],
+                                 "group": jellyfish_datas[choose_jellyfish]["group"],
+                                 "message": f"抓到了{number}只"}
+                            )
+                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            box_data["jellyfish"][choose_jellyfish]["number"] += number
                 # 写入水母箱数据
                 conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
                 cursor = conn.cursor()
@@ -2166,8 +2734,9 @@ async def plugin_jellyfish_box(
                     cursor.execute(
                         f"replace into 'jellyfish_box' ('user_id','data') values('{user_id}','{json_to_str(box_data)}')")
                     conn.commit()
-                except:
+                except Exception as e:
                     logger.error("水母箱保存用户数据出错")
+                    logger.error(e)
                     news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
                 cursor.close()
                 conn.close()
@@ -2184,14 +2753,15 @@ async def plugin_jellyfish_box(
                     if platform == "qq_Official":
                         if kn_config("plugin_jellyfish_box", "send_markdown"):
                             # 转换图片为md
-                            image = Image.open(returnpath, "r")
+                            image = await load_image(returnpath)
+                            image_url = await imgpath_to_url(returnpath, host='http://txs.kanon.ink:8991')
                             markdown = {
                                 "id": kn_config("plugin", "image_markdown"),
                                 "params": [
                                     {"key": "text", "values": ["img"]},
                                     {"key": "imagex", "values": [f"{int(image.size[0] / 8)}"]},
                                     {"key": "imagey", "values": [f"{int(image.size[1] / 8)}"]},
-                                    {"key": "image", "values": [f"{await imgpath_to_url(returnpath)}"]},
+                                    {"key": "image", "values": [image_url]},
                                 ]
                             }
                             code = 0
@@ -2201,7 +2771,6 @@ async def plugin_jellyfish_box(
                             if (platform != "qq_Official" or
                                     kn_config("plugin_jellyfish_box", "send_markdown") is False):
                                 markdown = {"id": kn_config("plugin", "none_markdown")}
-
     elif command == "水母统计表":
         # 读取水母箱内容并分组
 
@@ -2277,17 +2846,73 @@ async def plugin_jellyfish_box(
                     for cache_data in cache_group:
                         jellyfish_menu.append(cache_data)
                     cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母统计表")
-                    paste_image = Image.open(cache_path, "r")
+                    paste_image = await load_image(cache_path)
                     image.paste(paste_image, ((1000 * num_x), 0))
                     num_x += 1
                 returnpath = save_image(image)
             code = 2
     elif command in ["丢弃", "抛弃", "放生"]:
         if command2 is None:
-            code = 1
-            message = "请添加水母名称以及数量\n例：“/水母箱 丢弃 普通水母 10”"
+            if reply_data is None:
+                code = 1
+                message = "请添加水母名称以及数量\n例：“/水母箱 丢弃 普通水母 10”"
+            elif "抓水母" not in reply_data["data"]:
+                code = 1
+                message = "请添加水母名称和数量\n例：“/水母箱 丢弃 普通水母 10”"
+            else:
+                jellyfish_id = reply_data["data"]["抓水母"]["jellyfish_id"]
+                number = reply_data["data"]["抓水母"]["number"]
+                user = reply_data["data"]["抓水母"]["user"]
+
+                if user != user_id:
+                    code = 1
+                    message = "只能回复自己的水母箱哦"
+                elif jellyfish_id not in list(box_data["jellyfish"]):
+                    code = 1
+                    message = f"水母箱没有{jellyfish_datas[jellyfish_id]['name']}哦"
+                elif box_data["jellyfish"][jellyfish_id]["number"] < number:
+                    code = 1
+                    message = f"水母箱没有这么多{jellyfish_datas[jellyfish_id]['name']}哦"
+                elif box_data["jellyfish"][jellyfish_id]["number"] > number:
+                    box_data["jellyfish"][jellyfish_id]["number"] -= number
+                    code = 1
+                    message = f"成功丢弃{jellyfish_datas[jellyfish_id]['name']}{number}只"
+
+                    # 写入水母箱数据
+                    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute(
+                            f"replace into 'jellyfish_box' ('user_id','data') "
+                            f"values('{user_id}','{json_to_str(box_data)}')")
+                        conn.commit()
+                    except:
+                        logger.error("水母箱保存用户数据出错")
+                        news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                    cursor.close()
+                    conn.close()
+
+                elif box_data["jellyfish"][jellyfish_id]["number"] == number:
+                    box_data["jellyfish"].pop(jellyfish_id)
+                    code = 1
+                    message = f"成功丢弃全部{jellyfish_datas[jellyfish_id]['name']}"
+
+                    # 写入水母箱数据
+                    conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute(
+                            f"replace into 'jellyfish_box' ('user_id','data') "
+                            f"values('{user_id}','{json_to_str(box_data)}')")
+                        conn.commit()
+                    except:
+                        logger.error("水母箱保存用户数据出错")
+                        news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
+                    cursor.close()
+                    conn.close()
+
         else:
-            numbers = ["1", "2", "3", "4", "5", "7", "8", "9", "0"]
+            numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
             command = command2
 
             # 指令解析
@@ -2385,14 +3010,12 @@ async def plugin_jellyfish_box(
                     else:
                         drop_list[jellyfish_list[command]] = 1
                 elif command in jellyfish_group_list:
-                    if len(commands3) > num and type(commands3[num + 1]) is int:
+                    if len(commands3) - 1 > num and type(commands3[num + 1]) is int:
                         if commands3[num + 1] != 0:
                             drop_list[command] = "无法指定数量"
                         else:
                             drop_list[command] = 0
                     else:
-                        logger.warning(len(commands3))
-                        logger.warning(num)
                         drop_list[command] = "无法指定数量-"
                 else:
                     drop_list[command] = "不在水母箱"
@@ -2461,7 +3084,6 @@ async def plugin_jellyfish_box(
                     news.append({"icon": None, "title": "数据库出错", "message": "本次数据不进行保存"})
                 cursor.close()
                 conn.close()
-
     elif command in ["水母图鉴", "图鉴"]:
         # 读取水母箱内容并分组
         # 读取是否有缓存
@@ -2531,7 +3153,7 @@ async def plugin_jellyfish_box(
                         for cache_data in cache_group:
                             jellyfish_menu.append(cache_data)
                         cache_path = await draw_jellyfish_box(draw_box=False, draw_title="水母图鉴")
-                        paste_image = Image.open(cache_path, "r")
+                        paste_image = await load_image(cache_path)
                         image.paste(paste_image, ((1000 * num_x), 0))
                         num_x += 1
                     returnpath = save_image(image)
@@ -2549,6 +3171,9 @@ async def plugin_jellyfish_box(
             "normal": {"name": "默认"},
             "freehand": {"name": "手绘"},
             "text": {"name": "文字"},
+            "starlight": {"name": "星光"},
+            # "box": {"name": "盒子"},  # 3d渲染，类似高清mc
+            # "birthday": {"name": "生日"},  # 生日专用
         }
         if command2 is None:
             code = 1
@@ -2603,9 +3228,13 @@ async def plugin_jellyfish_box(
         code = 2
     elif command == "换水":
         pass
+    elif command == "拜访":
+        pass
     elif command == "水母榜":
         pass
     elif command == "装饰":
+        pass
+    elif command == "拜访水母箱":
         pass
     elif command == "帮助":
         command_prompt_list.append({"title": "/水母箱", "message": "查看水母箱相关"})
@@ -2621,7 +3250,7 @@ async def plugin_jellyfish_box(
         code = 1
         message = "错误命令"
 
-    return code, message, returnpath, markdown, keyboard, trace
+    return code, message, returnpath, markdown, keyboard, trace, reply_trace
 
 
 async def draw_jellyfish_live(
@@ -2677,12 +3306,12 @@ async def draw_jellyfish_live(
         draw = ImageDraw.Draw(image_base)
         # 添加底色
         file_path = await get_image_path(f"jellyfish_box-freehand_background.png")
-        paste_image = Image.open(file_path, "r")
+        paste_image = await load_image(file_path)
         paste_image = paste_image.resize(draw_data["size"])
         image_base.paste(paste_image, (0, 0))
 
         file_path = await get_image_path(f"jellyfish_box-freehand_box_background.png")
-        paste_alpha = Image.open(file_path, "r")
+        paste_alpha = await load_image(file_path)
         paste_alpha = paste_alpha.resize(draw_data["size"])
         paste_image = Image.new("RGBA", draw_data["size"], draw_config["color"]["box_bg"])
         image_base.paste(paste_image, (0, 0), paste_alpha)
@@ -2773,17 +3402,17 @@ async def draw_jellyfish_live(
         logger.debug(f"正在绘制{frame_num}/{image_num}")
 
         image_box = image_base.copy()
-        load_image = "none"
+        load_image_id = "none"
         jellyfish_image = None
         for j_id in list(jellyfish_data):
             j_data = jellyfish_data[j_id]
 
             # 读取水母图片
-            if load_image != j_data['jellyfish_id']:
+            if load_image_id != j_data['jellyfish_id']:
                 file_path = await get_file_path(f"plugin-jellyfish_box-{j_data['jellyfish_id']}.png")
-                jellyfish_image = Image.open(file_path, "r")
+                jellyfish_image = await load_image(file_path)
                 jellyfish_image = jellyfish_image.resize((j_size, j_size))
-                load_image = j_data['jellyfish_id']
+                load_image_id = j_data['jellyfish_id']
             paste_image = jellyfish_image.copy()
 
             # 绘制折叠加速效果
@@ -2862,13 +3491,12 @@ async def draw_jellyfish_live(
                 returnpath = f"{path}{time_now}_{random.randint(1000, 9999)}.gif"
             else:
                 returnpath = f"{path}{user_id}.gif"
-        frames = []
-        png_files = os.listdir(gifcache)
-        for frame_id in range(1, len(png_files) + 1):
-            frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
-            frames.append(frame)
-        frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=1000 / draw_data["frame_rate"],
-                       loop=0, disposal=2)
+
+        await images_to_gif(
+            gifs=gifcache,
+            gif_path=returnpath,
+            duration=1000 / draw_data["frame_rate"],
+        )
         if del_cache is True:
             del_files2(gifcache)
 
@@ -2877,11 +3505,11 @@ async def draw_jellyfish_live(
         return returnpath_list
 
 
-def plugin_config(command: str, command2: str | None, channel_id: str):
+async def plugin_config(command: str, command2: str | None, channel_id: str, plantform: str = None, user_id: str = None):
     # 默认变量 & 插件数据
     message = None
     returnpath = None
-    config_list = _config_list()
+    config_list = _config_list(qq=True) if plantform == "qq_Official" else _config_list()
 
     # 解析参数中的实际命令名称（命令id）
     command_id = None
@@ -2953,10 +3581,7 @@ def plugin_config(command: str, command2: str | None, channel_id: str):
         message = f"{command2}已{command}"
     elif command == "菜单":
         # 查询开启的功能
-        state = {
-            "开启": [],
-            "关闭": []
-        }
+        state = {}
         for command_id in list(config_list):
             cursor.execute(
                 f'SELECT * FROM command_state WHERE "command" = "{command_id}" AND "channel_id" = "{channel_id}"')
@@ -2965,19 +3590,86 @@ def plugin_config(command: str, command2: str | None, channel_id: str):
                 command_state = config_list[command_id]["state"]
             else:
                 command_state = True if data[2] == 1 else False
+
+            config_group = config_list[command_id]["group"]
+            if config_group not in list(state):
+                state[config_group] = {"开启": [], "关闭": []}
+
             if command_state is True:
-                state["开启"].append(command_id)
+                state[config_group]["开启"].append(command_id)
             else:
-                state["关闭"].append(command_id)
-        message = "功能列表：\n已开启的功能：\n"
-        for command_id in state["开启"]:
-            command_name = config_list[command_id]["name"]
-            message += f"{command_name}\n"
-        message += "\n已关闭的功能：\n"
-        for command_id in state["关闭"]:
-            command_name = config_list[command_id]["name"]
-            message += f"{command_name}\n"
-        message = message.removesuffix("\n")
+                state[config_group]["关闭"].append(command_id)
+
+        image_path = await get_file_path_v2("》plugin》help》v1》p1.png")
+        image = await load_image(image_path)
+        x = 53
+        y = 558
+        for config_group in list(state):
+            paste_image = await draw_text(
+                texts=f"- {config_group} -",
+                size=70,
+                fontfile=await get_file_path("YSHaoShenTi-2.ttf"),
+                textlen=20,
+                text_color="#516a8a",
+                calculate=False
+            )
+            image.paste(paste_image, (x, y), mask=paste_image)
+            y += 79
+            num = -1
+            for config_state in state[config_group]:
+                for command_id in state[config_group][config_state]:
+                    if num == -1:
+                        num = 0
+                    elif num == 0:
+                        num = 1
+                        x += 570
+                    else:
+                        num = 0
+                        x -= 570
+                        y += 70
+
+                    paste_image = await draw_text(
+                        texts=config_list[command_id]['message'],
+                        size=50,
+                        textlen=20,
+                        text_color="#000000" if config_state == "开启" else "#a9b0c0",
+                        calculate=False
+                    )
+                    image.paste(paste_image, (x, y), mask=paste_image)
+                if num == 1:
+                    num = 0
+                    x -= 570
+                    y += 60
+                y += 50
+            y += 7
+
+        # message = "功能列表：\n已开启的功能：\n"
+        # num = 0
+        # for command_id in state["开启"]:
+        #     command_name = config_list[command_id]["name"]
+        #     if num == 0:
+        #         num = 1
+        #         message += f"| {command_name} | "
+        #     else:
+        #         num = 0
+        #         message += f"{command_name} |\n"
+        #
+        # message += "\n已关闭的功能：\n"
+        # for command_id in state["关闭"]:
+        #     command_name = config_list[command_id]["name"]
+        #     message += f"{command_name}\n"
+        # message = message.removesuffix("\n")
+
+        if plantform == "qq_Official":
+            message = ("功能列表："
+                       "\n现支持的功能列表"
+                       "\n1.合成emoji"
+                       " 2.猜猜看"
+                       "\n3.水母箱"
+                       " 4.签到"
+                       " ")
+        else:
+            returnpath = save_image(image)
 
     cursor.close()
     conn.close()
@@ -3038,7 +3730,7 @@ async def plugin_emoji_xibao(command, command2, imgmsgs):
             file_path += "悲报.png"
             url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-meme-beibao"
         if os.path.exists(file_path):
-            xibao_image = Image.open(file_path, "r")
+            xibao_image = await load_image(file_path)
         else:
             try:
                 xibao_image = await connect_api("image", url)
@@ -3154,7 +3846,7 @@ async def plugin_emoji_yizhi(user_avatar: str):
         elif user_avatar.startswith("http"):
             user_image = await connect_api("image", user_avatar)
         else:
-            user_image = Image.open(user_avatar, "r")
+            user_image = await load_image(user_avatar)
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -3182,7 +3874,7 @@ async def plugin_emoji_keai(user_avatar: str, user_name: str):
         elif user_avatar.startswith("http"):
             user_image = await connect_api("image", user_avatar)
         else:
-            user_image = Image.open(user_avatar, "r")
+            user_image = await load_image(user_avatar)
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -3216,7 +3908,7 @@ async def plugin_emoji_jiehun(user_avatar, name1, name2):
         elif user_avatar.startswith("http"):
             user_image = await connect_api("image", user_avatar)
         else:
-            user_image = Image.open(user_avatar, "r")
+            user_image = await load_image(user_avatar)
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -3224,7 +3916,7 @@ async def plugin_emoji_jiehun(user_avatar, name1, name2):
 
     image = Image.new("RGB", (640, 640), "#FFFFFF")
     path = await get_file_path("plugin-jiehun-jiehun.png")
-    paste_image = Image.open(path, mode="r")
+    paste_image = await load_image(path)
     image.paste(user_image, (0, 0), mask=user_image)
     image.paste(paste_image, (0, 0), mask=paste_image)
 
@@ -3251,14 +3943,14 @@ async def plugin_emoji_jiehun(user_avatar, name1, name2):
     return save_image(image)
 
 
-async def plugin_emoji_momo(user_avatar):
+async def plugin_emoji_momo(user_avatar, cachepath):
     try:
         if user_avatar in [None, "None", "none"]:
             user_image = await draw_text("图片", 50, 10)
         elif user_avatar.startswith("http"):
             user_image = await connect_api("image", user_avatar)
         else:
-            user_image = Image.open(user_avatar, "r")
+            user_image = await load_image(user_avatar)
     except Exception as e:
         user_image = await draw_text("图片", 50, 10)
         logger.error(f"获取图片出错:{e}")
@@ -3266,13 +3958,10 @@ async def plugin_emoji_momo(user_avatar):
 
     # 开始绘图
     filepath = await get_file_path("plugin-emoji-momo-0.png")
-    pic = Image.open(filepath, mode="r")
+    pic = await load_image(filepath)
 
-    date_year = time.strftime("%Y", time.localtime())
-    date_month = time.strftime("%m", time.localtime())
-    date_day = time.strftime("%d", time.localtime())
     timestamp = str(time.time())
-    returnpath = f"{basepath}cache/{date_year}/{date_month}/{date_day}/摸摸/"
+    returnpath = f"{cachepath}摸摸/"
     gifcache = f"{returnpath}{timestamp}_{random.randint(1000, 9999)}gifcache/"
     if not os.path.exists(gifcache):
         os.makedirs(gifcache)
@@ -3297,9 +3986,9 @@ async def plugin_emoji_momo(user_avatar):
 
         pic1 = pic
         filepath = await get_file_path("plugin-emoji-momo-0.png")
-        pic = Image.open(filepath, mode="r")
+        pic = await load_image(filepath)
         filepath = await get_file_path(f"plugin-emoji-momo-{num}.png")
-        paste_image = Image.open(filepath, mode="r")
+        paste_image = await load_image(filepath)
 
         pic1.paste(pic, (0, 0))
         pic1.paste(print_image_face, (print_imagepace_x, print_imagepace_y),
@@ -3310,15 +3999,94 @@ async def plugin_emoji_momo(user_avatar):
         num += 1
 
     returnpath = f"{returnpath}{timestamp}_{random.randint(1000, 9999)}.gif"
-    frames = []
-    png_files = os.listdir(gifcache)
-    for frame_id in range(1, len(png_files) + 1):
-        frame = Image.open(os.path.join(gifcache, '%d.png' % frame_id))
-        frames.append(frame)
-    frames[0].save(returnpath, save_all=True, append_images=frames[1:], duration=70, loop=0,
-                   disposal=2)
-
+    await images_to_gif(
+        gifs=gifcache,
+        gif_path=returnpath,
+        duration=70,
+    )
     return returnpath
+
+
+async def plugin_emoji_daibu(user_avatar: str, user_name: str):
+    try:
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = await load_image(user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+    user_image = image_resize2(user_image, (128, 128), overturn=False)
+
+    image_path = await get_image_path("meme-daibu")
+    image = await load_image(image_path)
+    image.paste(user_image, (69, 89), mask=user_image)
+
+    return save_image(image)
+
+
+async def plugin_emoji_ji():
+    num = random.randint(1, 32)
+    image_path = await get_image_path(f"meme-ji_{num}")
+    return image_path
+
+
+async def plugin_emoji_ji2():
+    num = random.randint(1, 10)
+    image_path = await get_image_path(f"meme-ji2_{num}")
+    return image_path
+
+
+async def plugin_emoji_pa():
+    num = random.randint(1, 16)
+    image_path = await get_image_path(f"meme-pa_{num}")
+    return image_path
+
+
+async def plugin_emoji_wlp(user_avatar: str, user2_avatar: str, user2_name: str = None):
+    # 获取头像1
+    try:
+        if user_avatar in [None, "None", "none"]:
+            user_image = await draw_text("图片", 50, 10)
+        elif user_avatar.startswith("http"):
+            user_image = await connect_api("image", user_avatar)
+        else:
+            user_image = await load_image(user_avatar)
+    except Exception as e:
+        user_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+
+    # 获取头像2
+    try:
+        if user2_avatar in [None, "None", "none"]:
+            user2_image = await draw_text("图片", 50, 10)
+        elif user2_avatar.startswith("http"):
+            user2_image = await connect_api("image", user2_avatar)
+        else:
+            user2_image = await load_image(user2_avatar)
+    except Exception as e:
+        user2_image = await draw_text("图片", 50, 10)
+        logger.error(f"获取图片出错:{e}")
+
+    # 获取底图
+    image_path = await get_image_path("meme-wlp")
+    image = await load_image(image_path)
+    draw = ImageDraw.Draw(image)
+    # 粘贴头像1
+    user_image = image_resize2(user_image, (200, 200), overturn=False)
+    image.paste(user_image, (421, 670), mask=user_image)
+    # 粘贴头像1贴图
+    paste_image_path = await get_image_path("meme-zhi")
+    paste_image = await load_image(paste_image_path)
+    paste_image = image_resize2(paste_image, (200, 200), overturn=False)
+    image.paste(paste_image, (421, 670), mask=paste_image)
+    # 粘贴头像2
+    user2_image = image_resize2(user2_image, (400, 400), overturn=False)
+    image.paste(user2_image, (125, 105), mask=user2_image)
+
+    return save_image(image)
 
 
 # async def plugin_emoji_qinqin(user_avatar, user_name):
@@ -3328,7 +4096,7 @@ async def plugin_emoji_momo(user_avatar):
 #         elif user_avatar.startswith("http"):
 #             user_image = await connect_api("image", user_avatar)
 #         else:
-#             user_image = Image.open(user_avatar, "r")
+#             user_image = await load_image(user_avatar)
 #     except Exception as e:
 #         user_image = await draw_text("图片", 50, 10)
 #         logger.error(f"获取图片出错:{e}")
@@ -3405,10 +4173,14 @@ async def plugin_game_cck(command: str, channel_id: str, platform: str):
                     # 正在运行的cck最后一次运行时间相隔现在5分钟后
                     if command == "猜猜看":
                         game_state = "new"
+                    elif command == "结束":
+                        game_state = "exit"
+                        code = 1
+                        message = f"{gamename.split('-')[1]}已结束"
                     else:
                         game_state = "exit"
                         code = 1
-                        message = f"{gamename}时间超时，请重新开始"
+                        message = f"{gamename.split('-')[1]}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
                 code = 1
@@ -3524,7 +4296,7 @@ async def plugin_game_cck(command: str, channel_id: str, platform: str):
         conn.close()
 
         # 切分卡牌为3张，并保存为1张
-        cck_card = Image.open(returnpath, mode="r")
+        cck_card = await load_image(returnpath)
         x = 1334
         y = 1002
 
@@ -3626,19 +4398,20 @@ async def plugin_game_cck(command: str, channel_id: str, platform: str):
             elif code == 2:
                 code = 0
             # 转换图片为md
+            image_url = await imgpath_to_url(returnpath, host='http://txs.kanon.ink:8991')
             markdown = {
                 "id": kn_config("plugin", "image_markdown"),
                 "params": [
                     {"key": "text", "values": ["img"]},
                     {"key": "imagex", "values": [f"{image.size[0]}"]},
                     {"key": "imagey", "values": [f"{image.size[1]}"]},
-                    {"key": "image", "values": [f"{await imgpath_to_url(returnpath)}"]},
+                    {"key": "image", "values": [image_url]},
                 ]
             }
         if platform == "qq_Official" and kn_config("plugin_cck", "send_button"):
             if 1 <= int(member_id) <= 15 or 21 <= int(member_id) <= 25:
                 button_id = "button_1_id"
-            elif  16 <= int(member_id) <= 20 or 26 <= int(member_id) <= 25:
+            elif 16 <= int(member_id) <= 20 or 26 <= int(member_id) <= 25:
                 button_id = "button_2_id"
             else:
                 button_id = None
@@ -3792,10 +4565,14 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                     # 正在运行的炸飞机最后一次运行时间相隔现在5分钟后
                     if command == "炸飞机":
                         game_state = "new"
+                    elif command == "结束":
+                        game_state = "exit"
+                        code = 1
+                        message = f"{gamename.split('-')[1]}已结束"
                     else:
                         game_state = "exit"
                         code = 1
-                        message = f"{gamename}时间超时，请重新开始"
+                        message = f"{gamename.split('-')[1]}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
                 if "-" in gamename:
@@ -3968,7 +4745,7 @@ async def plugin_game_blowplane(command: str, channel_id: str):
         # 创建底图
         image = new_background(900, 900)
         filepath = await get_file_path("plugin-zfj-farme.png")
-        paste_image = Image.open(filepath, mode="r")
+        paste_image = await load_image(filepath)
         image.paste(paste_image, (0, 0), mask=paste_image)
 
         returnpath = save_image(image)
@@ -4007,16 +4784,16 @@ async def plugin_game_blowplane(command: str, channel_id: str):
             # 创建底图
             image = new_background(900, 900)
             filepath = await get_file_path("plugin-zfj-farme.png")
-            paste_image = Image.open(filepath, mode="r")
+            paste_image = await load_image(filepath)
             image.paste(paste_image, (0, 0), mask=paste_image)
 
             # 获取飞机图片
             filepath = await get_file_path("plugin-zfj-plane1.png")
-            paste_image_1 = Image.open(filepath, mode="r")
+            paste_image_1 = await load_image(filepath)
             filepath = await get_file_path("plugin-zfj-plane2.png")
-            paste_image_2 = Image.open(filepath, mode="r")
+            paste_image_2 = await load_image(filepath)
             filepath = await get_file_path("plugin-zfj-plane3.png")
-            paste_image_3 = Image.open(filepath, mode="r")
+            paste_image_3 = await load_image(filepath)
 
             # 绘制飞机的位置
             num = 0
@@ -4089,11 +4866,11 @@ async def plugin_game_blowplane(command: str, channel_id: str):
 
             # 获取状态图片
             filepath = await get_file_path("plugin-zfj-miss.png")
-            paste_image_0 = Image.open(filepath, mode="r")
+            paste_image_0 = await load_image(filepath)
             filepath = await get_file_path("plugin-zfj-injured.png")
-            paste_image_1 = Image.open(filepath, mode="r")
+            paste_image_1 = await load_image(filepath)
             filepath = await get_file_path("plugin-zfj-crash.png")
-            paste_image_2 = Image.open(filepath, mode="r")
+            paste_image_2 = await load_image(filepath)
 
             # 绘制现在状态图
             for bom in boms_list:
@@ -4178,16 +4955,16 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                     # 创建底图
                     image = new_background(900, 900)
                     filepath = await get_file_path("plugin-zfj-farme.png")
-                    paste_image = Image.open(filepath, mode="r")
+                    paste_image = await load_image(filepath)
                     image.paste(paste_image, (0, 0), mask=paste_image)
 
                     # 获取飞机图片
                     filepath = await get_file_path("plugin-zfj-plane1.png")
-                    plane_image_1 = Image.open(filepath, mode="r")
+                    plane_image_1 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-plane2.png")
-                    plane_image_2 = Image.open(filepath, mode="r")
+                    plane_image_2 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-plane3.png")
-                    plane_image_3 = Image.open(filepath, mode="r")
+                    plane_image_3 = await load_image(filepath)
 
                     # 绘制飞机的位置
                     num = 0
@@ -4260,11 +5037,11 @@ async def plugin_game_blowplane(command: str, channel_id: str):
 
                     # 获取状态图片
                     filepath = await get_file_path("plugin-zfj-miss.png")
-                    state_image_0 = Image.open(filepath, mode="r")
+                    state_image_0 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-injured.png")
-                    state_image_1 = Image.open(filepath, mode="r")
+                    state_image_1 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-crash.png")
-                    state_image_2 = Image.open(filepath, mode="r")
+                    state_image_2 = await load_image(filepath)
 
                     # 绘制现在状态图
                     for bom in boms_list:
@@ -4296,16 +5073,16 @@ async def plugin_game_blowplane(command: str, channel_id: str):
                     # 创建底图
                     image = new_background(900, 900)
                     filepath = await get_file_path("plugin-zfj-farme.png")
-                    paste_image = Image.open(filepath, mode="r")
+                    paste_image = await load_image(filepath)
                     image.paste(paste_image, (0, 0), mask=paste_image)
 
                     # 获取状态图片
                     filepath = await get_file_path("plugin-zfj-miss.png")
-                    state_image_0 = Image.open(filepath, mode="r")
+                    state_image_0 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-injured.png")
-                    state_image_1 = Image.open(filepath, mode="r")
+                    state_image_1 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-crash.png")
-                    state_image_2 = Image.open(filepath, mode="r")
+                    state_image_2 = await load_image(filepath)
 
                     # 绘制现在状态图
                     for bom in boms_list:
@@ -4321,11 +5098,11 @@ async def plugin_game_blowplane(command: str, channel_id: str):
 
                     # 获取飞机图片
                     filepath = await get_file_path("plugin-zfj-plane1.png")
-                    plane_image_1 = Image.open(filepath, mode="r")
+                    plane_image_1 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-plane2.png")
-                    plane_image_2 = Image.open(filepath, mode="r")
+                    plane_image_2 = await load_image(filepath)
                     filepath = await get_file_path("plugin-zfj-plane3.png")
-                    plane_image_3 = Image.open(filepath, mode="r")
+                    plane_image_3 = await load_image(filepath)
 
                     bomstate = -1
                     for bom in boms_list:
@@ -4623,10 +5400,14 @@ async def plugin_game_different(command: str, channel_id: str):
                     # 正在运行的炸飞机最后一次运行时间相隔现在5分钟后
                     if command == "找不同":
                         game_state = "new"
+                    elif command == "结束":
+                        game_state = "exit"
+                        code = 1
+                        message = f"{gamename.split('-')[1]}已结束"
                     else:
                         game_state = "exit"
                         code = 1
-                        message = f"{gamename}时间超时，请重新开始"
+                        message = f"{gamename.split('-')[1]}时间超时，请重新开始"
             else:
                 # 正在进行其他游戏
                 if "-" in gamename:
@@ -4686,7 +5467,7 @@ async def plugin_game_different(command: str, channel_id: str):
             image_2.paste(paste_image, paste_box)
 
         image_2.paste(shade_image, (0, 0), mask=shade_image)
-        returnpath2 = save_image(image_1)   # 将有变化的图和文字一起发出
+        returnpath2 = save_image(image_1)  # 将有变化的图和文字一起发出
         returnpath = save_image(image_2)
 
         gameinfo = {
@@ -4944,3 +5725,77 @@ async def plugin_function_jrlp(
         return_data["returnpath"] = lp_image
 
     return return_data
+
+
+async def plugin_function_pic(
+        msg: str,
+        user_id: str
+):
+    message = None
+    images = None
+    trace = []
+
+    eagle_path = kn_config("pic", "eagle-path")
+    eagle_url = kn_config("pic", "eagle-url")
+
+    # 替换同义词
+    msg = msg.replace("老婆", "lp").replace("我lp", "wlp")
+
+    # 解析指令
+    if msg.startswith("来点") and msg[2:3] != " ":
+        msg = f"{msg[:3]} {msg[2:]}"
+    elif msg.startswith("多来点") and msg[3:4] != " ":
+        msg = f"{msg[:4]} {msg[3:]}"
+    elif msg.startswith("wlp是") and msg[4:5] != " ":
+        msg = f"{msg[:5]} {msg[4:]}"
+
+    commands = get_command(msg)
+    command = commands[0]
+    command2 = None if len(commands) == 1 else commands[1]
+
+    filepath = await get_file_path("plugin-pic-member_list.json")
+    file = open(filepath, 'r', encoding='utf8')
+    member_data: dict = json.load(file)
+    file.close()
+
+    def find_member_id(member_name: str) -> str | None:
+        for member_id in member_data.keys():
+            if member_name in member_data[member_id]["alias"]:
+                return member_id
+        return None
+
+    # 执行指令
+    if command == "来点":
+        member_id = find_member_id(command2)
+        if member_id is None:
+            message = "找不到相关成员"
+        else:
+            # 获取成员图片列表
+            url = f"{eagle_url}api/item/list?folders={member_data[member_id]['id']}"
+            data = await connect_api("json", url)
+            image_data = random.choice(data['data'])
+            images = [f"{eagle_path}images/{image_data['id']}.info/{image_data['name']}.{image_data['ext']}"]
+
+    elif command == "多来点":
+        member_id = find_member_id(command2)
+        if member_id is None:
+            message = "找不到相关成员"
+        else:
+            # 获取成员图片列表
+            url = f"{eagle_url}api/item/list?folders={member_data[member_id]['id']}"
+            data = await connect_api("json", url)
+            num = random.randint(2, 3)
+            images = []
+            while num >= 1:
+                num -= 1
+                image_data = random.choice(data['data'])
+                image_path = f"{eagle_path}images/{image_data['id']}.info/{image_data['name']}.{image_data['ext']}"
+                images.append(image_path)
+            message = f"多来点{command2}"
+            logger.warning(command)
+            logger.warning(images)
+
+    elif command == "wlp是":
+        pass
+
+    return message, images, trace

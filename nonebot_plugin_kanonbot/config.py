@@ -6,7 +6,7 @@ basepath = _config["basepath"]
 adminqq = _config["superusers"]
 
 
-def _config_list():
+def _config_list(qq: bool = False):
     """
     获取功能列表，可以对应地找命令名对应的功能。
     commandname: {默认状态, "'帮助'命令中显示的内容", 该功能的群组, 用于设置功能开关所识别的名字}
@@ -14,36 +14,44 @@ def _config_list():
     configs = {
         "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
         "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
-        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
+        "emoji": {"state": True, "message": "emoji合成", "group": "群聊功能", "name": "emoji"},
         "喜报": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
         "一直": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
         "摸摸": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
         "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
+        "逮捕": {"state": True, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
+        "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        "寄": {"state": True, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄"},
+        "急": {"state": True, "message": "急图 (发送：急)", "group": "表情功能", "name": "急"},
+        "爬": {"state": True, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬"},
+        "我老婆": {"state": True, "message": "我老婆 (我老婆@群友)", "group": "表情功能", "name": "我老婆"},
         "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
         "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
         "找不同": {"state": True, "message": "找不同", "group": "小游戏", "name": "找不同"},
-        "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
-        "塔罗牌": {"state": False, "message": "塔罗牌 (发送：塔罗牌)", "group": "群聊功能", "name": "塔罗牌"},
-        "今日老婆": {"state": True, "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"}
+        "commandcd": {"state": True, "message": "指令冷却", "group": "群聊功能", "name": "commandcd"},
+        "今日老婆": {"state": True, "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"},
+        "图库": {"state": False, "message": "来点wlp", "group": "群聊功能", "name": "图库"},
+    }
+    configs_qq = {
+        "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
+        "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
+        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
+        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
     }
     configs_none = {
+        "塔罗牌": {"state": False, "message": "t", "group": "群聊功能", "name": "t"},
         "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
-        "qinqin": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
-        "tietie": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
-        "daibu": {"state": False, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
-        "ti": {"state": False, "message": "啊打 (啊打@群友)", "group": "表情功能", "name": "啊打"},
-        "yaoyao": {"state": False, "message": "咬咬 (咬咬@群友)", "group": "表情功能", "name": "咬咬"},
-        "wlp": {"state": False, "message": "来点wlp", "group": "图库功能", "name": "图库"},
-        "ji": {"state": False, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄图"},
-        "pa": {"state": False, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬图"},
-        "wolaopo": {"state": False, "message": "我老婆 (我老婆@群友)", "group": "表情功能", "name": "我老婆"},
+        "亲亲": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
+        "贴贴": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
+        "踢": {"state": False, "message": "啊打 (啊打@群友)", "group": "表情功能", "name": "踢"},
+        "咬咬": {"state": False, "message": "咬咬 (咬咬@群友)", "group": "表情功能", "name": "咬咬"},
         "zhi": {"state": False, "message": "指", "group": "表情功能", "name": "指"},
         "quanquan": {"state": False, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
-        "jiehunzheng": {"state": False, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
-        "ji2": {"state": False, "message": "急", "group": "表情功能", "name": "急"},
+        "结婚证": {"state": False, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
         "commandcd": {"state": False, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"}
     }
-    return configs
+    return configs if qq is False else configs_qq
 
 
 def command_list():
@@ -58,6 +66,7 @@ def command_list():
             "使用说明": "config查询",
             "查询功能": "config查询",
             "菜单": "config查询",
+            "帮助": "config查询",
             "关闭": "config关闭",
             "开启": "config开启",
             "喜报": "表情功能-喜报",
@@ -67,6 +76,12 @@ def command_list():
             "可爱": "表情功能-可爱",
             "结婚": "表情功能-结婚",
             "合成": "表情功能-emoji",
+            "逮捕": "表情功能-逮捕",
+            "寄": "表情功能-寄",
+            "急": "表情功能-急",
+            "爬": "表情功能-爬",
+            "wlp": "表情功能-我老婆",
+            "我老婆": "表情功能-我老婆",
             "cck": "小游戏-猜猜看",
             "猜猜看": "小游戏-猜猜看",
             "bzd": "小游戏-猜猜看",
@@ -86,9 +101,13 @@ def command_list():
             "塔罗牌": "群聊功能-塔罗牌",
             "今日老婆": "群聊功能-今日老婆",
             "jrlp": "群聊功能-今日老婆",
+            "来点": "群聊功能-图库",
+            "多来点": "群聊功能-图库",
         },
         "开头": {
             "炸": "小游戏-炸飞机",
+            "来点": "群聊功能-图库",
+            "多来点": "群聊功能-图库",
         },
         "结尾": {
         },
@@ -99,13 +118,10 @@ def command_list():
     }
     commands_none = {
         "精准": {
-            "爬": "表情功能-pa",
             "洗": "表情功能-洗了",
             "洗了": "表情功能-洗了",
             "要洗了": "表情功能-洗了",
             "啊打": "表情功能-ti",
-            "寄": "表情功能-ji",
-            "急": "表情功能-ji2",
             "我是谁": "表情功能-woshishei",
             "我老婆": "表情功能-wolaopo",
             "结婚证": "表情功能-jiehunzheng",
@@ -349,7 +365,7 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },
@@ -387,7 +403,7 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },
@@ -425,7 +441,7 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },
@@ -463,7 +479,7 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },
@@ -545,7 +561,7 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },
@@ -583,7 +599,45 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
             "text": {
                 "背景大字": "水母箱",
-                "新水母_标题": "新增水母",
+                "新水母_标题": "新增内容",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": None,
+                "jellyfish_background": None,
+                "box_background": None,
+                "card_background": None,
+            },
+        },
+        "starlight": {
+            "color": {
+                "bg": "#2e2c2f",
+                "背景大字": "#2e2c2f",
+                "box_bg": "#2e2c2f",
+                "box_outline": "#2e2c2f",
+                "card": "#424242",
+                "date": "#aaa089",
+                "name": "#bf9f60",
+                "title": "#e6cc9b",
+                "event_title": "#FFFFFF",
+                "event_message": "#b2b2b2",
+                "icon_bg": "#59564f",
+                "icon_outline": "#6f5f4a",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": " ",
+                "新水母_标题": "新增内容",
                 "事件_标题": "事件列表",
                 "指令_标题": "指令提示",
             },

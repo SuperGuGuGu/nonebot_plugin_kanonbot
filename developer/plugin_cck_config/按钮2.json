@@ -3,29 +3,89 @@
     {
       "buttons": [
         {
-          "id": "31",
+          "id": "29",
           "render_data": {"label": "tks","visited_label": "tks","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 tks",
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 tks",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
-          "id": "32",
+          "id": "30",
           "render_data": {"label": "rui","visited_label": "rui","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 rui",
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 rui",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
-          "id": "33",
+          "id": "26",
           "render_data": {"label": "msr","visited_label": "msr","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 msr",
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 msr",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "28",
+          "render_data": {"label": "nnm","visited_label": "nnm","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 nnm",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "27",
+          "render_data": {"label": "tko","visited_label": "tko","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 tko",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "id": "16",
+          "render_data": {"label": "aya","visited_label": "aya","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 aya",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "20",
+          "render_data": {"label": "eve","visited_label": "eve","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 eve",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "18",
+          "render_data": {"label": "cst","visited_label": "cst","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 cst",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "17",
+          "render_data": {"label": "hna","visited_label": "hna","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 hna",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "19",
+          "render_data": {"label": "mya","visited_label": "mya","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 mya",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "id": "35",
+          "render_data": {"label": "chu","visited_label": "chu","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 chu",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "34",
-          "render_data": {"label": "nnm","visited_label": "nnm","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 nnm",
+          "render_data": {"label": "pro","visited_label": "pro","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 pro",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
-          "id": "35",
-          "render_data": {"label": "tko","visited_label": "tko","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 tko",
+          "id": "32",
+          "render_data": {"label": "rka","visited_label": "rka","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 rka",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "31",
+          "render_data": {"label": "rei","visited_label": "rei","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 rei",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "33",
+          "render_data": {"label": "mask","visited_label": "mask","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 mask",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         }
       ]
@@ -34,88 +94,28 @@
       "buttons": [
         {
           "id": "36",
-          "render_data": {"label": "aya","visited_label": "aya","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 aya",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "37",
-          "render_data": {"label": "eve","visited_label": "eve","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 eve",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "38",
-          "render_data": {"label": "cst","visited_label": "cst","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 cst",
+          "render_data": {"label": "tmr","visited_label": "tmr","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 tmr",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "39",
-          "render_data": {"label": "hna","visited_label": "hna","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 hna",
+          "render_data": {"label": "syr","visited_label": "syr","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 syr",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "37",
+          "render_data": {"label": "ano","visited_label": "ano","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 ano",
+            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
+        },{
+          "id": "38",
+          "render_data": {"label": "rna","visited_label": "rna","style": 0},
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 rna",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         },{
           "id": "40",
-          "render_data": {"label": "mya","visited_label": "mya","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 mya",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "id": "41",
-          "render_data": {"label": "chu","visited_label": "chu","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 chu",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "42",
-          "render_data": {"label": "pro","visited_label": "pro","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 pro",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "43",
-          "render_data": {"label": "rka","visited_label": "rka","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 rka",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "44",
-          "render_data": {"label": "rei","visited_label": "rei","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 rei",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "45",
-          "render_data": {"label": "mask","visited_label": "mask","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 mask",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "id": "106",
-          "render_data": {"label": "tmr","visited_label": "tmr","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 tmr",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "107",
-          "render_data": {"label": "syo","visited_label": "syo","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 syo",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "108",
-          "render_data": {"label": "ano","visited_label": "ano","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 ano",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "109",
-          "render_data": {"label": "rna","visited_label": "rna","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 rna",
-            "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
-        },{
-          "id": "110",
           "render_data": {"label": "rki","visited_label": "rki","style": 0},
-          "action": {"type": 2,"permisson": {"type": 2},"data": "/猜猜看 rki",
+          "action": {"type": 2,"permission": {"type": 2},"data": "/猜猜看 rki",
             "enter": true,"unsupport_tips": "客户端暂时不支持按钮功能"}
         }
       ]
