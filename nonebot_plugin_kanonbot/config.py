@@ -1,5 +1,9 @@
 # coding=utf-8
 import json
+import time
+
+from nonebot import logger
+
 from .tools import get_file_path, _config
 
 basepath = _config["basepath"]
@@ -12,32 +16,82 @@ def _config_list(qq: bool = False):
     commandname: {默认状态, "'帮助'命令中显示的内容", 该功能的群组, 用于设置功能开关所识别的名字}
     """
     configs = {
-        "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
-        "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
-        "emoji": {"state": True, "message": "emoji合成", "group": "群聊功能", "name": "emoji"},
-        "喜报": {"state": True, "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
-        "一直": {"state": True, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
-        "摸摸": {"state": True, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
-        "可爱": {"state": True, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
-        "逮捕": {"state": True, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
-        "结婚": {"state": True, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
-        "寄": {"state": True, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄"},
-        "急": {"state": True, "message": "急图 (发送：急)", "group": "表情功能", "name": "急"},
-        "爬": {"state": True, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬"},
-        "我老婆": {"state": True, "message": "我老婆 (我老婆@群友)", "group": "表情功能", "name": "我老婆"},
-        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
-        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
-        "找不同": {"state": True, "message": "找不同", "group": "小游戏", "name": "找不同"},
-        "commandcd": {"state": True, "message": "指令冷却", "group": "群聊功能", "name": "commandcd"},
-        "今日老婆": {"state": True, "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"},
-        "图库": {"state": False, "message": "来点wlp", "group": "群聊功能", "name": "图库"},
+        "签到": {
+            "state": True, "swift_by_admin": False,
+            "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
+        "水母箱": {
+            "state": True, "swift_by_admin": False,
+            "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
+        "emoji": {
+            "state": True, "swift_by_admin": False,
+            "message": "emoji合成", "group": "群聊功能", "name": "emoji"},
+        "喜报": {
+            "state": False, "swift_by_admin": True,
+            "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
+        "一直": {
+            "state": True, "swift_by_admin": False,
+            "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
+        "摸摸": {
+            "state": True, "swift_by_admin": False,
+            "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
+        "可爱": {
+            "state": True, "swift_by_admin": False,
+            "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
+        "逮捕": {
+            "state": True, "swift_by_admin": False,
+            "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
+        "结婚": {
+            "state": True, "swift_by_admin": False,
+            "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        "寄": {
+            "state": True, "swift_by_admin": False,
+            "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄"},
+        "急": {
+            "state": True, "swift_by_admin": False,
+            "message": "急图 (发送：急)", "group": "表情功能", "name": "急"},
+        "爬": {
+            "state": True, "swift_by_admin": False,
+            "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬"},
+        "我老婆": {
+            "state": True, "swift_by_admin": False,
+            "message": "我老婆 (我老婆@群友)", "group": "表情功能", "name": "我老婆"},
+        "猜猜看": {
+            "state": True, "swift_by_admin": False,
+            "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "炸飞机": {
+            "state": True, "swift_by_admin": False,
+            "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
+        "找不同": {
+            "state": True, "swift_by_admin": False,
+            "message": "找不同", "group": "小游戏", "name": "找不同"},
+        "commandcd": {
+            "state": True, "swift_by_admin": True,
+            "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"},
+        "今日老婆": {
+            "state": True, "swift_by_admin": False,
+            "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"},
+        "图库": {
+            "state": False, "swift_by_admin": True,
+            "message": "来点wlp", "group": "群聊功能", "name": "图库"},
+        "问好": {
+            "state": True, "swift_by_admin": False,
+            "message": "测试功能w", "group": "群聊功能", "name": "问好"},
     }
     configs_qq = {
-        "签到": {"state": True, "message": "签到 (发送：签到)", "group": "群聊功能", "name": "签到"},
-        "水母箱": {"state": True, "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
-        "emoji": {"state": True, "message": "emoji", "group": "群聊功能", "name": "emoji"},
-        "猜猜看": {"state": True, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
-        "炸飞机": {"state": True, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
+        "签到": {"state": True, "swift_by_admin": False, "message": "签到", "group": "群聊功能", "name": "签到"},
+        "水母箱": {"state": True, "swift_by_admin": False, "message": "水母箱", "group": "群聊功能", "name": "水母箱"},
+        "emoji": {"state": True, "swift_by_admin": False, "message": "合成emoji", "group": "群聊功能", "name": "emoji"},
+        "猜猜看": {"state": True, "swift_by_admin": False, "message": "猜猜看", "group": "小游戏", "name": "猜猜看"},
+        "炸飞机": {"state": True, "swift_by_admin": False, "message": "炸飞机", "group": "小游戏", "name": "炸飞机"},
+        "今日老婆": {"state": True, "swift_by_admin": False, "message": "今日老婆", "group": "群聊功能", "name": "今日老婆"},
+        "一直": {"state": True, "swift_by_admin": False, "message": "一直 (发送：一直)", "group": "表情功能", "name": "一直"},
+        "摸摸": {"state": True, "swift_by_admin": False, "message": "摸摸 (摸摸@群友)", "group": "表情功能", "name": "摸摸"},
+        "可爱": {"state": True, "swift_by_admin": False, "message": "可爱 (可爱@群友)", "group": "表情功能", "name": "可爱"},
+        "逮捕": {"state": True, "swift_by_admin": False, "message": "逮捕 (逮捕@群友)", "group": "表情功能", "name": "逮捕"},
+        "结婚": {"state": True, "swift_by_admin": False, "message": "结婚 (结婚@群友)", "group": "表情功能", "name": "结婚"},
+        "寄": {"state": True, "swift_by_admin": False, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄"},
+        "急": {"state": True, "swift_by_admin": False, "message": "急图 (发送：急)", "group": "表情功能", "name": "急"},
+        "爬": {"state": True, "swift_by_admin": False, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬"},
     }
     configs_none = {
         "塔罗牌": {"state": False, "message": "t", "group": "群聊功能", "name": "t"},
@@ -46,10 +100,9 @@ def _config_list(qq: bool = False):
         "贴贴": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
         "踢": {"state": False, "message": "啊打 (啊打@群友)", "group": "表情功能", "name": "踢"},
         "咬咬": {"state": False, "message": "咬咬 (咬咬@群友)", "group": "表情功能", "name": "咬咬"},
-        "zhi": {"state": False, "message": "指", "group": "表情功能", "name": "指"},
-        "quanquan": {"state": False, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
+        "指": {"state": False, "message": "指", "group": "表情功能", "name": "指"},
+        "拳拳": {"state": False, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
         "结婚证": {"state": False, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
-        "commandcd": {"state": False, "message": "指令冷却", "group": "群聊功能", "name": "指令冷却"}
     }
     return configs if qq is False else configs_qq
 
@@ -69,6 +122,7 @@ def command_list():
             "帮助": "config查询",
             "关闭": "config关闭",
             "开启": "config开启",
+            "运行状态": "config状态",
             "喜报": "表情功能-喜报",
             "悲报": "表情功能-喜报",
             "一直": "表情功能-一直",
@@ -89,6 +143,8 @@ def command_list():
             "炸飞机": "小游戏-炸飞机",
             "找不同": "小游戏-找不同",
             "签到": "群聊功能-签到",
+            "买薯条": "群聊功能-签到",
+            "吃薯条": "群聊功能-签到",
             "水母箱": "群聊功能-水母箱",
             "查看水母箱": "群聊功能-水母箱",
             "抓水母": "群聊功能-水母箱",
@@ -98,16 +154,19 @@ def command_list():
             "水母图鉴": "群聊功能-水母箱",
             "水母统计表": "群聊功能-水母箱",
             "水母箱样式": "群聊功能-水母箱",
+            "投喂": "群聊功能-水母箱",
             "塔罗牌": "群聊功能-塔罗牌",
             "今日老婆": "群聊功能-今日老婆",
             "jrlp": "群聊功能-今日老婆",
             "来点": "群聊功能-图库",
             "多来点": "群聊功能-图库",
+            "wlp是": "群聊功能-图库",
         },
         "开头": {
             "炸": "小游戏-炸飞机",
             "来点": "群聊功能-图库",
             "多来点": "群聊功能-图库",
+            "wlp是": "群聊功能-图库",
         },
         "结尾": {
         },
@@ -338,7 +397,13 @@ async def _jellyfish_box_datas():
     return json_data
 
 
-def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = False):
+def jellyfish_box_draw_config(
+        draw_model: str = None,
+        draw_dark_model: bool = False,
+        date_m: int = int(time.strftime("%m", time.localtime())),
+        date_d: int = int(time.strftime("%d", time.localtime())),
+        draw_event_box: list | bool = True
+):
     draw_config = {
         "normal": {
             "color": {
@@ -536,6 +601,166 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
                 ],
             },
         },
+        "birthday_kokoro-beta": {
+            "color": {
+                "bg": "#e4de96",
+                "背景大字": "#f1eba9",
+                "box_bg": "#746a3b",
+                "box_outline": "#372800",
+                "card": "#f1eed0",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "Kkr",
+                "新水母_标题": "新增呼诶诶",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": "box_foreground_birthday",
+                "jellyfish_background": None,
+                "box_background": "box_background_birthday",
+                "card_background": [
+                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
+                ],
+            },
+        },
+        "birthday_kor-beta": {
+            "color": {
+                "bg": "#e4de96",
+                "背景大字": "#bbe7f9",
+                "box_bg": "#1b4771",
+                "box_outline": "#002237",
+                "card": "#e0eff4",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "Kanon",
+                "新水母_标题": "新增呼诶诶",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": "box_foreground_birthday",
+                "jellyfish_background": None,
+                "box_background": "box_background_birthday",
+                "card_background": [
+                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
+                ],
+            },
+        },
+        "birthday_msk-beta": {
+            "color": {
+                "bg": "#e4de96",
+                "背景大字": "#bbe7f9",
+                "box_bg": "#1b4771",
+                "box_outline": "#002237",
+                "card": "#e0eff4",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "Kanon",
+                "新水母_标题": "新增呼诶诶",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": "box_foreground_birthday",
+                "jellyfish_background": None,
+                "box_background": "box_background_birthday",
+                "card_background": [
+                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
+                ],
+            },
+        },
+        "birthday_hgm-beta": {
+            "color": {
+                "bg": "#e4de96",
+                "背景大字": "#bbe7f9",
+                "box_bg": "#1b4771",
+                "box_outline": "#002237",
+                "card": "#e0eff4",
+                "date": "#363739",
+                "name": "#2E82EE",
+                "title": "#2E82EE",
+                "event_title": "#000000",
+                "event_message": "#333333",
+                "icon_bg": "#def8ff",
+                "icon_outline": "#76c9ec",
+                "group_color": {
+                    "normal": "#eace5f",
+                    "good": "#46eca4",
+                    "great": "#f15fb2",
+                    "perfect": "#935ff1",
+                    "special": "#7afffa",
+                    "ocean": "#5a96ef",
+                },
+            },
+            "text": {
+                "背景大字": "Kanon",
+                "新水母_标题": "新增呼诶诶",
+                "事件_标题": "事件列表",
+                "指令_标题": "指令提示",
+            },
+            "jellyfish": {
+                "replace_jellyfish": None,
+                "jellyfish_foreground": None,
+                "box_foreground": "box_foreground_birthday",
+                "jellyfish_background": None,
+                "box_background": "box_background_birthday",
+                "card_background": [
+                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
+                ],
+            },
+        },
         "freehand": {
             "color": {
                 "bg": "#FFFFFF",
@@ -651,12 +876,491 @@ def jellyfish_box_draw_config(draw_model: str = None, draw_dark_model: bool = Fa
             },
         },
     }
+
+    # 读取基础配置
     if draw_model is None:
         return draw_config
-    else:
-        if draw_model not in list(draw_config):
-            draw_model = "normal"
-        if draw_dark_model is True:
-            if f"{draw_model}_dark" in list(draw_config):
-                draw_model = f"{draw_model}_dark"
-        return draw_config[draw_model]
+    if draw_model not in draw_config.keys():
+        draw_model = "normal"
+    draw_config_ = draw_config[draw_model]
+    if draw_dark_model is True and f"{draw_model}_dark" in draw_config.keys():
+        draw_config_ = draw_config[f"{draw_model}_dark"]
+
+    # 加载节日替换数据
+    if ((type(draw_event_box) is bool and draw_event_box is True) or
+        (type(draw_event_box) is list and "生日效果" in draw_event_box)):
+        if date_m == 1 and date_d == 1:
+            pass
+        # 生日-rinko
+        elif date_m == 10 and date_d == 17:
+            if draw_model in ["normal", "freehand"]:
+                draw_config_ = draw_config[f"{draw_model}_dark"]
+
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Rinko"
+
+            draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+            draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+            if draw_model in ["normal", "freehand"]:
+                draw_config_["color"]["bg"] = "#313131"
+                draw_config_["color"]["card"] = "#4a4a4a"
+                draw_config_["color"]["背景大字"] = "#414141"
+                draw_config_["color"]["box_bg"] = "#262626"
+                draw_config_["color"]["box_outline"] = "#161616"
+                draw_config_["color"]["icon_bg"] = "#262626"
+                draw_config_["color"]["icon_outline"] = "#161616"
+                draw_config_["color"]["title"] = "#e7cd9b"
+                draw_config_["color"]["event_title"] = "#b1987c"
+            if draw_model == "freehand":
+                draw_config_["color"]["card"] = "#9a9a9a"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#c2ad86"
+
+        # 生日-himari
+        elif date_m == 10 and date_d == 23:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Himari"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#ffd7d7"
+                    draw_config_["color"]["card"] = "#FFE7E7"
+                    draw_config_["color"]["背景大字"] = "#fee5e5"
+                    draw_config_["color"]["name"] = "#957575"
+                    draw_config_["color"]["title"] = "#9e6262"
+                    draw_config_["color"]["date"] = "#6c3434"
+                    draw_config_["color"]["event_title"] = "#322323"
+                    draw_config_["color"]["event_message"] = "#4e4242"
+                    draw_config_["color"]["box_bg"] = "#ae8f8f"
+                    draw_config_["color"]["box_outline"] = "#FF9999"
+                    draw_config_["color"]["icon_bg"] = "#ae8f8f"
+                    draw_config_["color"]["icon_outline"] = "#FF9999"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#1c1717"
+                    draw_config_["color"]["card"] = "#413a3a"
+                    draw_config_["color"]["box_bg"] = "#605151"
+                    draw_config_["color"]["box_outline"] = "#3d3532"
+                    draw_config_["color"]["背景大字"] = "#352b35"
+                    draw_config_["color"]["icon_bg"] = "#605151"
+                    draw_config_["color"]["icon_outline"] = "#3d3532"
+                    draw_config_["color"]["背景大字"] = "#413a3a"
+                    draw_config_["color"]["name"] = "#ae8f8f"
+                    draw_config_["color"]["date"] = "#413a3a"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#909090"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-yukina
+        elif date_m == 10 and date_d == 26:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Yukina"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#ac93a8"
+                    draw_config_["color"]["card"] = "#cdb2c8"
+                    draw_config_["color"]["背景大字"] = "#bca6b8"
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["title"] = "#881188"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["event_title"] = "#554755"
+                    draw_config_["color"]["event_message"] = "#6f6272"
+                    draw_config_["color"]["box_bg"] = "#976e92"
+                    draw_config_["color"]["box_outline"] = "#2b0037"
+                    draw_config_["color"]["icon_bg"] = "#c2a7ca"
+                    draw_config_["color"]["icon_outline"] = "#9d83b3"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["card"] = "#474147"
+                    draw_config_["color"]["box_bg"] = "#6f6272"
+                    draw_config_["color"]["box_outline"] = "#554755"
+                    draw_config_["color"]["背景大字"] = "#352b35"
+                    draw_config_["color"]["icon_bg"] = "#6f6272"
+                    draw_config_["color"]["icon_outline"] = "#554755"
+                    draw_config_["color"]["date"] = "#881188"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-arisa
+        elif date_m == 10 and date_d == 27:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Arisa"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday_arisa"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#805ab4"
+                    draw_config_["color"]["card"] = "#9f80de"
+                    draw_config_["color"]["背景大字"] = "#bca6b8"
+                    draw_config_["color"]["name"] = "#fff3e7"
+                    draw_config_["color"]["title"] = "#c9b16d"
+                    draw_config_["color"]["date"] = "#f0c389"
+                    draw_config_["color"]["event_title"] = "#efd4b6"
+                    draw_config_["color"]["event_message"] = "#dfdcd7"
+                    draw_config_["color"]["box_bg"] = "#776ea2"
+                    draw_config_["color"]["box_outline"] = "#0b0047"
+                    draw_config_["color"]["icon_bg"] = "#b2a7ca"
+                    draw_config_["color"]["icon_outline"] = "#8d83b3"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#EFDFFF"
+                    draw_config_["color"]["box_bg"] = "#413774"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["card"] = "#474150"
+                    draw_config_["color"]["box_bg"] = "#5f6282"
+                    draw_config_["color"]["box_outline"] = "#454765"
+                    draw_config_["color"]["背景大字"] = "#302b35"
+                    draw_config_["color"]["icon_bg"] = "#5f6282"
+                    draw_config_["color"]["icon_outline"] = "#454765"
+                    draw_config_["color"]["date"] = "#f0c389"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-maya
+        elif date_m == 11 and date_d == 3:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Maya"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#b0d7b0"
+                    draw_config_["color"]["card"] = "#e1f9e1"
+                    draw_config_["color"]["背景大字"] = "#93c493"
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["title"] = "#99dd88"
+                    draw_config_["color"]["event_title"] = "#3d8e3d"
+                    draw_config_["color"]["event_message"] = "#385039"
+                    draw_config_["color"]["box_bg"] = "#6f9d6f"
+                    draw_config_["color"]["box_outline"] = "#385039"
+                    draw_config_["color"]["icon_bg"] = "#adcaad"
+                    draw_config_["color"]["icon_outline"] = "#adcaad"
+                if draw_model == "freehand":
+                    draw_config_["color"]["title"] = "#8fb78f"
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#303f30"
+                    draw_config_["color"]["card"] = "#414e41"
+                    draw_config_["color"]["背景大字"] = "#425042"
+                    draw_config_["color"]["name"] = "#828282"
+                    draw_config_["color"]["date"] = "#2e8238"
+                    draw_config_["color"]["title"] = "#729869"
+                    draw_config_["color"]["event_title"] = "#3d8e3d"
+                    draw_config_["color"]["event_message"] = "#669266"
+                    draw_config_["color"]["box_bg"] = "#1e321e"
+                    draw_config_["color"]["box_outline"] = "#385039"
+                    draw_config_["color"]["icon_bg"] = "#4c624c"
+                    draw_config_["color"]["icon_outline"] = "#466946"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#0e220e"
+                    draw_config_["color"]["card"] = "#717e71"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+    if ((type(draw_event_box) is bool and draw_event_box is True) or
+            (type(draw_event_box) is list and "节日效果" in draw_event_box)):
+        # 万圣节
+        if (date_m == 10 and date_d == 30) or (date_m == 10 and date_d == 31) or (date_m == 11 and date_d == 1):
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                "jellyfish_foreground_halloween",
+                "jellyfish_foreground_halloween_2",
+                None, None]
+            draw_config_["jellyfish"]["box_background"] = "box_background_halloween"
+            draw_config_["jellyfish"]["box_foreground"] = "box_foreground_halloween"
+            if date_m == 10 and date_d == 31:
+                draw_config_["text"]["背景大字"] = "万圣夜"
+            elif date_m == 11 and date_d == 1:
+                draw_config_["text"]["背景大字"] = "万圣节"
+
+            if draw_model in ["normal", "freehand"]:
+                draw_config_["color"]["title"] = "#FBFBFB"
+                draw_config_["color"]["event_title"] = "#FB913A"
+                draw_config_["color"]["name"] = "#FB913A"
+                draw_config_["color"]["bg"] = "#292644"
+                draw_config_["color"]["card"] = "#3a3053"
+                draw_config_["color"]["背景大字"] = "#322E53"
+                draw_config_["color"]["event_message"] = "#E0E0E0"
+                draw_config_["color"]["box_bg"] = "#1B2855"
+                draw_config_["color"]["box_outline"] = "#111111"
+                draw_config_["color"]["icon_bg"] = "#2b2144"
+                draw_config_["color"]["icon_outline"] = "#1A0435"
+            if draw_model == "freehand":
+                draw_config_["color"]["card"] = "#5C4D81"
+            if draw_model == "starlight":
+                # draw_config_["color"]["背景大字"] = "#202023"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_halloween_starlight"
+                draw_config_["jellyfish"]["box_background"] = "box_background_halloween_starlight"
+
+    return draw_config_
+
+
+def state(name: str):
+    match name:
+        case "time_h":
+            return ""
+    return None
+
+
+def greet_list_():
+    data = [
+        {
+            "ask": ["早安", "早上好", "早上", "早", "哦哈哟"],
+            "answer": {
+                "0-5": [
+                    "凌晨时分，{user_name}还在熬夜吗？要注意身体哦。",
+                    "凌晨就起床啦？真勤奋呀，花音还是想多睡会儿...",
+                    "水母..嘿嘿..水母软软的...诶，是梦啊...",
+                    "呼诶诶诶诶~~有只水母搁浅啦！原来是梦啊，还好水母没事",
+                ],
+                "0-7": [
+                    "早..好....让我再稍微睡一下，昨晚hhw练习有点晚了",
+                    "嗯...好困，再让我眯一会儿，早上还要去快餐店兼职呢",
+                ],
+                "5-11": [
+                    "早上好，早起的水母有丰年虾吃，今天也要加油哦！",
+                    "早安，新的一天开始了，今天也要加油哦！",
+                    "早上好，今天的阳光很温暖，适合开始新的一天。",
+                    "早哦，我已经迫不及待想要开始今天的练习了。",
+                    "早哦，大家今天也要元气满满哦。",
+                    "嗯，今天的天气适合出门吗？我要和千圣一起去喝咖啡",
+                    "早安，新的一天，希望一切顺利！",
+                    "早安，今天要去快餐店兼职了，不知道彩彩今天有没有去兼职",
+                    "早安，愿今天的每一刻都充满温馨和快乐。",
+                    "早哦，待会打算去山吹面包房买个面包，你要来一个么",
+                    "早安，今天也要努力爵士鼓呢"
+                ],
+                "7-10": [
+                    "呼诶诶诶诶~~已经早上来啦，我得赶紧起来，今天约了薰同学一起去咖啡店",
+                ],
+                "12-20": [
+                    "不早啦，已经{time_h}点啦，真是的",
+                ],
+                "12-14": [
+                    "中午时间到啦，是时候吃午餐啦，今天我打算尝试新的食谱。",
+                    "中午啦，今天的午餐有什么好推荐的吗？",
+                    "唔..现在才起床么，已经不早啦",
+                    "午安，今天的午餐是什么呢？好期待"
+                ],
+                "14-16": [
+                    "都已经下午啦，赶紧起床，真是的，下午茶时间快到了呢",
+                    "下午好，今天下午打算和千圣一起去咖啡店呢",
+                    "起床起床，已经{time_h}点啦"
+                ],
+                "17-18": [
+                    "快到吃晚饭的时候了哦，快起来啦",
+                    "傍晚了，今天的夕阳真美，适合散步哦"
+                ],
+                "19-21": [
+                    "现在是晚上吧，是晚上好啦，今天晚上的星星也很亮呢",
+                    "晚好哦，看，那边的星星组成了一个水母图案"
+                ],
+                "22-24": [
+                    "唔..这个点应该要碎觉啦，你也早点休息吧"
+                ]
+            }
+        },
+        {
+            "ask": ["晚上好", "晚上", "晚", "空帮哇"],
+            "answer": {
+                "0-5": [
+                    "水母..嘿嘿..水母软软的...诶，是梦啊...",
+                    "呼诶诶诶诶~~有只水母搁浅啦！原来是梦啊，还好水母没事",
+                    "晚..好....我先睡一步了，晚上hhw练习有点晚了",
+                    "唔...好困，眼睛已经张不开了，明早还要去快餐店兼职呢",
+                    "晚安，千圣已经睡啦，花音也要去睡觉了",
+                    "已经很晚啦，快点睡吧",
+                    "诶，{user_name}还没睡么，快睡啦",
+                    "..这只水母...好软...抱着好舒服..",
+                ],
+                "5-7": [
+                    "诶，{user_name}还没睡么，快睡啦",
+                    "太阳要出来了诶...{user_name}还没睡么，快睡啦",
+                ],
+                "8-12": [
+                    "现在是...早上啦",
+                    "早安！这个点应该说早安",
+                ],
+                "11-13": [
+                    "现在是{time_h}点，是中午时间啦",
+                    "花音这里是中午哦，中午好",
+                ],
+                "14-16": [
+                    "现在才{time_h}点，是下午好哦",
+                    "花音这里是下午哦，下午好",
+                ],
+                "17-18": [
+                    "花音这里是傍晚哦，傍晚好",
+                    "好早的说，花音才刚准备吃晚饭",
+                ],
+                "19-22": [
+                    "晚上好，今天的夜空也很美，适合欣赏。",
+                    "晚上好啦，今天晚上的星星也很亮呢",
+                    "晚上好哦，今天应该过得很充实吧",
+                ],
+                "23-24": [
+                    "唔..这个点应该要碎觉啦，{user_name}也早点休息吧",
+                    "晚..好....我先睡一步了，晚上hhw练习有点晚了",
+                    "唔...好困，眼睛已经张不开了，明早还要去快餐店兼职呢",
+                    "晚安，千圣已经睡啦，花音也要去睡觉了",
+                    "已经很晚啦，快点睡吧"
+                    "诶，{user_name}还没睡么，快睡啦",
+                ],
+            }
+        },
+        {
+            "ask": ["晚安", "哦呀粟米", "哦呀斯密", "哦呀粟米那赛", "哦呀斯密那赛"],
+            "answer": {
+                "0-5": [
+                    "水母..嘿嘿..水母软软的...诶，是梦啊...",
+                    "呼诶诶诶诶~~有只水母搁浅啦！原来是梦啊，还好水母没事",
+                    "晚..安....我先睡一步了，晚上hhw练习有点晚了",
+                    "唔...好困，眼睛已经张不开了，明早还要去快餐店兼职呢",
+                    "晚安，千圣已经睡啦，花音也要去睡觉了",
+                    "已经很晚啦，快点睡吧",
+                    "诶，{user_name}还没睡么，快睡啦",
+                    "..这只水母...好软...抱着好舒服..",
+                ],
+                "5-7": [
+                    "诶，{user_name}还没睡么，快睡啦",
+                    "太阳要出来了诶...{user_name}还没睡么，快睡啦",
+                ],
+                "8-12": [
+                    "现在是...早上啦",
+                    "早安！这个点应该说早安",
+                ],
+                "12-13": [
+                    "花音这里是中午哦，要睡午觉啦",
+                ],
+                "14-16": [
+                    "花音这里是下午哦，下午好",
+                ],
+                "17-18": [
+                    "花音这里是傍晚哦，傍晚好",
+                    "好早的说，花音才刚准备吃晚饭",
+                ],
+                "19-22": [
+                    "晚上好，花音也准备睡觉啦，晚安",
+                    "晚上好，花音还在准备着睡前的事情，{user_name}先休息吧",
+                ],
+                "23-24": [
+                    "已经很晚了，早点休息吧，明天还要继续努力。",
+                    "唔..这个点应该要碎觉啦，{user_name}也早点休息吧",
+                    "晚..好....我先睡一步了，晚上hhw练习有点晚了",
+                    "唔...好困，眼睛已经张不开了，明早还要去快餐店兼职呢",
+                    "晚安，千圣已经睡啦，花音也要去睡觉了",
+                    "已经很晚啦，快点睡吧",
+                    "诶，{user_name}还没睡么，快睡啦",
+                    "晚安，愿你的梦里都是美好的旋律和水母的舞蹈。",
+                    "夜深了，是时候说晚安了，愿明天会更好。"
+                ],
+            }
+        },
+        {
+            "ask": ["中午好"],
+            "answer": {
+                "0-5": [
+                    "凌晨时分，{user_name}还在熬夜吗？要注意身体哦。",
+                    "晚..好....我先睡一步了，晚上hhw练习有点晚了",
+                    "水母..嘿嘿..水母软软的...诶，是梦啊...",
+                    "已经很晚啦，快点睡吧",
+                    "..这只水母...好软...抱着好舒服..",
+                    "呼诶诶诶诶~~有只水母搁浅啦！原来是梦啊，还好水母没事",
+                ],
+                "4-7": [
+                    "早..好....让我再稍微睡一下，昨晚hhw练习有点晚了",
+                    "嗯...好困，再让我眯一会儿，早上还要去快餐店兼职呢",
+                ],
+                "5-11": [
+                    "早安，新的一天开始了，今天也要加油哦！",
+                    "早哦，大家今天也要元气满满哦。",
+                    "嗯，今天的天气适合出门吗？我要和千圣一起去喝咖啡",
+                    "早安，新的一天，希望一切顺利！",
+                    "中..午....诶，现在不是还早着么！",
+                    "早哦，现在是早上时间啦",
+                    "还早啦，现在才{time_h}点，真是的",
+                    "花音这里是早上哦，早上好",
+                ],
+                "7-10": [
+                    "呼诶诶诶诶~~已经早上来啦，我得赶紧起来，今天约了薰同学一起去咖啡店",
+                ],
+                "11-14": [
+                    "中午好哦，是时候吃午餐啦，今天我打算尝试新的食谱。",
+                    "中午好，今天的午餐有什么好推荐的吗？",
+                    "午安，今天的午餐是什么呢？好期待",
+                    "中午好哦，忙碌了一个早上，可以休息一下啦"
+                ],
+                "15-17": [
+                    "已经{time_h}点啦，是下午好哦",
+                    "下午好，今天下午打算和千圣一起去咖啡店呢",
+                    "花音这里是下午哦，下午好",
+                ],
+                "17-18": [
+                    "快到吃晚饭的时候啦，不早啦",
+                    "傍晚了，今天的夕阳真美，适合散步哦"
+                ],
+                "19-21": [
+                    "现在是晚上吧，是晚上好啦，今天晚上的星星也很亮呢",
+                    "晚好哦，看，那边的星星组成了一个水母图案",
+                    "花音这里是晚上哦，晚好",
+                ],
+                "22-24": [
+                    "唔..这个点应该要碎觉啦，你也早点休息吧"
+                ]
+            }
+        },
+        {
+            "ask": ["你好", "你好呀", "您好", "hello", "Hello", "扣你吉瓦", "哈喽"],
+            "answer": {
+                "0-24": [
+                    "你好，这里是花音Kanon。指令相关帮助请发送“/菜单”查看。"
+                ]
+            }
+        },
+        {
+            "ask": ["Noneeeeee"],
+            "answer": {
+                "0-24": [
+                    "晚..好....我先睡一步了，晚上hhw练习有点晚了",
+                    "唔...好困，眼睛已经张不开了，明早还要去快餐店兼职呢",
+                    "晚安，千圣已经睡啦，花音也要去睡觉了",
+                    "已经很晚啦，快点睡吧"
+                ]
+            }
+        }
+    ]
+    return data

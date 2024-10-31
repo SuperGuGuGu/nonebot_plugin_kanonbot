@@ -1,12 +1,13 @@
 # coding=utf-8
+import base64
 import io
 import re
 import string
 import traceback
-
 import httpx
 import toml
 from PIL import Image, ImageDraw, ImageFont
+from PIL.Image import Image as PIL_Image
 from io import BytesIO
 import sqlite3
 import random
@@ -17,6 +18,12 @@ import os
 import shutil
 import asyncio
 import time
+from tencentcloud.common import credential
+from tencentcloud.common.profile.client_profile import ClientProfile
+from tencentcloud.common.profile.http_profile import HttpProfile
+from tencentcloud.tms.v20201229 import tms_client, models
+from scipy.interpolate import interp1d
+import numpy
 
 kn_cache = {}
 
@@ -104,8 +111,52 @@ basepath = _config["basepath"]
 command_starts = _config["command_starts"]
 kn_config_data = None
 
+logger.debug("加载用户列表")
+os.makedirs(f"{basepath}db/", exist_ok=True)
+conn = sqlite3.connect(f"{basepath}db/config.db")
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM id_list")
+datas = cursor.fetchall()
+cursor.close()
+conn.close()
+if "user_id_list" not in kn_cache.keys():
+    kn_cache["user_id_list"] = []
+for data in datas:
+    kn_cache["user_id_list"].append(data[1])
+logger.success("加载用户列表成功")
 
-def get_command(msg: str) -> list:
+logger.debug("加载违禁词")
+conn = sqlite3.connect(f"{basepath}db/content_compliance.db")
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM content_compliance WHERE state IS NOT 'Pass' AND audit IS 1")
+datas = cursor.fetchall()
+cursor.execute("SELECT * FROM blacklist WHERE state IS NOT 'Pass' AND audit IS 1")
+datas2 = cursor.fetchall()
+cursor.close()
+conn.close()
+
+kn_cache["content_compliance_list"] = {"part": [], "full": []}
+for data in datas:
+    if data[2] == "Pass" or data[4] != 1:
+        continue
+    text = str(base64.b64decode(data[1]), "utf-8")
+    if data[5] == 5:
+        kn_cache["content_compliance_list"]["full"].append(text)
+    else:
+        kn_cache["content_compliance_list"]["part"].append(text)
+for data in datas2:
+    if data[2] == "Pass" or data[4] != 1:
+        continue
+    text = data[1]
+    if data[5] == 5:
+        kn_cache["content_compliance_list"]["full"].append(text)
+    else:
+        kn_cache["content_compliance_list"]["part"].append(text)
+
+logger.success("加载违禁词成功")
+
+
+def get_command(msg: str) -> list[str | None]:
     """
     使用空格和换行进行切分1次
     :param msg: 原始字符串。"hello world"
@@ -189,8 +240,8 @@ def kn_config(config_name: str, config_name2: str = None):
             toml.dump(config, config_file)
         kn_config_data = config
 
-    kn_config_data = None
-    if kn_config_data is None:
+    config = kn_config_data
+    if kn_config_data is None or int(time.time()) - kn_config_data["update_time"] > 60:
         if not os.path.exists(path):
             config = {
                 "Kanon_Config": {
@@ -198,10 +249,9 @@ def kn_config(config_name: str, config_name2: str = None):
                 "knapi": {
                     "url": "https://cdn.kanon.ink"}}
             save_config()
-            nonebot.logger.info("未存在KanonBot配置文件，正在创建")
-        config = toml.load(path)
-    else:
-        config = kn_config_data
+            logger.info("未存在KanonBot配置文件，正在创建")
+        kn_config_data = config = toml.load(path)
+        kn_config_data["update_time"] = int(time.time())
 
     if config_name2 is not None:
         config_name += f"-{config_name2}"
@@ -308,21 +358,29 @@ async def connect_api(
         type: str,
         url: str,
         post_json=None,
-        file_path: str = None):
+        file_path: str = None,
+        timeout: int = 10
+):
     logger.debug(f"connect_api请求URL：{url}")
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
-            return json.loads(httpx.get(url, headers=h).text)
+            async with httpx.AsyncClient() as client:
+                data = await client.get(url, headers=h, timeout=timeout)
+            return json.loads(data.text)
         else:
-            return json.loads(httpx.post(url, json=post_json, headers=h).text)
+            async with httpx.AsyncClient() as client:
+                data = await client.post(url, json=post_json, headers=h, timeout=timeout)
+            return json.loads(data.text)
     elif type == "image":
         if url is None or url in ["none", "None", "", " "]:
             image = await draw_text("获取图片出错", 50, 10)
         else:
             try:
-                image = Image.open(BytesIO(httpx.get(url).content))
+                async with httpx.AsyncClient() as client:
+                    data = await client.get(url, timeout=timeout)
+                image = Image.open(BytesIO(data.content))
             except Exception as e:
                 logger.error(url)
                 raise "获取图片出错"
@@ -331,7 +389,7 @@ async def connect_api(
         cache_file_path = file_path + "cache"
         f = open(cache_file_path, "wb")
         try:
-            res = httpx.get(url, headers=h).content
+            res = httpx.get(url, headers=h, timeout=timeout).content
             f.write(res)
             logger.debug(f"下载完成-{file_path}")
         except:
@@ -349,16 +407,39 @@ async def get_file_path(file_name) -> str:
     :param file_name: 文件名。例：“file.zip”
     :return: 文件路径。例："c:/bot/cache/file/file.zip"
     """
-    file_path = basepath + "file/"
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
-    file_path += file_name
-    if not os.path.exists(file_path):
+    file_path = f"{basepath}file/{file_name}"
+    os.makedirs(f"{basepath}file/", exist_ok=True)
+    file_fast_cache_path = kn_config("plugin", "file_fast_cache_path")
+    file_cache_path = f"{file_fast_cache_path}{file_name}"
+
+    if file_fast_cache_path is not None:
+        os.makedirs(file_fast_cache_path, exist_ok=True)
+        if not os.path.exists(file_cache_path):
+            if os.path.exists(file_path):
+                file = open(file_path, "rb")
+                file_data = file.read()
+                file.close()
+                file = open(file_cache_path, "wb")
+                file.write(file_data)
+                file.close()
+                return file_cache_path
+        else:
+            return file_cache_path
+
+    if not os.path.exists(f"{basepath}file/{file_name}"):
         # 如果文件未缓存，则缓存下来
         logger.debug("正在下载" + file_name)
         url = f"{kn_config('kanon_api-url')}/file/{file_name}"
         await connect_api(type="file", url=url, file_path=file_path)
-    return file_path
+
+        file = open(file_path, "rb")
+        file_data = file.read()
+        file.close()
+        file = open(file_cache_path, "wb")
+        file.write(file_data)
+        file.close()
+
+    return f"{basepath}file/{file_name}"
 
 
 async def get_file_path_v2(file_name: str) -> str:
@@ -368,8 +449,7 @@ async def get_file_path_v2(file_name: str) -> str:
     :return: 文件路径。例："c:/bot/cache/file/file.zip"
     """
     file_path = basepath + "file/"
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
+    os.makedirs(file_path, exist_ok=True)
     file_path += file_name
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
@@ -389,36 +469,55 @@ async def get_image_path(image_name) -> str:
     :param image_name: 文件名。例：“jellyfish_box-j1.png”
     :return: 文件路径。例："c:/bot/cache/file/file.zip"
     """
-    file_path = basepath + "file/image/"
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
-    file_path += image_name
     if "." not in image_name:
-        file_path += ".png"
+        image_name += ".png"
+    os.makedirs(f"{basepath}file/image/", exist_ok=True)
+    file_path = f"{basepath}file/image/{image_name}"
+    image_fast_cache_path = kn_config("plugin", "image_fast_cache_path")
+    file_cache_path = f"{image_fast_cache_path}{image_name}"
+
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.debug("正在下载" + image_name)
         url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-{image_name}"
-        image = await connect_api(type="image", url=url)
-        image.save(file_path)
+        try:
+            image = await connect_api(type="image", url=url)
+            image.save(file_path)
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            raise "图片下载错误"
+
+    if image_fast_cache_path is not None:
+        if not os.path.exists(file_cache_path):
+            file = open(file_path, "rb")
+            file_data = file.read()
+            file.close()
+            file = open(file_cache_path, "wb")
+            file.write(file_data)
+            file.close()
+
     return file_path
 
 
-async def load_image(path: str, size=None):
+async def load_image(path: str, size=None, mode=None):
     """
     读取图片或请求网络图片
     :param path: 图片路径/图片url
     :param size: 出错时候返回的图片尺寸
+    :param mode: 图片读取模式
     :return:image
     """
+    if mode is None:
+        mode = "r"
     try:
         if path.startswith("http"):
             return await connect_api("image", path)
         else:
             if path.startswith("{basepath}"):
                 image_path = f"{basepath}{path.removeprefix('{basepath}')}"
-                return Image.open(image_path, "r")
-            return Image.open(path, "r")
+                return Image.open(image_path, mode)
+            return Image.open(path, mode)
     except Exception as e:
         logger.error(f"读取图片错误：{path}")
         logger.error(e)
@@ -427,11 +526,11 @@ async def load_image(path: str, size=None):
         raise "图片读取错误"
 
 
-def images_to_gif(
+async def images_to_gif(
         gifs: str,
         gif_path: str,
         duration: int | float
-    ):
+):
     """
     图片保存为gif
     :param gifs:图片文件夹路径
@@ -439,11 +538,13 @@ def images_to_gif(
     :param duration:gif速度
     :return:
     """
+    logger.warning(f"gifs: {gifs}, gif_path: {gif_path}, duration: {duration}")
     frames = []
     png_files = os.listdir(gifs)
     for frame_id in range(1, len(png_files) + 1):
-        frame = Image.open(os.path.join(gifs, '%d.png' % frame_id))
+        frame = Image.open(os.path.join(gifs, '%d.png' % frame_id)).convert("RGBA")
         frames.append(frame)
+    logger.info(f"{frames}")
     frames[0].save(
         gif_path,
         save_all=True,
@@ -459,45 +560,55 @@ def save_image(
         image,
         image_path: str = None,
         image_name: int | str = None,
-        relative_path=False):
+        relative_path=False,
+        tobytes: bool = False):
     """
     保存图片文件到缓存文件夹
     :param image:要保存的图片
     :param image_path: 指定的图片所在文件夹路径，默认为缓存
     :param image_name:图片名称，不填为随机数字
     :param relative_path: 是否返回相对路径
+    :param tobytes: 是否转为bytes
     :return:保存的路径
     """
-    local_time = time.localtime()
-    date_year = local_time.tm_year
-    date_month = local_time.tm_mon
-    date_day = local_time.tm_mday
+    if tobytes is True and type(image) is PIL_Image:
+        # 将Pillow图像数据保存到内存中
+        image_stream = io.BytesIO()
+        image.save(image_stream, format='JPEG')
+        image_stream.seek(0)
+        return image_stream.read()
+
+    date_components = time.strftime("%Y/%m/%d", time.localtime())
     time_now = int(time.time())
 
     if image_path is None:
-        image_path = "{basepath}" + f"cache/{date_year}/{date_month}/{date_day}/"
+        image_path = "{basepath}" + f"cache/{date_components}/"
     real_path = image_path.replace("{basepath}", basepath)
-
     os.makedirs(real_path, exist_ok=True)
 
     if image_name is None:
         image_name = f"{time_now}_{random.randint(1000, 9999)}"
         num = 50
-        while num > 0:
+        while True:
             num -= 1
-            random_num = str(random.randint(100000, 999999))
+            random_num = str(random.randint(1000, 9999))
             if os.path.exists(f"{real_path}{image_name}_{random_num}.png"):
                 continue
-            image_name += f"_{random_num}.png"
+            image_name = f"{image_name}_{random_num}.png"
             break
 
     logger.debug(f"保存图片文件：{real_path}{image_name}")
     image.save(f"{real_path}{image_name}")
 
+    if tobytes is True:
+        image_file = open(f"{real_path}{image_name}", "rb")
+        image = image_file.read()
+        image_file.close()
+        return image
     if relative_path is True:
-        return "{basepath}" + image_path + image_name
+        return f"{image_path}{image_name}"
     else:
-        return real_path + image_name
+        return f"{real_path}{image_name}"
 
 
 async def lockst(lockdb=None):
@@ -1009,7 +1120,7 @@ def get_unity_user_id(platform: str, user_id: str):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
-    tables = []
+    tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
     for data in datas:
         if data[1] != "sqlite_sequence":
             tables.append(data[1])
@@ -1024,7 +1135,7 @@ def get_unity_user_id(platform: str, user_id: str):
     data = cursor.fetchone()
     if data is None:
         # 无数据，创建一个unity_id
-        num = 100
+        num = 1000
         while num > 0:
             num -= 1
             if num > 10:
@@ -1087,10 +1198,7 @@ def get_user_id(platform: str, unity_user_id: str):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
+    tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
     # 检查是否创建数据库
     if "id_list" not in tables:
         cursor.execute(
@@ -1119,24 +1227,13 @@ def get_unity_user_data(unity_user_id: str):
     :return: 用户数据
     """
     unity_user_id = str(unity_user_id)
-    # 读取数据库列表
-    if not os.path.exists(f"{basepath}db/"):
-        os.makedirs(f"{basepath}db/")
-    conn = sqlite3.connect(f"{basepath}db/config.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-    datas = cursor.fetchall()
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
-    # 检查是否创建数据库
-    if "user_data" not in tables:
-        cursor.execute('create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))')
 
-    # 开始读取数据
-    cursor.execute(f'SELECT * FROM "user_data" WHERE unity_id = "{unity_user_id}"')
-    data = cursor.fetchone()
+    data = read_db(
+        db_path="{basepath}db/config.db",
+        sql_text=f'SELECT * FROM "user_data" WHERE unity_id = "{unity_user_id}"',
+        table_name="user_data",
+        select_all=False
+    )
     if data is None:
         # 默认数据
         unity_user_data = {}
@@ -1149,14 +1246,6 @@ def get_unity_user_data(unity_user_id: str):
             logger.error(f"读取json数据出错,json:{data}")
             unity_user_data = {}
 
-    # 关闭数据库
-    cursor.close()
-    conn.close()
-
-    for data in list(unity_user_data):
-        if type(unity_user_data[data]) is str:
-            if "{basepath}" in unity_user_data[data]:
-                unity_user_data[data] = unity_user_data[data].replace("{basepath}", basepath)
     return unity_user_data
 
 
@@ -1167,7 +1256,7 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     :param unity_user_data:
     :return:
     """
-    unity_user_data_str = json_to_str(unity_user_data)
+    unity_user_data_str = json.dumps(unity_user_data)
 
     # 读取数据库列表
     if not os.path.exists(f"{basepath}db/"):
@@ -1176,10 +1265,7 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
     datas = cursor.fetchall()
-    tables = []
-    for data in datas:
-        if data[1] != "sqlite_sequence":
-            tables.append(data[1])
+    tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
     # 检查是否创建数据库
     if "user_data" not in tables:
         cursor.execute('create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))')
@@ -1193,21 +1279,6 @@ def save_unity_user_data(unity_id: str, unity_user_data: json):
     conn.close()
 
     return unity_user_data
-
-
-def json_to_str(json_data):
-    text = json.dumps(json_data)
-    # text = str(json_data)
-
-    # 替换同义词
-    # text = text.replace("'", '\\-code-replace-code-\\')
-    # text = text.replace('"', "'")
-    # text = text.replace("\\-code-replace-code-\\", '"')
-    # text = text.replace("None", "null")
-    # text = text.replace("True", "true")
-    # text = text.replace("False", "false")
-
-    return text
 
 
 def del_files2(dir_path):
@@ -1239,31 +1310,109 @@ def statistics_list(input: list) -> dict:
     return data
 
 
-async def content_compliance(type_: str = "text", data: str = None, user_id: str = "user_id"):
+async def content_compliance(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
     """
     内容合规检测（百度api）
     :param type_: 类型： "text", "image"
-    :param data: 检测的内容。text: str, image: str = url
+    :param text_data: 检测的内容。text: str, image: str = url
     :param user_id: 被检测的用户id
-    :return: {"conclusion": "合规"}
+    :return: {"conclusion": "Block"}{"conclusion": "Review"}{"conclusion": "Pass"}
     """
+    if text_data is None:
+        return {"conclusion": "Pass", "review": True, "message": "Pass None"}
+    logger.debug(f"content_compliance, typr={type_}")
+    data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
     try:
         if type_ == "text":
-            access_token = kn_config("content_compliance", "token")
-            request_url = "https://aip.baidubce.com/rest/2.0/solution/v1/text_censor/v2/user_defined"
-            params = {"text": data, "strategyId	": 36222, "userId": user_id}
-            request_url += f"?access_token={access_token}"
-            headers = {'content-type': 'application/x-www-form-urlencoded'}
-            # return_data["conclusion"] = "合规""疑似""不合规"
-            # return_data["data"] = {} if return_data["conclusion"] == "合规" else data
-            raturn_data = httpx.post(request_url, data=params, headers=headers)
-            logger.debug(f"内容合规检测： {raturn_data}")
-            return raturn_data.json()
+            if text_data in kn_cache["content_compliance_list"]["full"]:
+                logger.debug({"conclusion": "Block", "word": text_data, "message": "数据库黑名单句子"})
+                return {"conclusion": "Block", "message": "数据库黑名单句子"}
+
+            for item in kn_cache["content_compliance_list"]["part"]:
+                if item in text_data:
+                    logger.debug({"conclusion": "Block", "word": item, "message": "数据库黑名单词汇"})
+                    return {"conclusion": "Block", "review": True, "message": "数据库黑名单词汇"}
+
+            data = read_db(
+                db_path="{basepath}db/content_compliance.db",
+                sql_text=f"SELECT * FROM content_compliance WHERE text='{data_b64}'",
+                table_name="content_compliance",
+                select_all=False
+            )
+
+            if data is not None:
+                if data[2] == "Pass":
+                    logger.debug({"conclusion": "Pass", "message": "Pass by database"})
+                    return {"conclusion": "Pass", "review": True, "message": "Pass by database"}
+                elif data[3] is not None or data[3] != 1:
+                    logger.debug({"conclusion": "Pass", "message": f"{data[2]} by database without Review"})
+                    return {"conclusion": "Pass", "review": False, "message": f"{data[2]} by database without Review"}
+                elif data[2] == "Review":
+                    logger.debug({"conclusion": "Review", "message": "Review by database"})
+                    return {"conclusion": "Review", "review": True, "message": "Review by database"}
+                else:
+                    logger.debug({"conclusion": "Block", "message": "Block by database"})
+                    return {"conclusion": "Block", "review": True, "message": "Block by database"}
+            else:
+                whitelist_term = ["尼格"]
+                for whitelist in whitelist_term:
+                    text_data = text_data.replace(whitelist, "")
+                data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
+
+                secret_id = kn_config("content_compliance", "secret_id")
+                secret_key = kn_config("content_compliance", "secret_key")
+
+                cred = credential.Credential(secret_id, secret_key)
+                httpProfile = HttpProfile()
+                httpProfile.endpoint = "tms.tencentcloudapi.com"
+                clientProfile = ClientProfile()
+                clientProfile.httpProfile = httpProfile
+                client = tms_client.TmsClient(cred, "ap-guangzhou", clientProfile)
+                req = models.TextModerationRequest()
+                encoded_content = base64.b64encode(text_data.encode('utf-8')).decode('utf-8')
+                params = {
+                    "Content": encoded_content,
+                    "User": {
+                        "UserId": user_id
+                    },
+                }
+                req.from_json_string(json.dumps(params))
+                resp = client.TextModeration(req)
+                return_data: dict = json.loads(resp.to_json_string())
+
+                conn = sqlite3.connect(f"{basepath}db/content_compliance.db")
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                datas = cursor.fetchall()
+                tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
+                # 检查是否创建数据库
+                if "content_compliance" not in tables:
+                    cursor.execute(
+                        f"create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
+                        f"text VARCHAR(10), state VARCHAR(10), request_id VARCHAR(10), audit VARCHAR(10))")
+
+                cursor.execute(
+                    f"replace into content_compliance ('text','state','request_id','audit') "
+                    f"values('{data_b64}','{return_data['Suggestion']}','{return_data['RequestId']}',0)")
+                conn.commit()
+                cursor.close()
+                conn.close()
+
+                if "Suggestion" not in return_data.keys() or return_data["BizType"] != "0":
+                    logger.error("内容合规错误")
+                    logger.error(return_data)
+                    return {"conclusion": "Pass", "data": return_data}
+                # return_data["conclusion"] = "Pass""Review""Block"
+                # return_data["data"] = {} if return_data["conclusion"] == "合规" else text_data
+                logger.debug(f"内容合规检测： {return_data}")
+                return {"conclusion": return_data["Suggestion"], "data": return_data}
         elif type_ == "image":
-            return {"conclusion": "合规", "message": "图片检测未完成"}
+            return {"conclusion": "Pass", "message": "图片检测未完成"}
         return {"conclusion": "error", "message": "检测类型不存在"}
     except Exception as e:
-
+        logger.error(e)
+        logger.error(traceback.format_exc())
+        logger.error("内容合规检测出错")
         return {
             "conclusion": "error",
             "message": "运行错误",
@@ -1272,3 +1421,215 @@ async def content_compliance(type_: str = "text", data: str = None, user_id: str
         }
 
 
+def create_table_data_():
+    date_year: int = time.localtime().tm_year
+    date_month: int = time.localtime().tm_mon
+    data = {
+        "{basepath}db/config.db": {
+            "user_data": 'create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))',
+            "": "",
+        },
+        "{basepath}db/content_compliance.db": {
+            "content_compliance": "create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
+                                  "text VARCHAR, state VARCHAR, request_id VARCHAR, audit VARCHAR, audit VARCHAR)",
+        },
+        "{basepath}db/plugin_data.db": {
+            "jellyfish_box": 'create table "jellyfish_box"(user_id VARCHAR(10) primary key, data VARCHAR(10))',
+        },
+    }
+    return data
+
+
+def read_db(
+        db_path: str,
+        sql_text: str,
+        select_all: bool = False,
+        table_name: str = None,
+        create_table_text: str = None):
+    """
+    读取数据库
+    :param db_path: 数据库路径
+    :param sql_text: sql语句
+    :param select_all: 是否筛选全部
+    :param table_name: 表名
+    :param create_table_text: 创建表的sql语句
+    :return:
+    """
+    db_path = db_path.replace("{basepath}", basepath)
+    create_table_data = create_table_data_()
+    if create_table_text is not None and db_path in create_table_data.keys():
+        if table_name is not None and table_name in create_table_data[db_path].keys():
+            create_table_text = create_table_data[db_path][table_name]
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        datas = cursor.fetchall()
+        tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
+        # 检查是否创建数据库
+        if table_name not in tables:
+            if create_table_text is not None:
+                cursor.execute(create_table_text)
+            else:
+                raise "数据库表不存在"
+        # 读取内容
+        cursor.execute(sql_text)
+        if select_all is True:
+            data = cursor.fetchall()
+        else:
+            data = cursor.fetchone()
+    except Exception as e:
+        logger.error(f"读取数据库错误{db_path}")
+        logger.error(e)
+        logger.error(traceback.format_exc())
+        raise "数据库访问出错"
+    finally:
+        # 关闭数据库
+        cursor.close()
+        conn.close()
+    return data
+
+
+def text_to_b64(text: str) -> str:
+    return str(base64.b64encode(text.encode('UTF-8')), encoding='UTF-8')
+
+
+def b64_to_str(b64_text: str) -> str:
+    return base64.b64decode(b64_text).decode('UTF-8')
+
+
+async def draw_line_chart(
+        datas: list[list[int, int]],
+        size: tuple = (100, 100),
+        color: str | tuple[int, int, int, int] = "#0c88da",
+        enlarge_num: int = 1,
+        mirror_x: bool = False,
+        width: int = None,
+        max_min_y: list[int] = None,
+        dash_line: list | bool = False
+):
+    """
+    绘制折线
+    :param datas: 折线数据
+    :param size: 绘制尺寸
+    :param color: 折线颜色
+    :param enlarge_num: 线段细分倍数
+    :param mirror_x: 是否镜像x轴
+    :param width: 线段宽度
+    :param max_min_y: y轴最大高度，用于同步几个图统一高度
+    :param dash_line: 绘制虚线。
+    :return: Image
+    """
+    if enlarge_num == int or enlarge_num < 1:
+        raise "扩大倍数必须大于等于1"
+    if len(datas) < 3:
+        raise "必须有2个点以上"
+
+    w, h = size
+    if width is None:
+        width = int((w + h) / 121.5)
+    image_bleed = 5
+    w -= image_bleed * 2
+    h -= image_bleed * 2
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    x_list = [data[0] for data in datas]
+    if mirror_x is True:
+        x_list = x_list[::-1]
+    y_list = [data[1] for data in datas]
+    max_x = max(x_list)
+    min_x = min(x_list)
+    if max_min_y is None:
+        max_y = max(y_list)
+        min_y = min(y_list)
+    else:
+        max_y, min_y = max_min_y
+
+    if max_y - min_y == 0:
+        draw.line((
+            (image_bleed, h - image_bleed), (w - image_bleed, h - image_bleed)),
+            fill=color, width=width)
+        return image
+
+    # 细分点数
+    if enlarge_num > 1:
+        enlarge_num_ = len(datas) * enlarge_num
+        f = interp1d(x_list, y_list)
+        x_list = numpy.linspace(max_x, min_x, enlarge_num_)
+        y_list = f(x_list)
+
+    if type(dash_line) is bool:
+        if dash_line is True:
+            dash_group = [True for i in range(len(x_list))]
+        else:
+            dash_group = [False for i in range(len(x_list))]
+    else:
+        # elif type(dash_line) is int:
+        pass
+
+    num_x = w / (max_x - min_x)
+    num_y = h / (max_y - min_y)
+
+    def draw_poin(p1: int, p2: int):
+        point_x = (p1 - min_x) * num_x
+        point_y = (p2 - min_y) * num_y
+        point_y = h - point_y
+        return int(point_x) + image_bleed, int(point_y) + image_bleed
+
+    num = -1
+    for i in range(len(x_list)):
+        num += 1
+        if num == 0:
+            continue
+
+        st_point = draw_poin(x_list[num - 1], y_list[num - 1])
+        ed_point = draw_poin(x_list[num], y_list[num])
+        draw.line((st_point, ed_point), fill=color, width=width)
+    return image
+
+
+async def draw_pie_chart(
+        datas: list[int],
+        size: tuple[int, int] | int = (100, 100),
+        colors: list[str, tuple] = None
+):
+    num = 0
+    for data in datas:
+        num += data
+    if 0.999 > num or num > 1.001:
+        logger.error(datas)
+        logger.error(num)
+        raise "数据总和必须等于1"
+    if colors is not None and len(datas) != len(colors):
+        logger.error(f"datas:{len(datas)}, colors:{len(colors)}")
+        raise "数据长度和颜色长度不匹配"
+    if type(size) is int:
+        size = (size, size)
+    if colors is None:
+        colors = []
+        for i in range(len(datas)):
+            colors.append((
+                42, 100, 184,
+                int(255 - int(255 / len(datas) * (i * 2))),
+            ))
+    colors = colors[::-1]
+
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    datas = sorted(datas)
+    num = -1
+    draw_num = 0
+    for data in datas:
+        num += 1
+        if data == 0 or (360 * data) == 0:
+            continue
+        draw.pieslice(
+            ((0, 0), (size[0], size[1])),
+            start=draw_num,
+            end=draw_num + (360 * data),
+            fill=colors[num],
+            outline=(0, 0, 0))
+        draw_num += (360 * data)
+
+    return image
