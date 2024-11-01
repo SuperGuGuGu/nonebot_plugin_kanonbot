@@ -55,15 +55,14 @@ async def plugin_zhanbu(user_id, cachepath):
             # 写入占卜结果
             cursor.execute(f'replace into zhanbu("userid","id") values("{user_id}", "{zhanbu_id}")')
 
-            if kn_config("kanon_api-state"):
+            if kn_config("kanon_api", "state"):
                 # 如果开启了api，则从服务器下载占卜数据
                 returnpath = f"{basepath}image/占卜2/"
-                if not os.path.exists(returnpath):
-                    os.makedirs(returnpath)
+                os.makedirs(returnpath, exist_ok=True)
                 returnpath += f"{zhanbu_name}.jpg"
                 if not os.path.exists(returnpath):
                     # 如果文件未缓存，则缓存下来
-                    url = f"{kn_config('kanon_api-url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
+                    url = f"{kn_config('kanon_api', 'url')}/api/image?imageid=knapi-zhanbu2-{zhanbu_id}"
                     try:
                         image = await connect_api("image", url)
                         image.save(returnpath)
@@ -303,7 +302,7 @@ async def plugin_config(
 
     # 判断要运行的命令
     if command in ["开启", "关闭"]:
-        if config_list[command_id]["swift_by_admin"] is True and user_id != "KnSGGG":
+        if config_list[command_id]["swift_by_admin"] is True and user_id not in adminqq:
             message = "指令功能无法设置"
         else:
             # 开启或关闭功能
@@ -402,257 +401,260 @@ async def plugin_config(
         image_path = await get_file_path("plugin-config-state.png")
         image = await load_image(image_path, (3000, 2250))
         state_url = kn_config("plugin", "state_url")
-        data = await connect_api("json", state_url, timeout=50)
+        if state_url is None:
+            logger.debug("未配置查询api地址，将不回复运行状态")
+        else:
+            data = await connect_api("json", state_url, timeout=50)
 
-        # 粘贴24小时数据
-        card_image = Image.new("RGBA", (1400, 550), (0, 0, 0, 0))
-        card_draw = ImageDraw.Draw(card_image)
-        log_data = data["data"]
-        paste_datas = log_data["daily_use"]
-        paste_datas = paste_datas[::-1]
-        color_list = [(0, 0, 0, 255)]
-        color = (12, 136, 218)
-        num = len(paste_datas) - 1
-        for i in range(num):
-            add_color = (color[0], color[1], color[2],
-                         int(255 / (i + 1)))
-            color_list.append(add_color)
-        color_list = color_list[::-1]
+            # 粘贴24小时数据
+            card_image = Image.new("RGBA", (1400, 550), (0, 0, 0, 0))
+            card_draw = ImageDraw.Draw(card_image)
+            log_data = data["data"]
+            paste_datas = log_data["daily_use"]
+            paste_datas = paste_datas[::-1]
+            color_list = [(0, 0, 0, 255)]
+            color = (12, 136, 218)
+            num = len(paste_datas) - 1
+            for i in range(num):
+                add_color = (color[0], color[1], color[2],
+                             int(255 / (i + 1)))
+                color_list.append(add_color)
+            color_list = color_list[::-1]
 
-        num = -1
-        for paste_data in paste_datas:
-            num += 1
-            paste_data_list = [[int(k), int(v)] for k, v in paste_data.items()]
-            color = color_list[num]
+            num = -1
+            for paste_data in paste_datas:
+                num += 1
+                paste_data_list = [[int(k), int(v)] for k, v in paste_data.items()]
+                color = color_list[num]
+                paste_image = await draw_line_chart(
+                    datas=paste_data_list,
+                    size=(1270, 310),
+                    enlarge_num=4,
+                    color=color,
+                    mirror_x=True
+                )
+                card_image.paste(paste_image, (50, 123), paste_image)
+
+            card_draw.line(
+                xy=((120 + 1270 - int(1270 / 24 * time_h), 210), (120 + 1270 - int(1270 / 24 * time_h), 210 + 310)),
+                fill=(50, 50, 50, 100),
+                width=7)
+
+            time_h_2 = time_h - 12 if time_h > 12 else time_h + 12
+            card_draw.line(
+                xy=((120 + 1270 - int(1270 / 24 * time_h_2), 210), (120 + 1270 - int(1270 / 24 * time_h_2), 210 + 310)),
+                fill=(200, 200, 200, 50),
+                width=7)
+            image.paste(card_image, (55, 77), card_image)
+
+            # 粘贴7天每天消息数
+            card_image = Image.new("RGBA", (830, 550), (0, 0, 0, 0))
+            data_list = log_data["log_nums"]
+            paste_data_list = []
+            list_x = []
+            list_y = []
+            for x in range(len(data_list)):
+                list_x.append(x)
+                list_y.append(data_list[x])
+                paste_data_list.append([x, data_list[x]])
+
+            color = "#128bd3"
             paste_image = await draw_line_chart(
                 datas=paste_data_list,
-                size=(1270, 310),
+                size=(690, 300),
                 enlarge_num=4,
                 color=color,
                 mirror_x=True
             )
-            card_image.paste(paste_image, (50, 123), paste_image)
+            image.paste(paste_image, (120, 800), paste_image)
 
-        card_draw.line(
-            xy=((120 + 1270 - int(1270 / 24 * time_h), 210), (120 + 1270 - int(1270 / 24 * time_h), 210 + 310)),
-            fill=(50, 50, 50, 100),
-            width=7)
-
-        time_h_2 = time_h - 12 if time_h > 12 else time_h + 12
-        card_draw.line(
-            xy=((120 + 1270 - int(1270 / 24 * time_h_2), 210), (120 + 1270 - int(1270 / 24 * time_h_2), 210 + 310)),
-            fill=(200, 200, 200, 50),
-            width=7)
-        image.paste(card_image, (55, 77), card_image)
-
-        # 粘贴7天每天消息数
-        card_image = Image.new("RGBA", (830, 550), (0, 0, 0, 0))
-        data_list = log_data["log_nums"]
-        paste_data_list = []
-        list_x = []
-        list_y = []
-        for x in range(len(data_list)):
-            list_x.append(x)
-            list_y.append(data_list[x])
-            paste_data_list.append([x, data_list[x]])
-
-        color = "#128bd3"
-        paste_image = await draw_line_chart(
-            datas=paste_data_list,
-            size=(690, 300),
-            enlarge_num=4,
-            color=color,
-            mirror_x=True
-        )
-        image.paste(paste_image, (120, 800), paste_image)
-
-        paste_image = await draw_text(
-            str(max(list_y)),
-            size=40,
-            text_color="#A0A0A0",
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-        )
-        image.paste(paste_image, (740, 735), paste_image)
-
-        paste_image = await draw_text(
-            str(min(list_y)),
-            size=40,
-            text_color="#A0A0A0",
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-        )
-        image.paste(paste_image, (740, 1150), paste_image)
-
-        # 粘贴7天每天用户数
-        data_list = log_data["user_nums"]
-        paste_data_list = []
-        list_x = []
-        list_y = []
-        for x in range(len(data_list)):
-            list_x.append(x)
-            list_y.append(data_list[x])
-            paste_data_list.append([x, data_list[x]])
-
-        color = "#128bd3"
-        paste_image = await draw_line_chart(
-            datas=paste_data_list,
-            size=(690, 300),
-            enlarge_num=4,
-            color=color,
-            mirror_x=True
-        )
-        image.paste(paste_image, (1010, 800), paste_image)
-
-        paste_image = await draw_text(
-            str(max(list_y)),
-            size=40,
-            text_color="#A0A0A0",
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-        )
-        image.paste(paste_image, (1620, 735), paste_image)
-
-        paste_image = await draw_text(
-            str(min(list_y)),
-            size=40,
-            text_color="#A0A0A0",
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-        )
-        image.paste(paste_image, (1620, 1150), paste_image)
-
-        # 粘贴用户发言数
-        draw_datas = log_data["user_list"]
-
-        num = -1
-        paste_x = 610
-        paste_y = 1300
-        for data in draw_datas:
-            num += 1
-            if num >= 10:
-                break
-            paste_text = f"{data}: {draw_datas[data]}"
             paste_image = await draw_text(
-                paste_text.removeprefix("user_"),
-                size=57, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                str(max(list_y)),
+                size=40,
+                text_color="#A0A0A0",
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
             )
-            image.paste(paste_image, (paste_x, paste_y), paste_image)
-            paste_y += 85
+            image.paste(paste_image, (740, 735), paste_image)
 
-        # 粘贴功能调用数
-        draw_datas: dict = log_data["command_name_list"]
-        num_list = draw_datas.values()
-        all_num = sum(num_list)
-        num_list_2 = []
-        for num in num_list:
-            if num == 0 or (all_num / num) == 0:
-                num_list_2.append(0)
-            else:
-                num_list_2.append(1 / (all_num / num))
-        num_list_2 = sorted(num_list_2)
-        is_zero = True
-        for i in num_list_2:
-            if i != 0:
-                is_zero = False
-        if is_zero is True:
-            num_list_3 = []
-            for i in range(len(num_list_2)):
-                num_list_3.append(1 / len(num_list_2))
-            num_list_2 = num_list_3
-        paste_image = await draw_pie_chart(datas=num_list_2, size=(380, 380))
-        image.paste(paste_image, (1880, 740), paste_image)
-
-        num = -1
-        paste_x = 2370
-        paste_y = 700
-        for data in draw_datas:
-            num += 1
-            if num >= 5:
-                break
-            paste_text = f"{data}: {draw_datas[data]}"
             paste_image = await draw_text(
-                paste_text, size=72, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                str(min(list_y)),
+                size=40,
+                text_color="#A0A0A0",
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
             )
-            image.paste(paste_image, (paste_x, paste_y), paste_image)
-            paste_y += 100
+            image.paste(paste_image, (740, 1150), paste_image)
 
-        # 粘贴指令运行趋势
-        draw_datas = log_data["command_name_list_daily"]
-        min_num = 99999
-        max_num = -10
-        for command_name in draw_datas.keys():
-            for day in draw_datas[command_name].keys():
-                min_num = min(min_num, draw_datas[command_name][day])
-                max_num = max(max_num, draw_datas[command_name][day])
-
-        max_command_name_data = {}
-        for command_name in draw_datas.keys():
-            num = 0
-            for i in draw_datas[command_name].keys():
-                num += draw_datas[command_name][i]
-            max_command_name_data[command_name] = num
-        max_command_name_data = dict(sorted(max_command_name_data.items(), key=lambda item: item[1], reverse=True))
-        command_name_list = list(max_command_name_data.keys())
-        max_command_name_list = command_name_list[:12]
-
-        colors = ["#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
-                  "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
-                  "#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
-                  "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
-                  ]
-        draw_text_num = -1
-        num = -1
-        for command_name in command_name_list:
-            num += 1
+            # 粘贴7天每天用户数
+            data_list = log_data["user_nums"]
             paste_data_list = []
-            for x in draw_datas[command_name].keys():
-                paste_data_list.append([int(x), draw_datas[command_name][x]])
+            list_x = []
+            list_y = []
+            for x in range(len(data_list)):
+                list_x.append(x)
+                list_y.append(data_list[x])
+                paste_data_list.append([x, data_list[x]])
 
+            color = "#128bd3"
             paste_image = await draw_line_chart(
                 datas=paste_data_list,
-                size=(550, 400),
+                size=(690, 300),
                 enlarge_num=4,
-                color=colors[num],
-                mirror_x=True,
-                max_min_y=[max_num, min_num]
+                color=color,
+                mirror_x=True
             )
-            image.paste(paste_image, (2130, 1380), paste_image)
+            image.paste(paste_image, (1010, 800), paste_image)
 
-            if command_name in max_command_name_list:
-                draw_text_num += 1
+            paste_image = await draw_text(
+                str(max(list_y)),
+                size=40,
+                text_color="#A0A0A0",
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+            )
+            image.paste(paste_image, (1620, 735), paste_image)
+
+            paste_image = await draw_text(
+                str(min(list_y)),
+                size=40,
+                text_color="#A0A0A0",
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+            )
+            image.paste(paste_image, (1620, 1150), paste_image)
+
+            # 粘贴用户发言数
+            draw_datas = log_data["user_list"]
+
+            num = -1
+            paste_x = 610
+            paste_y = 1300
+            for data in draw_datas:
+                num += 1
+                if num >= 10:
+                    break
+                paste_text = f"{data}: {draw_datas[data]}"
                 paste_image = await draw_text(
-                    "-",
-                    size=40,
-                    text_color=colors[num],
-                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                    paste_text.removeprefix("user_"),
+                    size=57, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
                 )
-                image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 10), paste_image)
-                image.paste(paste_image, (2700 + 5, 1270 + int(draw_text_num * 45) + 15), paste_image)
-                image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 20), paste_image)
+                image.paste(paste_image, (paste_x, paste_y), paste_image)
+                paste_y += 85
+
+            # 粘贴功能调用数
+            draw_datas: dict = log_data["command_name_list"]
+            num_list = draw_datas.values()
+            all_num = sum(num_list)
+            num_list_2 = []
+            for num in num_list:
+                if num == 0 or (all_num / num) == 0:
+                    num_list_2.append(0)
+                else:
+                    num_list_2.append(1 / (all_num / num))
+            num_list_2 = sorted(num_list_2)
+            is_zero = True
+            for i in num_list_2:
+                if i != 0:
+                    is_zero = False
+            if is_zero is True:
+                num_list_3 = []
+                for i in range(len(num_list_2)):
+                    num_list_3.append(1 / len(num_list_2))
+                num_list_2 = num_list_3
+            paste_image = await draw_pie_chart(datas=num_list_2, size=(380, 380))
+            image.paste(paste_image, (1880, 740), paste_image)
+
+            num = -1
+            paste_x = 2370
+            paste_y = 700
+            for data in draw_datas:
+                num += 1
+                if num >= 5:
+                    break
+                paste_text = f"{data}: {draw_datas[data]}"
                 paste_image = await draw_text(
-                    command_name,
-                    size=40,
-                    text_color="#000000",
-                    fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                    paste_text, size=72, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
                 )
-                image.paste(paste_image, (2700 + 20, 1270 + int(draw_text_num * 45)), paste_image)
+                image.paste(paste_image, (paste_x, paste_y), paste_image)
+                paste_y += 100
 
-        # 粘贴服务器状态
-        draw_datas = log_data["state_data"]
-        text = ""
-        for data in draw_datas.keys():
-            text += f"{data}: "
-            if draw_datas[data]["state"] is True:
-                text += f"✅:{draw_datas[data]['message']}\n"
-            else:
-                text += f"❌:{draw_datas[data]['message']}\n"
-        text = text.removesuffix("\n")
+            # 粘贴指令运行趋势
+            draw_datas = log_data["command_name_list_daily"]
+            min_num = 99999
+            max_num = -10
+            for command_name in draw_datas.keys():
+                for day in draw_datas[command_name].keys():
+                    min_num = min(min_num, draw_datas[command_name][day])
+                    max_num = max(max_num, draw_datas[command_name][day])
 
-        paste_image = await draw_text(
-            text, size=55, text_color=(0, 0, 0),
-            fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-        )
-        image.paste(paste_image, (1270, 1410), paste_image)
+            max_command_name_data = {}
+            for command_name in draw_datas.keys():
+                num = 0
+                for i in draw_datas[command_name].keys():
+                    num += draw_datas[command_name][i]
+                max_command_name_data[command_name] = num
+            max_command_name_data = dict(sorted(max_command_name_data.items(), key=lambda item: item[1], reverse=True))
+            command_name_list = list(max_command_name_data.keys())
+            max_command_name_list = command_name_list[:12]
 
-        # 返回图片
-        returnpath = save_image(image)
+            colors = ["#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
+                      "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
+                      "#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
+                      "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
+                      ]
+            draw_text_num = -1
+            num = -1
+            for command_name in command_name_list:
+                num += 1
+                paste_data_list = []
+                for x in draw_datas[command_name].keys():
+                    paste_data_list.append([int(x), draw_datas[command_name][x]])
+
+                paste_image = await draw_line_chart(
+                    datas=paste_data_list,
+                    size=(550, 400),
+                    enlarge_num=4,
+                    color=colors[num],
+                    mirror_x=True,
+                    max_min_y=[max_num, min_num]
+                )
+                image.paste(paste_image, (2130, 1380), paste_image)
+
+                if command_name in max_command_name_list:
+                    draw_text_num += 1
+                    paste_image = await draw_text(
+                        "-",
+                        size=40,
+                        text_color=colors[num],
+                        fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                    )
+                    image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 10), paste_image)
+                    image.paste(paste_image, (2700 + 5, 1270 + int(draw_text_num * 45) + 15), paste_image)
+                    image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 20), paste_image)
+                    paste_image = await draw_text(
+                        command_name,
+                        size=40,
+                        text_color="#000000",
+                        fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+                    )
+                    image.paste(paste_image, (2700 + 20, 1270 + int(draw_text_num * 45)), paste_image)
+
+            # 粘贴服务器状态
+            draw_datas = log_data["state_data"]
+            text = ""
+            for data in draw_datas.keys():
+                text += f"{data}: "
+                if draw_datas[data]["state"] is True:
+                    text += f"✅:{draw_datas[data]['message']}\n"
+                else:
+                    text += f"❌:{draw_datas[data]['message']}\n"
+            text = text.removesuffix("\n")
+
+            paste_image = await draw_text(
+                text, size=55, text_color=(0, 0, 0),
+                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
+            )
+            image.paste(paste_image, (1270, 1410), paste_image)
+
+            # 返回图片
+            returnpath = save_image(image)
     elif command == "关闭md":
         user_data = get_unity_user_data(user_id)
         user_data["use_markdown"] = False
@@ -2793,6 +2795,9 @@ async def plugin_function_pic(
 
     eagle_path = kn_config("pic", "eagle-path")
     eagle_url = kn_config("pic", "eagle-url")
+    if eagle_path is None or eagle_url is None:
+        logger.warning("未配置图库路径或url，将不返回消息")
+        return message, images, trace
 
     # 替换同义词
     msg = msg.replace("老婆", "lp").replace("我lp", "wlp")
@@ -2866,7 +2871,8 @@ async def plugin_function_pic(
             url = f"{eagle_url}api/library/info"
             data = await connect_api("json", url)
             lib_name = data["data"]["library"]["name"]
-            if lib_name != kn_config("pic", "eagle-name"):
+            eagle_name = kn_config("pic", "eagle-name")
+            if eagle_name is not None and lib_name != eagle_name:
                 message = "管理员忘记切换库啦，没有lp看啦"
             else:
                 # 获取成员图片列表

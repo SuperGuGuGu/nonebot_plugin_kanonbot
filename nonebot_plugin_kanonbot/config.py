@@ -1,9 +1,7 @@
 # coding=utf-8
 import json
 import time
-
 from nonebot import logger
-
 from .tools import get_file_path, _config
 
 basepath = _config["basepath"]

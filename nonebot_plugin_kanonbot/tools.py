@@ -111,50 +111,6 @@ basepath = _config["basepath"]
 command_starts = _config["command_starts"]
 kn_config_data = None
 
-logger.debug("加载用户列表")
-os.makedirs(f"{basepath}db/", exist_ok=True)
-conn = sqlite3.connect(f"{basepath}db/config.db")
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM id_list")
-datas = cursor.fetchall()
-cursor.close()
-conn.close()
-if "user_id_list" not in kn_cache.keys():
-    kn_cache["user_id_list"] = []
-for data in datas:
-    kn_cache["user_id_list"].append(data[1])
-logger.success("加载用户列表成功")
-
-logger.debug("加载违禁词")
-conn = sqlite3.connect(f"{basepath}db/content_compliance.db")
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM content_compliance WHERE state IS NOT 'Pass' AND audit IS 1")
-datas = cursor.fetchall()
-cursor.execute("SELECT * FROM blacklist WHERE state IS NOT 'Pass' AND audit IS 1")
-datas2 = cursor.fetchall()
-cursor.close()
-conn.close()
-
-kn_cache["content_compliance_list"] = {"part": [], "full": []}
-for data in datas:
-    if data[2] == "Pass" or data[4] != 1:
-        continue
-    text = str(base64.b64decode(data[1]), "utf-8")
-    if data[5] == 5:
-        kn_cache["content_compliance_list"]["full"].append(text)
-    else:
-        kn_cache["content_compliance_list"]["part"].append(text)
-for data in datas2:
-    if data[2] == "Pass" or data[4] != 1:
-        continue
-    text = data[1]
-    if data[5] == 5:
-        kn_cache["content_compliance_list"]["full"].append(text)
-    else:
-        kn_cache["content_compliance_list"]["part"].append(text)
-
-logger.success("加载违禁词成功")
-
 
 def get_command(msg: str) -> list[str | None]:
     """
@@ -268,7 +224,6 @@ def kn_config(config_name: str, config_name2: str = None):
         "kanon_api": {
             "url": "http://cdn.kanon.ink",
             "state": True,
-            "unity_key": "none",
         },
         "emoji": {
             "state": True,
@@ -277,17 +232,22 @@ def kn_config(config_name: str, config_name2: str = None):
         "botswift": {
             "state": False,
             "ignore_list": [],
+            "platform_list": [],
         },
         "plugin": {
             "channel_white_list": [],
             "channel_black_list": [],
+            "black_white_list_platform": [],
             "user_white_list": [],
             "user_black_list": [],
             "bot_list": [],
-            "log": True,
+            "log": False,
             "log_trace_data": False,
             "image_markdown": None,
             "none_markdown": None,
+            "state_url": None,
+            "file_fast_cache_path": None,
+            "image_fast_cache_path": None,
         },
         "plugin_cck": {
             "draw_type": 1,
@@ -301,6 +261,17 @@ def kn_config(config_name: str, config_name2: str = None):
             "send_button": False,
             "button_id": None,
             "draw_gif": False,
+        },
+        "content_compliance": {
+            "secret_id": None,
+            "secret_key": None,
+            "enabled_list": [],
+            "input_ban_list": [],
+        },
+        "pic": {
+            "eagle-path": None,
+            "eagle-url": None,
+            "eagle-name": "",
         },
     }
 
@@ -538,13 +509,11 @@ async def images_to_gif(
     :param duration:gif速度
     :return:
     """
-    logger.warning(f"gifs: {gifs}, gif_path: {gif_path}, duration: {duration}")
     frames = []
     png_files = os.listdir(gifs)
     for frame_id in range(1, len(png_files) + 1):
-        frame = Image.open(os.path.join(gifs, '%d.png' % frame_id)).convert("RGBA")
+        frame = Image.open(os.path.join(gifs, '%d.png' % frame_id)).convert("RGB")
         frames.append(frame)
-    logger.info(f"{frames}")
     frames[0].save(
         gif_path,
         save_all=True,
@@ -935,31 +904,79 @@ async def draw_text(
     return image
 
 
-async def imgpath_to_url(imgpath):
-    """
-    图片路径转url
-    :param imgpath: 图片的路径
-    :return: 图片的url
-    """
-    url = kn_config("image_api", "url")
-    if url is None:
-        """
-        这里会运行报错，因为图片转链接功能需要图床的支持。请用户自行适配。
-        QQ适配器发送图片需要发送url让qq请求。
-        """
-        raise "未配置图床地址"
+async def imgpath_to_url(imgpath: str | bytes, host: str = "https://cdn.kanon.ink"):
+    date_year: int = int(time.strftime("%Y", time.localtime()))
+    date_month: int = int(time.strftime("%m", time.localtime()))
+    date_day: int = int(time.strftime("%d", time.localtime()))
+    dateshort = str(time.strftime("%Y%m%d", time.localtime()))
+    timeshort = str(time.strftime("%H%M%S", time.localtime()))
+    # 数据库文件 如果文件不存在，会自动在当前目录中创建
+    # conn = sqlite3.connect(f"{basepath}/db/imageAPI")
+    conn = sqlite3.connect("P:/local-ImgCache/imageAPI_db.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
+    if "images" not in tables:
+        cursor.execute('create table images (imageid varchar(10) primary key, path varchar(20))')
+
+    cache_imageid = "image-none"
+    num = 12
+    while num > 0:
+        num -= 1
+        if num <= 2:
+            cache_imageid = f"image-{dateshort}-{timeshort}-{random.randint(10000000, 99999999)}"
+        else:
+            cache_imageid = f"image-{dateshort}-{timeshort}-{random.randint(100000, 999999)}"
+        cursor.execute(f"SELECT * FROM images WHERE imageid='{cache_imageid}'")
+        data = cursor.fetchone()
+        if data is None:
+            break
+    imageid = cache_imageid
+    returnpath = f"P:/APIfile/{date_year}/{date_month}/{date_day}/"
+    if not os.path.exists(returnpath):
+        os.makedirs(returnpath)
+    returnpath += imageid
+
+    if type(imgpath) == str and imgpath.startswith("http"):
+        image_ = await connect_api("image", imgpath)
+        img_byte_arr = io.BytesIO()
+        image_.save(img_byte_arr)
+        image_data = img_byte_arr.getvalue()
+        imageid += ".png"
+    elif type(imgpath) == str:
+        imgpath.replace("{basepath}", basepath)
+        file = open(imgpath, "rb")
+        image_data = file.read()
+        file.close()
+        if imgpath.endswith(".gif"):
+            imageid += ".gif"
+        else:
+            imageid += ".png"
+    else:
+        # elif type(imgpath) == bytes:
+        image_data = imgpath
+        imageid += ".png"
+
+    file = open(returnpath, "wb")
+    file.write(image_data)
+    file.close()
+
+    cursor.execute(f'replace into images(imageid,path) values("{imageid}","{returnpath}")')
+    cursor.close()
+    conn.commit()
+    conn.close()
+
+    imgurl = f"{host}/v2/image/image_api/{imageid}?key=tx-image-api"
+    logger.debug(f"转换图片image2url：{imgurl}")
+
+    # 预加载图片
     try:
-        files = {"file": open(imgpath, "rb")}
-        post_url = f"{url}/upload/"
-        response = httpx.post(post_url, files=files)
-        json_data = json.loads(response.text)
-        if json_data["code"] != 0:
-            raise "图片上传失败"
-        image_path = json_data["image_path"]
-        imgurl = f"{url}{image_path}"
+        pass
+        # await connect_api("image", url=imgurl)
     except Exception as e:
-        logger.error("图片上传失败")
-        raise e
+        pass
+    # await asyncio.sleep(0.5)
     return imgurl
 
 
@@ -1312,7 +1329,7 @@ def statistics_list(input: list) -> dict:
 
 async def content_compliance(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
     """
-    内容合规检测（百度api）
+    内容合规检测（腾讯云api）
     :param type_: 类型： "text", "image"
     :param text_data: 检测的内容。text: str, image: str = url
     :param user_id: 被检测的用户id
@@ -1354,6 +1371,7 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
                     logger.debug({"conclusion": "Block", "message": "Block by database"})
                     return {"conclusion": "Block", "review": True, "message": "Block by database"}
             else:
+                # 插件自带白名单，防止内容合规检测误判
                 whitelist_term = ["尼格"]
                 for whitelist in whitelist_term:
                     text_data = text_data.replace(whitelist, "")
@@ -1361,6 +1379,8 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
 
                 secret_id = kn_config("content_compliance", "secret_id")
                 secret_key = kn_config("content_compliance", "secret_key")
+                if secret_id is None or secret_key is None:
+                    raise "未配置内容合规id、key，无法使用内容合规功能。请配置后再开启内容合规审核"
 
                 cred = credential.Credential(secret_id, secret_key)
                 httpProfile = HttpProfile()
@@ -1431,7 +1451,9 @@ def create_table_data_():
         },
         "{basepath}db/content_compliance.db": {
             "content_compliance": "create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
-                                  "text VARCHAR, state VARCHAR, request_id VARCHAR, audit VARCHAR, audit VARCHAR)",
+                                  "text VARCHAR, state VARCHAR, request_id VARCHAR, audit INT, level INT)",
+            "blacklist": "create table blacklist(id_ INTEGER primary key AUTOINCREMENT, "
+                                  "text VARCHAR, state VARCHAR, request_id VARCHAR, audit INT, level INT)",
         },
         "{basepath}db/plugin_data.db": {
             "jellyfish_box": 'create table "jellyfish_box"(user_id VARCHAR(10) primary key, data VARCHAR(10))',
@@ -1633,3 +1655,50 @@ async def draw_pie_chart(
         draw_num += (360 * data)
 
     return image
+
+
+logger.debug("加载用户列表")
+datas = read_db(
+    db_path="{basepath}db/config.db",
+    sql_text="SELECT * FROM id_list",
+    table_name="id_list",
+    select_all=True
+)
+if "user_id_list" not in kn_cache.keys():
+    kn_cache["user_id_list"] = []
+for data in datas:
+    kn_cache["user_id_list"].append(data[1])
+logger.success("加载用户列表成功")
+
+logger.debug("加载违禁词")
+datas = read_db(
+    db_path="{basepath}db/content_compliance.db",
+    sql_text="SELECT * FROM content_compliance WHERE state IS NOT 'Pass' AND audit IS 1",
+    table_name="content_compliance",
+    select_all=True
+)
+datas2 = read_db(
+    db_path="{basepath}db/content_compliance.db",
+    sql_text="SELECT * FROM blacklist WHERE state IS NOT 'Pass' AND audit IS 1",
+    table_name="blacklist",
+    select_all=True
+)
+kn_cache["content_compliance_list"] = {"part": [], "full": []}
+for data in datas:
+    if data[2] == "Pass" or data[4] != 1:
+        continue
+    text = str(base64.b64decode(data[1]), "utf-8")
+    if data[5] == 5:
+        kn_cache["content_compliance_list"]["full"].append(text)
+    else:
+        kn_cache["content_compliance_list"]["part"].append(text)
+for data in datas2:
+    if data[2] == "Pass" or data[4] != 1:
+        continue
+    text = data[1]
+    if data[5] == 5:
+        kn_cache["content_compliance_list"]["full"].append(text)
+    else:
+        kn_cache["content_compliance_list"]["part"].append(text)
+
+logger.success("加载违禁词成功")

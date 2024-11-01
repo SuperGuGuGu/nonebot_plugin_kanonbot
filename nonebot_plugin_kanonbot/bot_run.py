@@ -179,7 +179,7 @@ async def botrun(msg_info: dict):
 
         # 跳过at其他bot的消息
         for at_data in at_datas:
-            if str(at_data["id"]) in kn_config("plugin-bot_list"):
+            if str(at_data["id"]) in kn_config("plugin", "bot_list"):
                 return {"code": 0}  # 结束运行
 
         # ## 变量初始化 ##
@@ -254,7 +254,7 @@ async def botrun(msg_info: dict):
 
         # ## 心跳服务相关 ##
         # 查询bot是否需要运行
-        if (kn_config("botswift-state") and
+        if (kn_config("botswift", "state") and
                 channel_id not in kn_config("botswift", "ignore_list") and
                 platform in kn_config("botswift", "platform_list") and
                 not to_me
@@ -396,10 +396,14 @@ async def botrun(msg_info: dict):
                         user_id=user_id,
                         platform=platform
                     )
-                    if message is not None:
+                    if message is None and returnpath is None:
+                        code = 0
+                    elif message is not None and returnpath is None:
                         code = 1
-                    elif returnpath is not None:
+                    elif returnpath is not None and message is None:
                         code = 2
+                    else:
+                        code = 3
             else:
                 logger.info(f"run-{commandname}, 用户权限不足")
                 code = 1

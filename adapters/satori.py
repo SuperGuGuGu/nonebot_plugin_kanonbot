@@ -1,19 +1,19 @@
 # coding=utf-8
 import asyncio
-import datetime
 import json
 import random
-from PIL.Image import Image as PIL_Image
 import os
 import re
 import sqlite3
-from nonebot.adapters import Event, Bot
+import traceback
+from nonebot.adapters import Event
 from nonebot.plugin import PluginMetadata
 from nonebot import on_message, logger, require
 # from nonebot import get_driver
 import time
 from nonebot_plugin_saa import Text as saaText, MessageFactory
 from nonebot_plugin_saa import Image as saaImage
+from .auto_run import suto_run_kanonbot_1hour, suto_run_kanonbot_1day
 from .config import command_list, _config_list, greet_list_
 from .bot_run import botrun
 from .tools import kn_config, get_file_path, get_command, get_unity_user_id, get_unity_user_data, connect_api, \
@@ -21,6 +21,27 @@ from .tools import kn_config, get_file_path, get_command, get_unity_user_id, get
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
+
+
+@scheduler.scheduled_job("cron", hour="*/1", id="job_0")
+async def suto_run_kanonbot_1hour_():
+    try:
+        await suto_run_kanonbot_1hour()
+    except Exception as e:
+        logger.error("定时任务运行异常：1hour")
+        logger.error(e)
+        logger.error(traceback.format_exc())
+
+
+@scheduler.scheduled_job("cron", day="*/1", id="job_1")
+async def suto_run_kanonbot_1day_():
+    try:
+        await suto_run_kanonbot_1day()
+    except Exception as e:
+        logger.error("定时任务运行异常：1day")
+        logger.error(e)
+        logger.error(traceback.format_exc())
+
 
 # nonebot_config = get_driver().config.dict()
 basepath = _config["basepath"]
@@ -95,6 +116,7 @@ run_kanon = on_message(priority=10, block=False)
 async def kanon(event: Event):
     # 获取消息基础信息
     time_now = int(time.time())
+    await lockst()
     event_data: dict = event.dict()
     if time_now - int(event_data["timestamp"].timestamp()) > 10:
         logger.warning("跳过过时的消息")
@@ -579,6 +601,7 @@ async def kanon(event: Event):
         # 组装信息，进行后续响应
         msg_info = {
             "msg": msg,
+            "msg_time": event_data["timestamp"].timestamp(),
             "commands": commands,
             "commandname": commandname,
             "bot_id": botid,
@@ -699,7 +722,7 @@ async def kanon(event: Event):
                 logger.error(e)
             cursor.close()
             conn.close()
-
+    await locked()
     await run_kanon.finish()
 
 
