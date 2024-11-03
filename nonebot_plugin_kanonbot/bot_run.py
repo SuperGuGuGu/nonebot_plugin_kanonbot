@@ -22,7 +22,7 @@ adminqq = _config["superusers"]
 
 
 async def botrun(msg_info: dict):
-    logger.info("KanonBot-0.4.1")
+    logger.info("KanonBot-0.4.2")
     log_msg_info = msg_info.copy()
     try:
         log_msg_info["channel_member_len"] = len(list(msg_info.get("channel_member_datas")))
@@ -46,6 +46,7 @@ async def botrun(msg_info: dict):
 
     # 读取消息
     msg: str = msg_info["msg"] if "msg" in msg_info else ""
+    msg_time: float = msg_info["msg_time"] if "msg_time" in msg_info else time_now
     commands: list = msg_info["commands"] if "commands" in msg_info else [""]
     at_datas: list = msg_info["at_datas"] if "at_datas" in msg_info else []
     commandname: str = msg_info["commandname"] if "commandname" in msg_info else ""
@@ -359,12 +360,14 @@ async def botrun(msg_info: dict):
         # 指令冷却
         def _command_cd():
             if getconfig("commandcd") and user_permission < 7 and user_id not in adminqq:
-                cd = command_cd(cd_id=user_id, time_now=time_now, cd_type="user")
-                if cd is False:
-                    cd = command_cd(cd_id=channel_id, time_now=time_now, cd_type="channel")
-                return cd
-            else:
+                cd_user = command_cd(cd_id=user_id, time_now=time_now, cd_type="user")
+                cd_channel = command_cd(cd_id=channel_id, time_now=time_now, cd_type="channel")
+                if cd_user is not False:
+                    return cd_user
+                elif cd_channel is not False:
+                    return cd_channel
                 return False
+            return False
 
         # ## 处理消息 ##
         if commandname.startswith("config"):
@@ -499,7 +502,7 @@ async def botrun(msg_info: dict):
                     message = data["message"]
                     returnpath = data["returnpath"]
                     trace_data["plugin"].extend(data["trace"])
-            elif "问好" == commandname and getconfig(commandname):
+            elif "问好" == commandname:
                 commandcd = _command_cd()
                 if commandcd is not False:
                     code = 1
@@ -582,7 +585,7 @@ async def botrun(msg_info: dict):
                         if content_compliance_data["conclusion"] != "Pass":
                             command2 = "message"
                             trace_data["content_compliance"].append(content_compliance_data)
-                    if command2 is not None and imgmsgs:
+                    if command2 is not None or imgmsgs:
                         returnpath = await plugin_emoji_xibao(command, command2, imgmsgs)
                         code = 2
             elif "一直" == commandname and getconfig(commandname):

@@ -2817,8 +2817,6 @@ async def plugin_jellyfish_box(
         else:
             command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
             command_prompt_list.append({"title": "/水母箱 抓水母", "message": "抓几只水母进水母箱（每2小时抓一次）"})
-            command_prompt_list.append({"title": "/水母箱 开启 生日效果",
-                                        "message": "开启成员生日效果。\n“/水母箱 [开启|关闭] [节日效果|生日效果|全部效果]”"})
             returnpath = await draw_jellyfish_box()
             code = 2
     elif command == "抓水母":
@@ -2927,6 +2925,7 @@ async def plugin_jellyfish_box(
                 trace.append(f"抓到饲料：{food_id}， 数量：{food_num}")
 
                 # ## 节日抓水母事件 ##
+
                 # 元旦 - 未定义
                 if date_m == 1 and date_d == 1:  # 元旦
                     pass
@@ -3220,7 +3219,6 @@ async def plugin_jellyfish_box(
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
                                 box_data["jellyfish"][choose_jellyfish] = {"number": number}
-
                 # 万圣节
                 elif date_m == 11 and date_d == 1:
                     # 事件内容
@@ -3259,7 +3257,6 @@ async def plugin_jellyfish_box(
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
                                 box_data["jellyfish"][choose_jellyfish] = {"number": number}
-
                 # 节后补偿
                 elif date_m == 11 and date_d in [2, 3]:
                     # 事件内容
@@ -3301,9 +3298,8 @@ async def plugin_jellyfish_box(
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
                                 box_data["jellyfish"][choose_jellyfish] = {"number": number}
-
                 # 世界水母日
-                elif date_m == 11 and date_d == 3:
+                if date_m == 11 and date_d == 3:
                     # 事件内容
                     number = 5
                     choose_jellyfish = "j24"
@@ -3435,9 +3431,6 @@ async def plugin_jellyfish_box(
                     code = 1
                     message = await draw_jellyfish_box(draw_box=False)
                 else:
-                    command_prompt_list.append({"title": "/水母箱 帮助", "message": "查看水母箱指令介绍"})
-                    command_prompt_list.append({"title": "/水母箱 开启 生日效果",
-                                                "message": "开启成员生日效果。\n“/水母箱 [开启|关闭] [节日效果|生日效果|全部效果]”"})
                     returnpath = await draw_jellyfish_box()
                     code = 2
 

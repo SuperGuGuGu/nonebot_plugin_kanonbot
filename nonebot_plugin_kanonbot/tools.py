@@ -192,7 +192,7 @@ def kn_config(config_name: str, config_name2: str = None):
 
     def save_config():
         global kn_config_data
-        with open(path, 'w') as config_file:
+        with open(path, 'w', encoding='utf-8') as config_file:
             toml.dump(config, config_file)
         kn_config_data = config
 
@@ -1453,7 +1453,9 @@ def create_table_data_():
             "content_compliance": "create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
                                   "text VARCHAR, state VARCHAR, request_id VARCHAR, audit INT, level INT)",
             "blacklist": "create table blacklist(id_ INTEGER primary key AUTOINCREMENT, "
-                                  "text VARCHAR, state VARCHAR, request_id VARCHAR, audit INT, level INT)",
+                         "text VARCHAR, state VARCHAR, request_id VARCHAR, audit INT, level INT)",
+            "log": "create table log(id_ INTEGER primary key AUTOINCREMENT, "
+                   "time INT, text VARCHAR, state VARCHAR, user_id VARCHAR, message VARCHAR)",
         },
         "{basepath}db/plugin_data.db": {
             "jellyfish_box": 'create table "jellyfish_box"(user_id VARCHAR(10) primary key, data VARCHAR(10))',
@@ -1469,7 +1471,7 @@ def read_db(
         table_name: str = None,
         create_table_text: str = None):
     """
-    读取数据库
+    读取/写入数据库
     :param db_path: 数据库路径
     :param sql_text: sql语句
     :param select_all: 是否筛选全部
@@ -1477,12 +1479,12 @@ def read_db(
     :param create_table_text: 创建表的sql语句
     :return:
     """
-    db_path = db_path.replace("{basepath}", basepath)
     create_table_data = create_table_data_()
-    if create_table_text is not None and db_path in create_table_data.keys():
+    if create_table_text is None or db_path in create_table_data.keys():
         if table_name is not None and table_name in create_table_data[db_path].keys():
             create_table_text = create_table_data[db_path][table_name]
-    conn = sqlite3.connect(db_path)
+
+    conn = sqlite3.connect(db_path.replace("{basepath}", basepath))
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
@@ -1494,12 +1496,18 @@ def read_db(
                 cursor.execute(create_table_text)
             else:
                 raise "数据库表不存在"
-        # 读取内容
-        cursor.execute(sql_text)
-        if select_all is True:
-            data = cursor.fetchall()
+        if sql_text.lower().startswith("select "):
+            # 读取内容
+            cursor.execute(sql_text)
+            if select_all is True:
+                data = cursor.fetchall()
+            else:
+                data = cursor.fetchone()
         else:
-            data = cursor.fetchone()
+            # 写入数据
+            cursor.execute(sql_text)
+            conn.commit()
+            data = "success"
     except Exception as e:
         logger.error(f"读取数据库错误{db_path}")
         logger.error(e)

@@ -12,7 +12,7 @@ import sqlite3
 from nonebot import on_message, logger, require
 from nonebot.adapters.qq import Bot, MessageSegment, MessageEvent, Event
 import time
-from .auto_run import suto_run_kanonbot_1hour, suto_run_kanonbot_1day
+from .auto_run import auto_run_kanonbot_1hour, auto_run_kanonbot_1day
 from .config import command_list, _config_list, greet_list_
 from .bot_run import botrun
 from .tools import (kn_config, get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api,
@@ -26,7 +26,7 @@ from nonebot_plugin_apscheduler import scheduler
 @scheduler.scheduled_job("cron", hour="*/1", id="job_0")
 async def suto_run_kanonbot_1hour_():
     try:
-        await suto_run_kanonbot_1hour()
+        await auto_run_kanonbot_1hour()
     except Exception as e:
         logger.error("定时任务运行异常：1hour")
         logger.error(e)
@@ -36,7 +36,7 @@ async def suto_run_kanonbot_1hour_():
 @scheduler.scheduled_job("cron", day="*/1", id="job_1")
 async def suto_run_kanonbot_1day_():
     try:
-        await suto_run_kanonbot_1day()
+        await auto_run_kanonbot_1day()
     except Exception as e:
         logger.error("定时任务运行异常：1day")
         logger.error(e)

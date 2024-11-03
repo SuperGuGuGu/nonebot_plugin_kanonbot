@@ -674,7 +674,9 @@ async def plugin_emoji_emoji(command, user_id: str = None):
     os.makedirs(f"{basepath}cache/emoji/", exist_ok=True)
     returnpath = f"{basepath}cache/emoji/{command}.png"
 
-    if not os.path.exists(returnpath):
+    if command is None or command == "None":
+        message = "请添加要合成的emoji。例：“/合成 🥹😗”"
+    elif not os.path.exists(returnpath):
         url = f"{kn_config('kanon_api-url')}/json/emoji?imageid={command}"
         return_json = await connect_api("json", url, timeout=30)
         if return_json["code"] == 0:
@@ -1048,6 +1050,12 @@ async def plugin_emoji_ji2():
 async def plugin_emoji_pa():
     num = random.randint(1, 16)
     image_path = await get_image_path(f"meme-pa_{num}")
+    return image_path
+
+
+async def plugin_emoji_reply_keai():
+    num = random.randint(1, 108)
+    image_path = await get_image_path(f"reply_keai-{num}")
     return image_path
 
 

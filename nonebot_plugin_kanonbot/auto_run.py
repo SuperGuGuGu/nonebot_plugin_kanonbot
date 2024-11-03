@@ -1,11 +1,10 @@
+import asyncio
 import base64
-import traceback
-from nonebot import require, logger
+import json
+import random
+from nonebot import logger
 import sqlite3
 from .tools import _kanonbot_plugin_config, kn_cache
-
-require("nonebot_plugin_apscheduler")
-from nonebot_plugin_apscheduler import scheduler
 
 _config = _kanonbot_plugin_config()
 basepath = _config["basepath"]
@@ -13,32 +12,66 @@ command_starts = _config["command_starts"]
 kn_config_data = None
 
 
-@scheduler.scheduled_job("cron", hour="*/1", id="job_0")
-async def suto_run_kanonbot_1hour_():
-    try:
-        await suto_run_kanonbot_1hour()
-    except Exception as e:
-        logger.error("定时任务运行异常：1hour")
-        logger.error(e)
-        logger.error(traceback.format_exc())
+async def auto_run_kanonbot_1hour():
+    logger.debug(f"auto_run_1hour")
+
+    await asyncio.sleep(random.randint(5, 10))
+    # 保存群员列表
+    logger.debug("开始保存群员列表")
+    path = f"{basepath}cache/channel_member_list.json"
+    file = open(path, "r", encoding="UTF-8")
+    channel_member_list: dict = json.loads(file.read())
+    file.close()
+
+    if "channel_member_list" not in kn_cache.keys():
+        kn_cache["channel_member_list"] = channel_member_list
+    else:
+        for channel_id in kn_cache["channel_member_list"]:
+            if channel_id not in channel_member_list.keys():
+                channel_member_list[channel_id] = kn_cache["channel_member_list"][channel_id]
+            else:
+                channel_member_list[channel_id].update(kn_cache["channel_member_list"][channel_id])
+        kn_cache["channel_member_list"] = channel_member_list
+
+        file = open(path, "w", encoding="UTF-8")
+        file.write(json.dumps(channel_member_list, ensure_ascii=False, indent=2))
+        file.close()
+
+    logger.success("保存群员列表成功")
+
+    # 保存群数据列表
+    logger.debug("开始保存群数据列表")
+    path = f"{basepath}cache/channel_data.json"
+    file = open(path, "r", encoding="UTF-8")
+    channel_data: dict = json.loads(file.read())
+    file.close()
+
+    if "channel_data" not in kn_cache.keys():
+        kn_cache["channel_data"] = channel_data
+    else:
+        for channel_id in kn_cache["channel_data"].keys():
+            if channel_id not in channel_data.keys():
+                channel_data[channel_id] = kn_cache["channel_data"][channel_id]
+            else:
+                if kn_cache["channel_data"][channel_id]["name"] is not None:
+                    channel_data[channel_id]["name"] = kn_cache["channel_data"][channel_id]["name"]
+        kn_cache["channel_data"] = channel_data
+
+        file = open(path, "w", encoding="UTF-8")
+        file.write(json.dumps(channel_data, ensure_ascii=False, indent=2))
+        file.close()
+
+        logger.debug("更新群id替换列表")
+        channel_replace_data = {}
+        for channel_id in kn_cache["channel_data"].keys():
+            for channel_name in kn_cache["channel_data"][channel_id]["id_list"]:
+                channel_replace_data[channel_name] = channel_id
+
+    logger.success("保存群数据列表成功")
 
 
-@scheduler.scheduled_job("cron", day="*/1", id="job_1")
-async def suto_run_kanonbot_1day_():
-    try:
-        await suto_run_kanonbot_1day()
-    except Exception as e:
-        logger.error("定时任务运行异常：1day")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-
-
-async def suto_run_kanonbot_1hour():
-    logger.debug(f"suto_run_1hour")
-
-
-async def suto_run_kanonbot_1day():
-    logger.debug(f"suto_run_1day")
+async def auto_run_kanonbot_1day():
+    logger.debug(f"auto_run_1day")
 
     logger.debug("刷新违禁词")
     conn = sqlite3.connect(f"{basepath}db/content_compliance.db")
@@ -69,4 +102,3 @@ async def suto_run_kanonbot_1day():
             kn_cache["content_compliance_list"]["part"].append(text)
 
     logger.success("刷新违禁词成功")
-
