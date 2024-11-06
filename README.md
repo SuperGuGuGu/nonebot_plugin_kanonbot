@@ -10,9 +10,11 @@ KanonBot - nb2 插件版
 
 ## 安装
 
-（以下方法三选一）
+（以下方法四选一）
 
 默认为adapter-qq。如需其他适配器请下载文件，在adapters文件夹找到对应文件，更改名字为`__init__.py` 并覆盖插件文件中的文件
+
+对于有能力的开发者，更建议从plugins.py导入相关功能函数到自己开发的插件来使用相关功能。
 
 一.使用插件文件安装：（推荐）
 
@@ -35,6 +37,10 @@ KanonBot - nb2 插件版
 2.修改 pyproject.toml 使其可以加载插件
 
     plugins = [”nonebot-plugin-kanonbot“]
+
+四.从plugins.py导入功能到自己编写的插件
+
+    from nonebot_plugin_kanonbot.plugins import plugin_emoji
 
 ## 配置
 
