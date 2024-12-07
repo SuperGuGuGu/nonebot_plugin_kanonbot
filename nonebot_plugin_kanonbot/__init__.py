@@ -411,7 +411,7 @@ async def kanon(
             unity_user_data["avatar"] = f"https://thirdqq.qlogo.cn/qqapp/{botid}/{user_id}/640"
             save = True
         if unity_user_data.get("use_markdown") is None:
-            unity_user_data["use_markdown"] = True
+            unity_user_data["use_markdown"] = False
         unity_user_data["avatar"] = f"https://thirdqq.qlogo.cn/qqapp/{botid}/{user_id}/640"
         if unity_user_data.get("face_image") is not None:
             # 如果图像不存在，则删除记录，并触发重新下载
