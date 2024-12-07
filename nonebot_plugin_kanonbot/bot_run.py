@@ -1000,7 +1000,7 @@ async def botrun(msg_info: dict):
                 f'create table "log2"(id INTEGER primary key AUTOINCREMENT, time DATETIME, message VARCHAR, '
                 f'commandname VARCHAR, channel_id VARCHAR, user_id VARCHAR, face_image VARCHAR, avatar VARCHAR, '
                 f'imgmsggs VARCHAR, platform VARCHAR, output_code INT(10), output_message VARCHAR, '
-                f'image_path VARCHAR, image_path2 VARCHAR, image_path3 VARCHAR, trace VARCHAR, reply_trace VARCHAR, '
+                f'image_path VARCHAR, image_path2 VARCHAR, image_path3 VARCHAR, use_time DOUBLE, trace VARCHAR, reply_trace VARCHAR, '
                 f'input_real VARCHAR, output_real VARCHAR)')
 
         msg_info["friend_datas"] = {}
@@ -1009,14 +1009,15 @@ async def botrun(msg_info: dict):
         log_output = json.dumps(return_json)
         log_trace = json.dumps(trace_data)
         reply_trace = json.dumps(reply_trace)
+        use_time = time.time() - msg_time
         try:
             imgmsgs_str = str(imgmsgs).replace("'", '"')
             sql_text2 = (
                 f"replace into 'log2' ('time','message','commandname','channel_id','user_id','face_image','avatar',"
                 f"'imgmsggs','platform','output_code','output_message','image_path','image_path2','image_path3',"
-                f"'trace','reply_trace','input_real','output_real') values('{time_now}','{text_to_b64(msg)}',"
+                f"'use_time','trace','reply_trace','input_real','output_real') values('{time_now}','{text_to_b64(msg)}',"
                 f"'{commandname}','{channel_id}','{user_id}','{user_face_image}','{user_avatar}','{imgmsgs_str}',"
-                f"'{platform}','{code}','{message}','{returnpath}','{returnpath2}','{returnpath3}',"
+                f"'{platform}','{code}','{message}','{returnpath}','{returnpath2}','{returnpath3}',{use_time},"
                 f"'{text_to_b64(log_trace)}','{text_to_b64(reply_trace)}','None','None')")
 
             try:
