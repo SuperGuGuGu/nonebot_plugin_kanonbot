@@ -2,7 +2,7 @@
 import json
 import time
 from nonebot import logger
-from .tools import get_file_path, _config
+from .tools import get_file_path, _config, kn_cache
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
@@ -20,6 +20,9 @@ def _config_list(qq: bool = False):
         "水母箱": {
             "state": True, "swift_by_admin": False,
             "message": "水母箱功能", "group": "群聊功能", "name": "水母箱"},
+        "水母探险": {
+            "state": True, "swift_by_admin": False,
+            "message": "水母探险（beta）", "group": "群聊功能", "name": "水母探险"},
         "emoji": {
             "state": True, "swift_by_admin": False,
             "message": "emoji合成", "group": "群聊功能", "name": "emoji"},
@@ -134,6 +137,8 @@ def command_list():
             "爬": "表情功能-爬",
             "wlp": "表情功能-我老婆",
             "我老婆": "表情功能-我老婆",
+            "花音可爱": "表情功能-回复可爱",
+            "花音卡哇伊": "表情功能-回复可爱",
             "cck": "小游戏-猜猜看",
             "猜猜看": "小游戏-猜猜看",
             "bzd": "小游戏-猜猜看",
@@ -153,6 +158,8 @@ def command_list():
             "水母统计表": "群聊功能-水母箱",
             "水母箱样式": "群聊功能-水母箱",
             "投喂": "群聊功能-水母箱",
+            "设置天气": "群聊功能-水母箱",
+            "水母探险": "群聊功能-水母探险",
             "塔罗牌": "群聊功能-塔罗牌",
             "今日老婆": "群聊功能-今日老婆",
             "jrlp": "群聊功能-今日老婆",
@@ -386,12 +393,39 @@ def _zhanbu_datas():
     return datas
 
 
-async def _jellyfish_box_datas():
-    file_path = await get_file_path("plugin-jellyfish_box-box_data.json")
-    f = open(file_path)
+async def _jellyfish_box_weather_name_data():
+    if int(time.time()) - kn_cache["jellyfish_box_weather"]["time"] < 60:
+        return kn_cache["jellyfish_box_weather"]["data"]
+    file_path = await get_file_path("plugin-jellyfish_box-weather_name_data.json")
+    f = open(file_path, encoding="UTF-8")
     data = f.read()
     f.close()
     json_data = json.loads(data)
+    kn_cache["jellyfish_box_weather"] = {"time": int(time.time()), "data": json_data}
+    return json_data
+
+
+async def _jellyfish_box_datas():
+    if int(time.time()) - kn_cache["_jellyfish_box_datas"]["time"] < 60:
+        return kn_cache["_jellyfish_box_datas"]["data"]
+    file_path = await get_file_path("plugin-jellyfish_box-box_data.json")
+    f = open(file_path, encoding="UTF-8")
+    data = f.read()
+    f.close()
+    json_data = json.loads(data)
+    kn_cache["_jellyfish_box_datas"] = {"time": int(time.time()), "data": json_data}
+    return json_data
+
+
+async def _adventure_datas():
+    if int(time.time()) - kn_cache["_adventure_datas"]["time"] < 60:
+        return kn_cache["_adventure_datas"]["data"]
+    file_path = await get_file_path("plugin-adventure-adventure_data.json")
+    f = open(file_path, encoding="UTF-8")
+    data = f.read()
+    f.close()
+    json_data = json.loads(data)
+    kn_cache["_adventure_datas"] = {"time": int(time.time()), "data": json_data}
     return json_data
 
 
@@ -433,6 +467,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -471,6 +506,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -509,6 +545,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -547,6 +584,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": ["j5"],
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -585,172 +623,13 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": [
                     "jellyfish_foreground_birthday",
                     "jellyfish_foreground_birthday_2",
                     "jellyfish_foreground_birthday_3"
                 ],
-                "box_foreground": "box_foreground_birthday",
-                "jellyfish_background": None,
-                "box_background": "box_background_birthday",
-                "card_background": [
-                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
-                ],
-            },
-        },
-        "birthday_kokoro-beta": {
-            "color": {
-                "bg": "#e4de96",
-                "背景大字": "#f1eba9",
-                "box_bg": "#746a3b",
-                "box_outline": "#372800",
-                "card": "#f1eed0",
-                "date": "#363739",
-                "name": "#2E82EE",
-                "title": "#2E82EE",
-                "event_title": "#000000",
-                "event_message": "#333333",
-                "icon_bg": "#def8ff",
-                "icon_outline": "#76c9ec",
-                "group_color": {
-                    "normal": "#eace5f",
-                    "good": "#46eca4",
-                    "great": "#f15fb2",
-                    "perfect": "#935ff1",
-                    "special": "#7afffa",
-                    "ocean": "#5a96ef",
-                },
-            },
-            "text": {
-                "背景大字": "Kkr",
-                "新水母_标题": "新增呼诶诶",
-                "事件_标题": "事件列表",
-                "指令_标题": "指令提示",
-            },
-            "jellyfish": {
-                "replace_jellyfish": None,
-                "jellyfish_foreground": None,
-                "box_foreground": "box_foreground_birthday",
-                "jellyfish_background": None,
-                "box_background": "box_background_birthday",
-                "card_background": [
-                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
-                ],
-            },
-        },
-        "birthday_kor-beta": {
-            "color": {
-                "bg": "#e4de96",
-                "背景大字": "#bbe7f9",
-                "box_bg": "#1b4771",
-                "box_outline": "#002237",
-                "card": "#e0eff4",
-                "date": "#363739",
-                "name": "#2E82EE",
-                "title": "#2E82EE",
-                "event_title": "#000000",
-                "event_message": "#333333",
-                "icon_bg": "#def8ff",
-                "icon_outline": "#76c9ec",
-                "group_color": {
-                    "normal": "#eace5f",
-                    "good": "#46eca4",
-                    "great": "#f15fb2",
-                    "perfect": "#935ff1",
-                    "special": "#7afffa",
-                    "ocean": "#5a96ef",
-                },
-            },
-            "text": {
-                "背景大字": "Kanon",
-                "新水母_标题": "新增呼诶诶",
-                "事件_标题": "事件列表",
-                "指令_标题": "指令提示",
-            },
-            "jellyfish": {
-                "replace_jellyfish": None,
-                "jellyfish_foreground": None,
-                "box_foreground": "box_foreground_birthday",
-                "jellyfish_background": None,
-                "box_background": "box_background_birthday",
-                "card_background": [
-                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
-                ],
-            },
-        },
-        "birthday_msk-beta": {
-            "color": {
-                "bg": "#e4de96",
-                "背景大字": "#bbe7f9",
-                "box_bg": "#1b4771",
-                "box_outline": "#002237",
-                "card": "#e0eff4",
-                "date": "#363739",
-                "name": "#2E82EE",
-                "title": "#2E82EE",
-                "event_title": "#000000",
-                "event_message": "#333333",
-                "icon_bg": "#def8ff",
-                "icon_outline": "#76c9ec",
-                "group_color": {
-                    "normal": "#eace5f",
-                    "good": "#46eca4",
-                    "great": "#f15fb2",
-                    "perfect": "#935ff1",
-                    "special": "#7afffa",
-                    "ocean": "#5a96ef",
-                },
-            },
-            "text": {
-                "背景大字": "Kanon",
-                "新水母_标题": "新增呼诶诶",
-                "事件_标题": "事件列表",
-                "指令_标题": "指令提示",
-            },
-            "jellyfish": {
-                "replace_jellyfish": None,
-                "jellyfish_foreground": None,
-                "box_foreground": "box_foreground_birthday",
-                "jellyfish_background": None,
-                "box_background": "box_background_birthday",
-                "card_background": [
-                    "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"
-                ],
-            },
-        },
-        "birthday_hgm-beta": {
-            "color": {
-                "bg": "#e4de96",
-                "背景大字": "#bbe7f9",
-                "box_bg": "#1b4771",
-                "box_outline": "#002237",
-                "card": "#e0eff4",
-                "date": "#363739",
-                "name": "#2E82EE",
-                "title": "#2E82EE",
-                "event_title": "#000000",
-                "event_message": "#333333",
-                "icon_bg": "#def8ff",
-                "icon_outline": "#76c9ec",
-                "group_color": {
-                    "normal": "#eace5f",
-                    "good": "#46eca4",
-                    "great": "#f15fb2",
-                    "perfect": "#935ff1",
-                    "special": "#7afffa",
-                    "ocean": "#5a96ef",
-                },
-            },
-            "text": {
-                "背景大字": "Kanon",
-                "新水母_标题": "新增呼诶诶",
-                "事件_标题": "事件列表",
-                "指令_标题": "指令提示",
-            },
-            "jellyfish": {
-                "replace_jellyfish": None,
-                "jellyfish_foreground": None,
                 "box_foreground": "box_foreground_birthday",
                 "jellyfish_background": None,
                 "box_background": "box_background_birthday",
@@ -789,6 +668,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -827,6 +707,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": None,
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -865,6 +746,7 @@ def jellyfish_box_draw_config(
                 "指令_标题": "指令提示",
             },
             "jellyfish": {
+                "background": "starlight_background",
                 "replace_jellyfish": None,
                 "jellyfish_foreground": None,
                 "box_foreground": None,
@@ -1090,6 +972,291 @@ def jellyfish_box_draw_config(
             if draw_model == "starlight":
                 draw_config_["color"]["背景大字"] = "#53514c"
 
+        # 生日-rui
+        elif date_m == 11 and date_d == 19:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Rui"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#7bac9c"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["card"] = "#9ed1c0"
+                    draw_config_["color"]["title"] = "#669988"
+                    draw_config_["color"]["event_title"] = "#427f6b"
+                    draw_config_["color"]["event_message"] = "#58a98e"
+                    draw_config_["color"]["box_bg"] = "#52967f"
+                    draw_config_["color"]["box_outline"] = "#528a77"
+                    draw_config_["color"]["icon_bg"] = "#6caa95"
+                    draw_config_["color"]["icon_outline"] = "#579f87"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#528a77"
+                    draw_config_["color"]["card"] = "#dddddd"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#467263"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#6fa794"
+                    draw_config_["color"]["date"] = "#5fb899"
+                    draw_config_["color"]["card"] = "#4f806f"
+                    draw_config_["color"]["title"] = "#6bb098"
+                    draw_config_["color"]["event_title"] = "#8ebcad"
+                    draw_config_["color"]["event_message"] = "#6aa792"
+                    draw_config_["color"]["box_bg"] = "#3b5b50"
+                    draw_config_["color"]["box_outline"] = "#325549"
+                    draw_config_["color"]["icon_bg"] = "#467867"
+                    draw_config_["color"]["icon_outline"] = "#3f6b5c"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#325549"
+                    draw_config_["color"]["card"] = "#8ebcad"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-tomori
+        elif date_m == 11 and date_d == 22:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Tomori"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#77bbdd"
+                    draw_config_["color"]["card"] = "#c1e9f4"
+                    draw_config_["color"]["背景大字"] = "#9cd1eb"
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["title"] = "#55c6ff"
+                    draw_config_["color"]["event_title"] = "#475155"
+                    draw_config_["color"]["event_message"] = "#626b72"
+                    draw_config_["color"]["box_bg"] = "#4b90b2"
+                    draw_config_["color"]["box_outline"] = "#2a5970"
+                    draw_config_["color"]["icon_bg"] = "#4b90b2"
+                    draw_config_["color"]["icon_outline"] = "#2a5970"
+                if draw_model == "freehand":
+                    draw_config_["color"]["title"] = "#55c6ff"
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#29576d"
+                    draw_config_["color"]["card"] = "#466a7b"
+                    draw_config_["color"]["背景大字"] = "#3a6479"
+                    draw_config_["color"]["name"] = "#6a8c96"
+                    draw_config_["color"]["date"] = "#2f87c5"
+                    draw_config_["color"]["title"] = "#518aa8"
+                    draw_config_["color"]["event_title"] = "#7da2b0"
+                    draw_config_["color"]["event_message"] = "#6b8b96"
+                    draw_config_["color"]["box_bg"] = "#274b5c"
+                    draw_config_["color"]["box_outline"] = "#274b5c"
+                    draw_config_["color"]["icon_bg"] = "#274b5c"
+                    draw_config_["color"]["icon_outline"] = "#274b5c"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#213d4b"
+                    draw_config_["color"]["card"] = "#7e7e71"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-tae
+        elif date_m == 12 and date_d == 4:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Tae"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday_tae"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#3685c8"
+                    draw_config_["color"]["card"] = "#539ede"
+                    draw_config_["color"]["背景大字"] = "#4999dd"
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["title"] = "#0077dd"
+                    draw_config_["color"]["event_title"] = "#abd2f6"
+                    draw_config_["color"]["event_message"] = "#8ac0f1"
+                    draw_config_["color"]["box_bg"] = "#1e5e94"
+                    draw_config_["color"]["box_outline"] = "#134b79"
+                    draw_config_["color"]["icon_bg"] = "#1e5e94"
+                    draw_config_["color"]["icon_outline"] = "#134b79"
+                if draw_model == "freehand":
+                    draw_config_["color"]["title"] = "#8fb78f"
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#2a4c70"
+                    draw_config_["color"]["card"] = "#365c84"
+                    draw_config_["color"]["背景大字"] = "#3a5879"
+                    draw_config_["color"]["name"] = "#6a8496"
+                    draw_config_["color"]["date"] = "#2f87c5"
+                    draw_config_["color"]["title"] = "#517ca8"
+                    draw_config_["color"]["event_title"] = "#859dbc"
+                    draw_config_["color"]["event_message"] = "#6e859b"
+                    draw_config_["color"]["box_bg"] = "#1f3e5e"
+                    draw_config_["color"]["box_outline"] = "#21344b"
+                    draw_config_["color"]["icon_bg"] = "#1f3e5e"
+                    draw_config_["color"]["icon_outline"] = "#21344b"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#21344b"
+                    draw_config_["color"]["card"] = "#365c84"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-chuchu
+        elif date_m == 12 and date_d == 7:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Chuchu"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#7ad1ff"
+                    draw_config_["color"]["card"] = "#ade1ff"
+                    draw_config_["color"]["背景大字"] = "#5cc7ff"
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["title"] = "#00bbff"
+                    draw_config_["color"]["event_title"] = "#386a8e"
+                    draw_config_["color"]["event_message"] = "#5e809f"
+                    draw_config_["color"]["box_bg"] = "#4599d6"
+                    draw_config_["color"]["box_outline"] = "#1483c0"
+                    draw_config_["color"]["icon_bg"] = "#89cfff"
+                    draw_config_["color"]["icon_outline"] = "#73b9e9"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#2a4c70"
+                    draw_config_["color"]["card"] = "#365c84"
+                    draw_config_["color"]["背景大字"] = "#3a5879"
+                    draw_config_["color"]["name"] = "#6a8496"
+                    draw_config_["color"]["date"] = "#2f87c5"
+                    draw_config_["color"]["title"] = "#517ca8"
+                    draw_config_["color"]["event_title"] = "#859dbc"
+                    draw_config_["color"]["event_message"] = "#6e859b"
+                    draw_config_["color"]["box_bg"] = "#1f3e5e"
+                    draw_config_["color"]["box_outline"] = "#21344b"
+                    draw_config_["color"]["icon_bg"] = "#1f3e5e"
+                    draw_config_["color"]["icon_outline"] = "#21344b"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = draw_config_["color"]["box_outline"]
+                    draw_config_["color"]["card"] = "#365c84"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-toko
+        elif date_m == 12 and date_d == 16:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Toko"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#eab2b2"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["card"] = "#ffcece"
+                    draw_config_["color"]["title"] = "#ee6666"
+                    draw_config_["color"]["event_title"] = "#b06667"
+                    draw_config_["color"]["event_message"] = "#ba7f80"
+                    draw_config_["color"]["box_bg"] = "#b88282"
+                    draw_config_["color"]["box_outline"] = "#ac6f6f"
+                    draw_config_["color"]["icon_bg"] = "#ebb1b1"
+                    draw_config_["color"]["icon_outline"] = "#d39e9e"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#FFFFFF"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#865758"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#d2b0ad"
+                    draw_config_["color"]["date"] = "#ee6666"
+                    draw_config_["color"]["card"] = "#a27070"
+                    draw_config_["color"]["title"] = "#97484a"
+                    draw_config_["color"]["event_title"] = "#593333"
+                    draw_config_["color"]["event_message"] = "#794147"
+                    draw_config_["color"]["box_bg"] = "#6b4046"
+                    draw_config_["color"]["box_outline"] = "#623237"
+                    draw_config_["color"]["icon_bg"] = "#7c4b51"
+                    draw_config_["color"]["icon_outline"] = "#6b4046"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#909090"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
+        # 生日-aya
+        elif date_m == 12 and date_d == 27:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                        "jellyfish_foreground_birthday",
+                        "jellyfish_foreground_birthday_2",
+                        "jellyfish_foreground_birthday_3", None, None, None]
+            draw_config_["jellyfish"]["card_background"] = [
+                        "card_background_birthday", "card_background_birthday_2", "card_background_birthday_3"]
+            draw_config_["text"]["背景大字"] = "Aya"
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_birthday"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_birthday"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#f9afcf"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#e8e8e8"
+                    draw_config_["color"]["date"] = "#363739"
+                    draw_config_["color"]["card"] = "#ffc2dc"
+                    draw_config_["color"]["title"] = "#ff88bb"
+                    draw_config_["color"]["event_title"] = "#b85882"
+                    draw_config_["color"]["event_message"] = "#b97391"
+                    draw_config_["color"]["box_bg"] = "#e397b8"
+                    draw_config_["color"]["box_outline"] = "#e397b8"
+                    draw_config_["color"]["icon_bg"] = "#e7a5c2"
+                    draw_config_["color"]["icon_outline"] = "#e397b8"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#c47b9b"
+                    draw_config_["color"]["card"] = "#dddddd"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["bg"] = "#a86683"
+                    draw_config_["color"]["背景大字"] = (0, 0, 0, 60)
+                    draw_config_["color"]["name"] = "#cd99af"
+                    draw_config_["color"]["date"] = "#ff88bb"
+                    draw_config_["color"]["card"] = "#bd809b"
+                    draw_config_["color"]["title"] = "#c44e81"
+                    draw_config_["color"]["event_title"] = "#7d3d58"
+                    draw_config_["color"]["event_message"] = "#904967"
+                    draw_config_["color"]["box_bg"] = "#94506e"
+                    draw_config_["color"]["box_outline"] = "#8d4766"
+                    draw_config_["color"]["icon_bg"] = "#a76381"
+                    draw_config_["color"]["icon_outline"] = "#a75c7d"
+                if draw_model == "freehand":
+                    draw_config_["color"]["box_bg"] = "#8d4766"
+                    draw_config_["color"]["card"] = "#cd99af"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+
     if ((type(draw_event_box) is bool and draw_event_box is True) or
             (type(draw_event_box) is list and "节日效果" in draw_event_box)):
         # 万圣节
@@ -1123,6 +1290,61 @@ def jellyfish_box_draw_config(
                 # draw_config_["color"]["背景大字"] = "#202023"
                 draw_config_["jellyfish"]["box_foreground"] = "box_foreground_halloween_starlight"
                 draw_config_["jellyfish"]["box_background"] = "box_background_halloween_starlight"
+
+        # 圣诞节
+        if date_m == 12 and 20 <= date_d <= 25:
+            draw_config_["jellyfish"]["jellyfish_foreground"] = [
+                "jellyfish_foreground_chirstmas",
+                None, None]
+            if date_m == 12 and date_d == 24:
+                draw_config_["text"]["背景大字"] = "平安夜"
+            elif date_m == 12 and date_d == 25:
+                draw_config_["text"]["背景大字"] = "圣诞节"
+
+            if draw_dark_model is False:
+                draw_config_["jellyfish"]["box_background"] = "box_background_christmas"
+                draw_config_["jellyfish"]["box_foreground"] = "box_foreground_christmas"
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["title"] = "#dd9200"
+                    draw_config_["color"]["event_title"] = "#5d5349"
+                    draw_config_["color"]["event_message"] = "#aca298"
+                    draw_config_["color"]["name"] = "#e9af52"
+                    draw_config_["color"]["bg"] = "#f6f0e6"
+                    draw_config_["color"]["card"] = "#fbfaf3"
+                    draw_config_["color"]["背景大字"] = "#f1e3cb"
+                    draw_config_["color"]["box_bg"] = "#d9d2c6"
+                    draw_config_["color"]["box_outline"] = "#d9d2c6"
+                    draw_config_["color"]["icon_bg"] = "#d9d2c6"
+                    draw_config_["color"]["icon_outline"] = "#d9d2c6"
+                    draw_config_["jellyfish"]["background"] = "christmas_background"
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#ffffff"
+                    draw_config_["color"]["box_bg"] = "#aba499"
+                    draw_config_["color"]["box_outline"] = "#aba499"
+            else:
+                if draw_model in ["normal", "freehand"]:
+                    draw_config_["color"]["name"] = "#bbb7b4"
+                    draw_config_["color"]["date"] = "#c2762f"
+                    draw_config_["color"]["bg"] = "#504c4a"
+                    draw_config_["color"]["背景大字"] = "#625651"
+                    draw_config_["color"]["box_bg"] = "#3d3a39"
+                    draw_config_["color"]["box_outline"] = "#3d3a39"
+                    draw_config_["color"]["title"] = "#9b8b7b"
+                    draw_config_["color"]["event_title"] = "#c3b9b3"
+                    draw_config_["color"]["event_message"] = "#9b9490"
+                    draw_config_["color"]["card"] = "#686360"
+                    draw_config_["color"]["icon_bg"] = "#3d3a39"
+                    draw_config_["color"]["icon_outline"] = "#3d3a39"
+                    draw_config_["jellyfish"]["background"] = None
+                if draw_model == "freehand":
+                    draw_config_["color"]["card"] = "#888888"
+                    draw_config_["color"]["box_bg"] = "#aba499"
+                    draw_config_["color"]["box_outline"] = "#aba499"
+            if draw_model == "starlight":
+                draw_config_["color"]["背景大字"] = "#53514c"
+                draw_config_["jellyfish"]["box_background"] = None
+                draw_config_["jellyfish"]["box_foreground"] = None
+                draw_config_["jellyfish"]["background"] = "starlight_background_christmas"
 
     return draw_config_
 
