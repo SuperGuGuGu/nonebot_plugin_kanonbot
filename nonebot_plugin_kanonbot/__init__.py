@@ -17,14 +17,14 @@ from .config import command_list, _config_list, greet_list_
 from .bot_run import botrun
 from .tools import (kn_config, get_file_path, get_command, imgpath_to_url, draw_text, mix_image, connect_api,
                     get_unity_user_id, get_unity_user_data, save_unity_user_data, get_user_id, get_qq_face, _config,
-                    lockst, locked, kn_cache, load_image, save_image)
+                    lockst, locked, kn_cache, load_image, save_image, read_db)
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
 
 @scheduler.scheduled_job("cron", hour="*/1", id="job_0")
-async def suto_run_kanonbot_1hour_():
+async def auto_run_kanonbot_1hour_():
     try:
         await auto_run_kanonbot_1hour()
     except Exception as e:
@@ -34,17 +34,13 @@ async def suto_run_kanonbot_1hour_():
 
 
 @scheduler.scheduled_job("cron", day="*/1", id="job_1")
-async def suto_run_kanonbot_1day_():
+async def auto_run_kanonbot_1day_():
     try:
         await auto_run_kanonbot_1day()
     except Exception as e:
         logger.error("定时任务运行异常：1day")
         logger.error(e)
         logger.error(traceback.format_exc())
-
-
-require("nonebot_plugin_apscheduler")
-from nonebot_plugin_apscheduler import scheduler
 
 
 basepath = _config["basepath"]
@@ -73,7 +69,12 @@ os.makedirs(f'{basepath}db/', exist_ok=True)
 path = f"{basepath}cache/channel_member_list.json"
 if os.path.exists(path):
     file = open(path, "r", encoding="UTF-8")
-    kn_cache["channel_member_list"] = json.loads(file.read())
+    try:
+        kn_cache["channel_member_list"] = json.loads(file.read())
+    except Exception as e:
+        logger.error(e)
+        logger.error("读取群成员列表失败")
+        kn_cache["channel_member_list"] = {}
     file.close()
 else:
     kn_cache["channel_member_list"] = {}
@@ -86,12 +87,17 @@ logger.success(f"加载群友列表成功，共{len(kn_cache['channel_member_lis
 path = f"{basepath}cache/channel_data.json"
 if os.path.exists(path):
     file = open(path, "r", encoding="UTF-8")
-    kn_cache["channel_data"] = json.loads(file.read())
+    try:
+        kn_cache["channel_data"] = json.loads(file.read())
+    except Exception as e:
+        logger.error(e)
+        logger.error("读取群列表失败")
+        kn_cache["channel_data"] = {}
     file.close()
 else:
     kn_cache["channel_data"] = {}
     file = open(path, "w", encoding="UTF-8")
-    file.write(json.dumps({}, indent=2))
+    file.write(json.dumps({}, ensure_ascii=False, indent=2))
     file.close()
 
 channel_replace_data = {}
@@ -109,7 +115,8 @@ async def kanon(
         message_event: MessageEvent,
         bot: Bot,
         event: Event
-    ):
+):
+    msg_time: float = time.time()
     await lockst()
     # 获取消息基础信息
     botid = str(bot.self_id)
@@ -125,18 +132,17 @@ async def kanon(
         # guild_id = channel_id = event_dict["group_openid"]
         unity_guild_id = unity_channel_id = f"group_{platform}_{channel_id}"
 
-        if channel_id in channel_replace_data.keys():
-            unity_guild_id = unity_channel_id = f"group_{platform}_{channel_replace_data[channel_id]}"
-        chat_type = "channel"
+        if unity_channel_id in channel_replace_data.keys():
+            unity_guild_id = unity_channel_id = channel_replace_data[unity_channel_id]
+        chat_type = "group"
     elif event_name == "AT_MESSAGE_CREATE":
         channel_id = message_event.channel_id
         guild_id = message_event.guild_id
         unity_channel_id = f"channel_{platform}_{channel_id}"
         unity_guild_id = f"channel_{platform}_{guild_id}"
-
-        if channel_id in channel_replace_data.keys():
-            unity_channel_id = f"channel_{platform}_{channel_replace_data[channel_id]}"
-            unity_guild_id = f"channel_{platform}_{channel_replace_data[channel_id]}"
+        if unity_channel_id in channel_replace_data.keys():
+            unity_channel_id = channel_replace_data[unity_channel_id]
+            unity_guild_id = channel_replace_data[unity_channel_id]
         chat_type = "channel"
     elif event_name == "C2C_MESSAGE_CREATE":
         channel_id = guild_id = user_id
@@ -508,17 +514,26 @@ async def kanon(
 
         # 获取成员名单
         friend_datas = {}
-        use_markdown = False
-        if platform == "qq_Official" and chat_type == "private":
-            if unity_user_data.get("use_markdown") is True:
-                use_markdown = True
+
         to_me = event_dict["to_me"]
+
+        # 获取群信息
+        channel_name = None
+        if unity_channel_id in kn_cache["channel_data"].keys():
+            if unity_channel_id not in kn_cache["channel_data"][unity_channel_id]["id_list"]:
+                kn_cache["channel_data"][unity_channel_id]["id_list"].append(unity_channel_id)
+        else:
+            kn_cache["channel_data"][unity_channel_id] = {
+                "name": channel_name,
+                "id_list": [unity_channel_id]
+            }
 
         msg = re.sub(u"<.*?>", "", msg)
         commands = get_command(msg)
         # 组装信息，进行后续响应
         msg_info = {
             "msg": msg,
+            "msg_time": msg_time,
             "commands": commands,
             "commandname": commandname,
             "bot_id": botid,
@@ -530,7 +545,6 @@ async def kanon(
             "to_me": to_me,
             "event_name": event_name,
             "platform": platform,
-            "use_markdown": use_markdown,
             "chat_type": chat_type,
             "friend_datas": friend_datas,
             "channel_member_datas": channel_member_datas
@@ -728,67 +742,5 @@ async def kanon(
     cursor.close()
     conn.close()
 
-    locked()
+    await locked()
     await run_kanon.finish()
-
-
-@scheduler.scheduled_job("cron", hour="*/1", id="job_0")
-async def run_bili_push():
-    logger.debug(f"kanonbot_auto_run")
-
-    await asyncio.sleep(random.randint(5, 10))
-    # 保存群员列表
-    logger.debug("开始保存群员列表")
-    path = f"{basepath}cache/channel_member_list.json"
-    file = open(path, "r", encoding="UTF-8")
-    channel_member_list: dict = json.loads(file.read())
-    file.close()
-
-    if "channel_member_list" not in kn_cache.keys():
-        kn_cache["channel_member_list"] = channel_member_list
-    else:
-        for channel_id in kn_cache["channel_member_list"]:
-            if channel_id not in channel_member_list.keys():
-                channel_member_list[channel_id] = kn_cache["channel_member_list"][channel_id]
-            else:
-                channel_member_list[channel_id].update(kn_cache["channel_member_list"][channel_id])
-        kn_cache["channel_member_list"] = channel_member_list
-
-        file = open(path, "w", encoding="UTF-8")
-        file.write(json.dumps(channel_member_list, ensure_ascii=False, indent=2))
-        file.close()
-
-    logger.success("保存群员列表成功")
-
-    # 保存群数据列表
-    logger.debug("开始保存群数据列表")
-    path = f"{basepath}cache/channel_data.json"
-    file = open(path, "r", encoding="UTF-8")
-    channel_data: dict = json.loads(file.read())
-    file.close()
-
-    if "channel_data" not in kn_cache.keys():
-        kn_cache["channel_data"] = channel_data
-    else:
-        for channel_id in kn_cache["channel_data"].keys():
-            if channel_id not in channel_data.keys():
-                channel_data[channel_id] = kn_cache["channel_data"][channel_id]
-            else:
-                if kn_cache["channel_data"][channel_id]["name"] is not None:
-                    channel_data[channel_id]["name"] = kn_cache["channel_data"][channel_id]["name"]
-        kn_cache["channel_data"] = channel_data
-
-        file = open(path, "w", encoding="UTF-8")
-        file.write(json.dumps(channel_data, ensure_ascii=False, indent=2))
-        file.close()
-
-        logger.debug("更新群id替换列表")
-        channel_replace_data = {}
-        for channel_id in kn_cache["channel_data"].keys():
-            for channel_name in kn_cache["channel_data"][channel_id]["id_list"]:
-                channel_replace_data[channel_name] = channel_id
-
-    logger.success("保存群数据列表成功")
-
-
-
