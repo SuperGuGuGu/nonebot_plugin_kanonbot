@@ -15,12 +15,15 @@ kn_config_data = None
 async def auto_run_kanonbot_1hour():
     logger.debug(f"auto_run_1hour")
 
-    await asyncio.sleep(random.randint(5, 10))
+    await asyncio.sleep(random.randint(10, 200) / 10)
     # 保存群员列表
     logger.debug("开始保存群员列表")
     path = f"{basepath}cache/channel_member_list.json"
     file = open(path, "r", encoding="UTF-8")
-    channel_member_list: dict = json.loads(file.read())
+    try:
+        channel_member_list: dict = json.loads(file.read())
+    except:
+        channel_member_list = {}
     file.close()
 
     if "channel_member_list" not in kn_cache.keys():
@@ -43,7 +46,10 @@ async def auto_run_kanonbot_1hour():
     logger.debug("开始保存群数据列表")
     path = f"{basepath}cache/channel_data.json"
     file = open(path, "r", encoding="UTF-8")
-    channel_data: dict = json.loads(file.read())
+    try:
+        channel_data: dict = json.loads(file.read())
+    except:
+        channel_data = {}
     file.close()
 
     if "channel_data" not in kn_cache.keys():
