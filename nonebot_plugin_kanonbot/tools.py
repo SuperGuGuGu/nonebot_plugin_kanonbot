@@ -25,7 +25,28 @@ from tencentcloud.tms.v20201229 import tms_client, models
 from scipy.interpolate import interp1d
 import numpy
 
-kn_cache = {}
+# 初始化缓存
+kn_cache = {
+    'plugin_adventure': {
+        "map_data": {},
+        "user_map": {}
+    },
+    "_adventure_datas": {
+        "time": 0,
+        "data": {}
+    },
+    "_jellyfish_box_datas": {
+        "time": 0,
+        "data": {}
+    },
+    "jellyfish_box_image": {},
+    "jellyfish_box_weather": {
+        "time": 0,
+        "data": {},
+        "name": None
+    },
+    "weather_state": {}
+}
 
 
 def _kanonbot_plugin_config():
@@ -89,14 +110,9 @@ def _kanonbot_plugin_config():
         _basepath = _basepath.replace("\\", "/")
 
     # 初始化文件夹
-    if not os.path.exists(_basepath):
-        os.makedirs(_basepath)
-    cache_path = f"{_basepath}cache/"
-    if not os.path.exists(cache_path):
-        os.makedirs(cache_path)
-    cache_path = f"{_basepath}file/"
-    if not os.path.exists(cache_path):
-        os.makedirs(cache_path)
+    os.makedirs(f"{_basepath}cache/", exist_ok=True)
+    os.makedirs(f"{_basepath}file/", exist_ok=True)
+    os.makedirs(f"{_basepath}db/", exist_ok=True)
 
     return {
         "basepath": _basepath,
@@ -112,10 +128,11 @@ command_starts = _config["command_starts"]
 kn_config_data = None
 
 
-def get_command(msg: str) -> list[str | None]:
+def get_command(msg: str, return_none: bool = False) -> list[str | None, str | None]:
     """
     使用空格和换行进行切分1次
     :param msg: 原始字符串。"hello world"
+    :param return_none: 第二段是否返回None
     :return: 切分后的内容["hello", "world"]
     """
     # 去除前后空格
@@ -175,6 +192,8 @@ def get_command(msg: str) -> list[str | None]:
                 break
         commands[1] = command2
 
+    if return_none is True and len(commands) == 1:
+        commands.append(None)
     return commands
 
 
@@ -267,6 +286,7 @@ def kn_config(config_name: str, config_name2: str = None):
             "secret_key": None,
             "enabled_list": [],
             "input_ban_list": [],
+            "white_list": []
         },
         "pic": {
             "eagle-path": None,
@@ -372,10 +392,11 @@ async def connect_api(
     return
 
 
-async def get_file_path(file_name) -> str:
+async def get_file_path(file_name, relative_path: bool = False) -> str:
     """
     获取文件的路径信息，如果没下载就下载下来
     :param file_name: 文件名。例：“file.zip”
+    :param relative_path: 是否返回相对路径
     :return: 文件路径。例："c:/bot/cache/file/file.zip"
     """
     file_path = f"{basepath}file/{file_name}"
@@ -410,7 +431,10 @@ async def get_file_path(file_name) -> str:
         file.write(file_data)
         file.close()
 
-    return f"{basepath}file/{file_name}"
+    if relative_path is True:
+        return "{basepath}" + f"file/{file_name}"
+    else:
+        return f"{basepath}file/{file_name}"
 
 
 async def get_file_path_v2(file_name: str) -> str:
@@ -460,6 +484,7 @@ async def get_image_path(image_name) -> str:
             raise "图片下载错误"
 
     if image_fast_cache_path is not None:
+        os.makedirs(image_fast_cache_path, exist_ok=True)
         if not os.path.exists(file_cache_path):
             file = open(file_path, "rb")
             file_data = file.read()
@@ -486,8 +511,13 @@ async def load_image(path: str, size=None, mode=None):
             return await connect_api("image", path)
         else:
             if path.startswith("{basepath}"):
-                image_path = f"{basepath}{path.removeprefix('{basepath}')}"
-                return Image.open(image_path, mode)
+                image_path = path.replace("{basepath}", basepath)
+                if not os.path.exists(image_path):
+                    raise "图片不存在"
+                image = Image.open(image_path, mode)
+                if mode == "rb":
+                    return save_image(image, tobytes=True)
+                return image
             return Image.open(path, mode)
     except Exception as e:
         logger.error(f"读取图片错误：{path}")
@@ -547,11 +577,12 @@ def save_image(
         image_stream.seek(0)
         return image_stream.read()
 
-    date_components = time.strftime("%Y/%m/%d", time.localtime())
+    image = image.convert("RGB")
+    d_y, d_m, d_d = map(int, time.strftime("%Y/%m/%d", time.localtime()).split("/"))
     time_now = int(time.time())
 
     if image_path is None:
-        image_path = "{basepath}" + f"cache/{date_components}/"
+        image_path = "{basepath}" + f"cache/{d_y}/{d_m}/{d_d}/"
     real_path = image_path.replace("{basepath}", basepath)
     os.makedirs(real_path, exist_ok=True)
 
@@ -561,9 +592,9 @@ def save_image(
         while True:
             num -= 1
             random_num = str(random.randint(1000, 9999))
-            if os.path.exists(f"{real_path}{image_name}_{random_num}.png"):
+            if os.path.exists(f"{real_path}{image_name}_{random_num}.jpg"):
                 continue
-            image_name = f"{image_name}_{random_num}.png"
+            image_name = f"{image_name}_{random_num}.jpg"
             break
 
     logger.debug(f"保存图片文件：{real_path}{image_name}")
@@ -606,7 +637,7 @@ async def lockst(lockdb=None):
     return True
 
 
-def locked(text=None):
+async def locked(text=None):
     kn_cache["lock"] = False
     return True
 
@@ -713,6 +744,8 @@ async def draw_text(
 
     :return: 图片文件（RGBA）
     """
+    if texts is None:
+        texts = "None"
 
     def get_font_render_w(text):
         if text == " ":
@@ -1092,7 +1125,7 @@ def new_background(image_x: int, image_y: int):
     return new_image
 
 
-def circle_corner(img, radii):
+def circle_corner(img, radii: int):
     """
     圆角处理
     :param img: 源图象。
@@ -1121,7 +1154,7 @@ def circle_corner(img, radii):
     return img
 
 
-def get_unity_user_id(platform: str, user_id: str):
+def get_unity_user_id(platform: str, user_id: str, save=True):
     """
     获取统一id
     :param platform: 现在id平台
@@ -1146,57 +1179,61 @@ def get_unity_user_id(platform: str, user_id: str):
         cursor.execute(
             'create table "id_list"'
             '(id INTEGER primary key AUTOINCREMENT, unity_id VARCHAR(10), platform VARCHAR(10), user_id VARCHAR(10))')
-
-    # 开始读取数据
-    cursor.execute(f'SELECT * FROM "id_list" WHERE platform = "{platform}" AND user_id = "{user_id}"')
-    data = cursor.fetchone()
-    if data is None:
-        # 无数据，创建一个unity_id
-        num = 1000
-        while num > 0:
-            num -= 1
-            if num > 10:
-                random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-            else:
-                random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-
-            # 保留号段
-            pass_str = False
-            for strr in ["KN", "Kn", "kN", "kn", "KA", "Ka", "kA", "ka", "SG", "sg", "0", "444", "41", "S1", "S8",
-                         "SB", "250", "69", "79", "NC", "58", "5B", "64", "63", "SX", "NT", "n7"]:
-                if strr in random_str:
-                    # 重新选
-                    pass_str = True
-                    break
-            if pass_str:
-                continue
-
-            cursor.execute(f'SELECT * FROM "id_list" WHERE unity_id = "{random_str}"')
-            data = cursor.fetchone()
-
-            if data is None:
-                cursor.execute(
-                    f'replace into id_list ("unity_id","platform","user_id") '
-                    f'values("{random_str}","{platform}","{user_id}")')
-                conn.commit()
-                break
-            else:
-                continue
-
-        # 读取unity_user_id
-        cursor.execute(f'SELECT * FROM id_list WHERE platform = "{platform}" AND user_id = "{user_id}"')
+    try:
+        # 开始读取数据
+        cursor.execute(f'SELECT * FROM "id_list" WHERE platform = "{platform}" AND user_id = "{user_id}"')
         data = cursor.fetchone()
-        unity_user_id = data[1]
+        if data is None:
+            if save is True:
+                # 无数据，创建一个unity_id
+                num = 1000
+                while num > 0:
+                    num -= 1
+                    if num > 10:
+                        random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+                    else:
+                        random_str = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
-    else:
-        # 读取unity_user_id
-        unity_user_id = data[1]
+                    # 保留号段
+                    pass_str = False
+                    for strr in ["KN", "Kn", "kN", "kn", "KA", "Ka", "kA", "ka", "SG", "sg", "0", "444", "41", "S1", "S8",
+                                 "SB", "250", "69", "79", "NC", "58", "5B", "64", "63", "SX", "NT", "n7"]:
+                        if strr in random_str:
+                            # 重新选
+                            pass_str = True
+                            break
+                    if pass_str:
+                        continue
 
-    # 关闭数据库
-    cursor.close()
-    conn.close()
+                    cursor.execute(f'SELECT * FROM "id_list" WHERE unity_id = "{random_str}"')
+                    data = cursor.fetchone()
 
-    return str(unity_user_id)
+                    if data is None:
+                        cursor.execute(
+                            f'replace into id_list ("unity_id","platform","user_id") '
+                            f'values("{random_str}","{platform}","{user_id}")')
+                        conn.commit()
+                        break
+                    else:
+                        continue
+
+                # 读取unity_user_id
+                cursor.execute(f'SELECT * FROM id_list WHERE platform = "{platform}" AND user_id = "{user_id}"')
+                data = cursor.fetchone()
+                unity_user_id = str(data[1])
+            else:
+                unity_user_id = None
+        else:
+            # 读取unity_user_id
+            unity_user_id = str(data[1])
+    except Exception as e:
+        raise "读取用户id出错"
+    finally:
+        # 关闭数据库
+        cursor.close()
+        conn.close()
+
+    return unity_user_id
 
 
 def get_user_id(platform: str, unity_user_id: str):
@@ -1327,7 +1364,7 @@ def statistics_list(input: list) -> dict:
     return data
 
 
-async def content_compliance(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
+async def content_compliance_(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
     """
     内容合规检测（腾讯云api）
     :param type_: 类型： "text", "image"
@@ -1335,7 +1372,7 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
     :param user_id: 被检测的用户id
     :return: {"conclusion": "Block"}{"conclusion": "Review"}{"conclusion": "Pass"}
     """
-    if text_data is None:
+    if text_data is None or text_data == "" or len(text_data) < 1:
         return {"conclusion": "Pass", "review": True, "message": "Pass None"}
     logger.debug(f"content_compliance, typr={type_}")
     data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
@@ -1375,6 +1412,9 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
                 whitelist_term = ["尼格"]
                 for whitelist in whitelist_term:
                     text_data = text_data.replace(whitelist, "")
+                if text_data == "":
+                    logger.debug({"conclusion": "Pass", "review": True, "message": f"空白内容"})
+                    return {"conclusion": "Pass", "review": True, "message": f"空白内容"}
                 data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
 
                 secret_id = kn_config("content_compliance", "secret_id")
@@ -1431,6 +1471,7 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
         return {"conclusion": "error", "message": "检测类型不存在"}
     except Exception as e:
         logger.error(e)
+        logger.error(text_data)
         logger.error(traceback.format_exc())
         logger.error("内容合规检测出错")
         return {
@@ -1441,13 +1482,39 @@ async def content_compliance(type_: str = "text", text_data: str = None, user_id
         }
 
 
+async def content_compliance(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
+    if user_id in kn_config("content_compliance", "white_list"):
+        return {"conclusion": "Pass", "message": "内容审核用户白名单"}
+    data = await content_compliance_(type_=type_, text_data=text_data, user_id=user_id)
+    if data["conclusion"] != "Pass":
+        if "message" in data.keys() and data["message"] != "Review by database without Review":
+            sql_text = (f"replace into log ('time','text','state','user_id','message') values("
+                        f"'{int(time.time())}','{text_data}','{data['conclusion']}','{user_id}','{data['message']}')")
+            read_db(
+                db_path="{basepath}db/content_compliance.db",
+                sql_text=sql_text,
+                table_name="log",
+                select_all=False
+            )
+        elif "message" not in data.keys():
+            sql_text = (f"replace into log ('time','text','state','user_id','message') "
+                        f"values('{int(time.time())}','{text_data}','{data['conclusion']}','{user_id}','None')")
+            read_db(
+                db_path="{basepath}db/content_compliance.db",
+                sql_text=sql_text,
+                table_name="log",
+                select_all=False
+            )
+    return data
+
+
 def create_table_data_():
-    date_year: int = time.localtime().tm_year
-    date_month: int = time.localtime().tm_mon
+    # date_year: int = time.localtime().tm_year
+    # date_month: int = time.localtime().tm_mon
     data = {
         "{basepath}db/config.db": {
             "user_data": 'create table "user_data"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))',
-            "": "",
+            "id_list": 'create table "id_list"(unity_id VARCHAR(10) primary key, user_data VARCHAR(50))',
         },
         "{basepath}db/content_compliance.db": {
             "content_compliance": "create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
@@ -1459,6 +1526,11 @@ def create_table_data_():
         },
         "{basepath}db/plugin_data.db": {
             "jellyfish_box": 'create table "jellyfish_box"(user_id VARCHAR(10) primary key, data VARCHAR(10))',
+            "adventure": 'create table "adventure"(user_id VARCHAR(10) primary key, data VARCHAR(10))',
+        },
+        "/plugin_adventure_map.db": {
+            "user_map": 'create table "user_map"(user_id VARCHAR(10) primary key, '
+                        'coordinates_x INT(10), coordinates_y INT(10), user_name VARCHAR(10))',
         },
     }
     return data
@@ -1480,9 +1552,18 @@ def read_db(
     :return:
     """
     create_table_data = create_table_data_()
-    if create_table_text is None or db_path in create_table_data.keys():
-        if table_name is not None and table_name in create_table_data[db_path].keys():
-            create_table_text = create_table_data[db_path][table_name]
+    if "plugin_adventure_map" in db_path:
+        db_path_ = "/plugin_adventure_map.db"
+    else:
+        db_path_ = db_path
+    if create_table_text is None:
+        if db_path_ in create_table_data.keys():
+            if table_name is not None and table_name in create_table_data[db_path_].keys():
+                create_table_text = create_table_data[db_path_][table_name]
+        else:
+            logger.error(f"db_path_: {db_path_}")
+            logger.error(f"table_name: {table_name}")
+            raise "创建表语句不存在"
 
     conn = sqlite3.connect(db_path.replace("{basepath}", basepath))
     cursor = conn.cursor()
@@ -1524,7 +1605,7 @@ def text_to_b64(text: str) -> str:
     return str(base64.b64encode(text.encode('UTF-8')), encoding='UTF-8')
 
 
-def b64_to_str(b64_text: str) -> str:
+def b64_to_text(b64_text: str) -> str:
     return base64.b64decode(b64_text).decode('UTF-8')
 
 
@@ -1571,6 +1652,12 @@ async def draw_line_chart(
     min_x = min(x_list)
     if max_min_y is None:
         max_y = max(y_list)
+        min_y = min(y_list)
+    elif max_min_y[0] is None:
+        max_y = max(y_list)
+        min_y = max_min_y[1]
+    elif max_min_y[1] is None:
+        max_y = max_min_y[0]
         min_y = min(y_list)
     else:
         max_y, min_y = max_min_y
@@ -1663,6 +1750,96 @@ async def draw_pie_chart(
         draw_num += (360 * data)
 
     return image
+
+
+def new_image(size: tuple, color: str | tuple | list = None, mode="RGBA"):
+    if color is None:
+        color = (0, 0, 0, 0)
+    if isinstance(color, str) or isinstance(color, tuple):
+        color = [color]
+    image = Image.new(mode, size, color[0])
+    if len(color) == 1:
+        return image
+    for i, c in enumerate(color[1:], start=1):
+        paste_image = Image.new("RGBA", size, c)
+        position = (int(size[0] / (len(color)) * i), 0)
+        image.alpha_composite(paste_image, position)
+    return image
+
+
+async def get_weather_state(city_id: str):
+    if kn_config('weather', 'key') is None:
+        logger.error("未配置天气信息")
+        return None
+    if city_id in kn_cache["weather_state"].keys():
+        return kn_cache["weather_state"][city_id]["data"]
+    url = f"https://restapi.amap.com/v3/weather/weatherInfo"
+    url += f"?key={kn_config('weather', 'key')}&city={city_id}"
+    try:
+        data = await connect_api("json", url)
+        if data["status"] != "1":
+            raise "天气api返回错误"
+        logger.success("请求天气api成功")
+        for weather in data["lives"]:
+            if weather["adcode"] == city_id:
+                logger.success(f"天气状态: {weather}")
+                kn_cache["weather_state"][city_id] = {"data": weather}
+                return weather
+        return None
+    except Exception as e:
+        return None
+
+
+async def get_weather_image_list(city_id: str, time_h: int, draw_dark_model=None) -> list:
+    weather_data = await get_weather_state(city_id)
+    if weather_data is None:
+        return []
+
+    # weather_data = {"weather": "晴"}
+    if draw_dark_model is not None:
+        sky_type = "晚" if draw_dark_model is True else "早"
+    else:
+        sky_type = "早" if 5 <= time_h <= 19 else "晚"
+
+    replate_weather_list = [
+        ["晴", "有风", "平静", "微风", "和风", "清风"],
+        ["强风", "劲风", "强风/劲风", "疾风", "大风", "烈风", "风暴", "狂爆风", "飓风", "热带风暴", "龙卷风"],
+        ["霾", "中度霾", "浮尘", "扬沙", "雾", "浓雾", "轻雾", "特强浓雾"],
+        ["重度霾", "严重霾", "强浓雾", "大雾"],
+        ["阵雨", "小雨", "毛毛雨", "细雨", "毛毛雨/细雨", "雨", "小雨-中雨"],
+        ["中雨", "大雨", "中雨-大雨", "大雨-暴雨"],
+        ["暴雨", "大暴雨", "特大暴雨", "强阵雨", "极端降雨", "暴雨-大暴雨", "大暴雨-特大暴雨"],
+        ["强雷阵雨", "雷阵雨"],
+        ["雨雪天气", "雨夹雪", "阵雨夹雪"],
+        ["雪", "阵雪", "小雪", "中雪", "小雪-中雪", "中雪-大雪"],
+        ["大雪", "暴雪", "大雪-暴雪"],
+        ["沙尘暴", "强沙尘暴"],
+    ]
+    for weather_list in replate_weather_list:
+        if weather_data["weather"] in weather_list:
+            weather_data["weather"] = weather_list[0]
+            break
+
+    weather_list = [
+        "晴", "少云", "晴间多云", "多云", "阴", "强风", "霾", "重度霾", "阵雨", "雷阵雨",
+        "雷阵雨并伴有冰雹", "中雨", "暴雨", "强雷阵雨", "雨雪天气", "冻雨", "雪", "大雪",
+        "沙尘暴"]  # , "热", "冷"
+    dark_weather_list = [
+        "晴", "少云", "晴间多云", "多云", "阴", "强风", "霾", "重度霾", "阵雨", "雷阵雨",
+        "雷阵雨并伴有冰雹", "中雨", "暴雨", "强雷阵雨", "雨雪天气", "冻雨", "雪", "大雪",
+        "沙尘暴"]
+    if weather_data["weather"] not in dark_weather_list:
+        sky_type = "早"
+
+    if weather_data["weather"] in weather_list:
+        try:
+            image_path = await get_image_path(f"jellyfish_box-weather_{sky_type}_{weather_data['weather']}.png")
+        except Exception as e:
+            logger.error(f"jellyfish_box-weather_{sky_type}_{weather_data['weather']}.png")
+            logger.error("获取天气图片失败")
+            image_path = await get_image_path(f"jellyfish_box-weather_早_{weather_data['weather']}.png")
+        return [image_path]
+    return []
 
 
 logger.debug("加载用户列表")
