@@ -54,7 +54,7 @@ KanonBot - nb2 插件版
 
     kanonbot_basepath="./KanonBot/"
 
-在 KanonBot 文件夹 的 kanon\_config.toml 文件中 \*\*选填 \*\*配置
+在 KanonBot 文件夹 的 kanon\_config.toml 文件中选填配置
 
 ```TOML
 [kanon_api]
@@ -185,6 +185,8 @@ eagle-name = "xxx图库"
 *   [x] 👀猜猜看
 
 *   [x] ✈炸飞机
+
+*   [x] 🤺水母探险
 
 *   [x] 🔍找不同（beta）
 
