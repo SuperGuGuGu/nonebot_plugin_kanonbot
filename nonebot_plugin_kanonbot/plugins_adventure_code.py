@@ -8,8 +8,8 @@ from nonebot import logger
 import sqlite3
 from .config import _adventure_datas
 from .plugins import plugin_checkin
-from .tools import (kn_config, save_image, image_resize2, draw_text, get_file_path, circle_corner,
-                    get_command, _config, get_image_path, load_image, list_in_list, read_db, content_compliance,
+from .tools import (kn_config, save_image, draw_text, get_file_path, circle_corner,
+                    get_command, _config, get_image_path, load_image, read_db,
                     kn_cache, text_to_b64, b64_to_text)
 from PIL import Image
 from datetime import datetime
@@ -17,7 +17,6 @@ from zhdate import ZhDate
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
-test_id = "KnTest"
 num_list = "1234567890"
 map_data_type = dict[str, dict[str, str | list[dict] | bool]]
 
@@ -71,7 +70,6 @@ async def plugin_adventure(
         "returnpath": None,
         "markdown": None,
         "keyboard": None,
-        "trace": [],
     }
     save_member_coordinates = False
     save_member_data = False
@@ -166,24 +164,6 @@ async def plugin_adventure(
         if user_data["energy"] > 10:
             user_data["energy"] = 10
         user_data["refresh_time"] = int(time_now / 3600) * 3600
-
-    # 测试用
-    if user_id == test_id:
-        logger.debug(user_data)
-        user_data["energy"] = 10
-        user_data["sleep_time"] = 0
-        user_data["profile"]["main"]["id"] = user_id
-        # user_data["profile"]["main"]["type"] = "avatar"
-        # user_data["profile"]["decorate"]["frame"] = [{"id": "f1"}]
-        # user_data["profile"]["decorate"]["decorate"] = [{"id": "c1"}]
-        user_data["profile"]["decorate"]["frame"] = []
-        user_data["backpack"]["prop"]["p1"] = {"number": 1}
-        user_data["profile"]["decorate"]["decorate"] = []
-        news.append({"title": "测试标题", "message": "测试消息"})
-        news.append({"title": "测试标题2", "message": "测试消息2"})
-        if command != "帮助":
-            command_prompt_list.append({"title": "test_/水母探险 出发", "message": "向前移动"})
-            command_prompt_list.append({"title": "test_/水母探险 帮助", "message": "查看水母探险指令列表"})
 
     news.append({"title": "水母探险beta", "message": "游戏正在测试中，游戏数据将随时修改"})
 

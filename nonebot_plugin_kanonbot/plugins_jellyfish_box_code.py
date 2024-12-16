@@ -10,7 +10,7 @@ from .config import _jellyfish_box_datas, jellyfish_box_draw_config, _jellyfish_
 from .tools import (kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, \
                     circle_corner, get_command, get_unity_user_data, _config, imgpath_to_url, del_files2, \
                     statistics_list, get_image_path, load_image, list_in_list,
-                    images_to_gif, read_db, content_compliance, kn_cache, new_image, get_weather_image_list)
+                    images_to_gif, read_db, kn_cache, new_image, get_weather_image_list)
 from PIL import Image, ImageDraw, ImageFont
 import numpy
 from datetime import datetime
@@ -29,8 +29,7 @@ async def plugin_jellyfish_box(
         platform: str = "None",
         reply_data: dict | None = None,
         channel_member_datas=None,
-        at_datas=None,
-        use_markdown: bool=False
+        at_datas=None
 ):
     """
     群聊功能-水母箱
@@ -63,13 +62,6 @@ async def plugin_jellyfish_box(
     code = 0
     message = None
     returnpath = None
-    markdown = None
-    keyboard = None
-    reply_trace = {
-        "plugin_name": "群聊功能-水母箱",
-        "data": {}
-    }
-    trace = []  # 用于日志记录插件运行内容
     jellyfish_group_list = ["perfect", "great", "good", "normal", "special", "ocean"]
     jellyfish_box_datas = await _jellyfish_box_datas()  # 插件数据
     event_datas = jellyfish_box_datas["event_datas"]  # 所有事件
@@ -188,13 +180,16 @@ async def plugin_jellyfish_box(
     else:
         draw_model = "normal"
 
+    if time_h == 0:
+        news.append({"icon": None, "title": "0-1点将不显示水母箱", "message": ""})
+
     draw_config = jellyfish_box_draw_config(
         draw_model, draw_dark_model, date_m=date_m, date_d=date_d, draw_event_box=box_data['draw_event_box'])
 
     # 更新水母箱状态，并写入
     refresh: bool = False  # 判断是否更新
     refresh_period: int = 0  # 要更新的周期
-    if (time_now - box_data["refresh_time"]) > 3600:
+    if time_h != 0 and (time_now - box_data["refresh_time"]) > 3600:
         # 超过1小时，进行更新
         refresh_period = int((time_now - box_data["refresh_time"]) / 3600)  # 要更新的周期数量，int
         if refresh_period > 0:
@@ -210,7 +205,6 @@ async def plugin_jellyfish_box(
     if refresh:
         # 更新数据
         logger.debug("正在刷新水母箱")
-        trace.append(f"将刷新{refresh_period}次")
         if len(box_data["jellyfish"]) == 0:
             # 无水母，仅更新时间
             box_data["refresh_time"] = int(time_now / 3600) * 3600
@@ -272,9 +266,6 @@ async def plugin_jellyfish_box(
                             new[jellyfish_id] = add_jellyfish
                         box_data["jellyfish"][jellyfish_id]["number"] += add_jellyfish
 
-            for jellyfish_id in list(new):
-                trace.append(f"水母繁殖，trace， ”{jellyfish_id}“增加{new[jellyfish_id]}只")
-
             # 按周期更新数据
             while refresh_period > 0:
                 refresh_period -= 1
@@ -302,8 +293,6 @@ async def plugin_jellyfish_box(
                 event_message: str = event_datas[event_id]["message"]
                 # event_icon = await get_image_path(f"jellyfish_box-{event_id}")
                 event_icon: str | None = None
-
-                trace.append(f"添加事件{event_id}")
 
                 if event_id in ["e2"]:
                     # 无变化中立事件
@@ -358,7 +347,6 @@ async def plugin_jellyfish_box(
                     for jellyfish_id in list(choose_jellyfish):
                         event_message += f"{jellyfish_datas[jellyfish_id]['name']}"
                         event_message += f"{choose_jellyfish[jellyfish_id]}只、"
-                        trace.append(f"{event_id}-{jellyfish_id}减去{choose_jellyfish[jellyfish_id]}")
 
                     event_message.removesuffix("、")
                     event_message = event_message.replace("{num}", str(len(choose_list)))
@@ -402,7 +390,6 @@ async def plugin_jellyfish_box(
                             jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
                             num = new_jellyfish_datas[jellyfish_id]
                             event_message += f"{jellyfish_name}{num}只、"
-                            trace.append(f"{event_id}-{jellyfish_id}增加{num}")
 
                         news.append({"icon": event_icon, "title": event_name, "message": event_message})
                 elif event_id == "e4":
@@ -445,7 +432,6 @@ async def plugin_jellyfish_box(
                         jellyfish_name = jellyfish_datas[jellyfish_id]["name"]
                         jellyfish_number = new_jellyfish_datas[jellyfish_id]
                         event_message += f"{jellyfish_name}{jellyfish_number}只、"
-                        trace.append(f"{event_id}-{jellyfish_id}增加{jellyfish_number}")
 
                     # 总结事件
                     news.append({"icon": event_icon, "title": event_name, "message": event_message})
@@ -479,7 +465,6 @@ async def plugin_jellyfish_box(
 
                     # 总结事件
                     event_message = event_message.replace("{name}", jellyfish_datas[choose_jellyfish]["name"])
-                    trace.append(f"{event_id}-{choose_jellyfish}转为j24")
                     news.append({"icon": event_icon, "title": event_name, "message": event_message})
                 elif event_id == "":
                     # 判断事件是否成立
@@ -527,7 +512,6 @@ async def plugin_jellyfish_box(
                     for jellyfish_id in list(choose_jellyfish):
                         num = choose_jellyfish[jellyfish_id]
                         event_message += f"{jellyfish_datas[jellyfish_id]['name']}{num}只、"
-                        trace.append(f"{event_id}-{jellyfish_id}减少{num}")
                     event_message.removesuffix("、")
                     news.append({"icon": event_icon, "title": event_name, "message": event_message})
                 elif event_id == "e8":
@@ -560,7 +544,6 @@ async def plugin_jellyfish_box(
                     for jellyfish_id in list(choose_jellyfish):
                         name = jellyfish_datas[jellyfish_id]["name"]
                         event_message += f"{name}{choose_jellyfish[jellyfish_id]}只、"
-                        trace.append(f"{event_id}-{jellyfish_id}减{choose_jellyfish[jellyfish_id]}")
                     event_message.removesuffix("、")
                     news.append({"icon": event_icon, "title": event_name, "message": event_message})
                 elif event_id == "e9":
@@ -589,7 +572,6 @@ async def plugin_jellyfish_box(
                     for jellyfish_id in list(choose_jellyfish):
                         name = jellyfish_datas[jellyfish_id]["name"]
                         event_message += f"{name}{choose_jellyfish[jellyfish_id]}只、"
-                        trace.append(f"{event_id}-{jellyfish_id}增{num}")
                     event_message.removesuffix("、")
                     news.append({"icon": event_icon, "title": event_name, "message": event_message})
                 elif event_id == "e10":
@@ -1491,6 +1473,7 @@ async def plugin_jellyfish_box(
         :param new_jellyfish: 新闻列表，显示最近的动态
         :param command_prompt_list: 指令列表，建议可以输入的指令
         """
+
         async def load_freehand_card(size: tuple[int, int]):
             w, h = size
             if w / h > 2.4:
@@ -1506,6 +1489,7 @@ async def plugin_jellyfish_box(
             Image = await load_image(file_path)
             Image = Image.resize(size)
             return Image
+
         font_shsk_H_path = await get_file_path("SourceHanSansK-Heavy.ttf")
         font_shsk_M_path = await get_file_path("SourceHanSansK-Medium.ttf")
         font_shsk_B_path = await get_file_path("SourceHanSansK-Bold.ttf")
@@ -2833,13 +2817,6 @@ async def plugin_jellyfish_box(
                      "group": jellyfish_datas[choose_jellyfish]["group"],
                      "message": f"抓到了{grab_quantity}只"}
                 )
-                reply_trace["data"]["抓水母"] = {
-                    "jellyfish_id": choose_jellyfish,
-                    "number": grab_quantity,
-                    "user": user_id
-                }
-                trace.append(f"抓到水母：{choose_jellyfish}， 数量：{grab_quantity}")
-
                 # ## 抓饲料 ##
                 food_id = random.choice(["f1", "f2"])
                 food_num = random.randint(1, 4)
@@ -2853,8 +2830,6 @@ async def plugin_jellyfish_box(
                     "title": f"获得{feed_datas[food_id]['name']}x{food_num}",
                     "message": "可发送指令“/水母箱 投喂”进行投喂"
                 })
-
-                trace.append(f"抓到饲料：{food_id}， 数量：{food_num}")
 
                 # ## 节日抓水母事件 ##
 
@@ -2880,7 +2855,6 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -2905,7 +2879,6 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -2933,7 +2906,6 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -2955,7 +2927,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -2981,7 +2953,7 @@ async def plugin_jellyfish_box(
                              "group": jellyfish_datas[choose_jellyfish]["group"],
                              "message": f"抓到了{number}只"}
                         )
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         box_data["jellyfish"]["j31"] = {"number": number}
                     elif box_data["jellyfish"]["j31"]["number"] < 7:
                         if random.randint(0, 5) == 5:
@@ -2992,7 +2964,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             box_data["jellyfish"]["j31"]["number"] += number
                 # 玫瑰情人节 - 未定义
                 if date_m == 5 and date_d == 14:
@@ -3014,7 +2986,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3036,7 +3008,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3061,7 +3033,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3083,7 +3055,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3105,7 +3077,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3130,7 +3102,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3146,7 +3118,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3168,7 +3140,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3184,7 +3156,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3205,7 +3177,7 @@ async def plugin_jellyfish_box(
                             "title": "幽灵出没",
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3225,7 +3197,7 @@ async def plugin_jellyfish_box(
                                 "title": "南瓜出没",
                                 "message": event_message
                             })
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3247,7 +3219,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3269,7 +3241,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3291,7 +3263,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3313,7 +3285,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3329,7 +3301,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3351,7 +3323,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3367,7 +3339,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3388,7 +3360,7 @@ async def plugin_jellyfish_box(
                             "title": "幽灵出没",
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3408,7 +3380,7 @@ async def plugin_jellyfish_box(
                                 "title": "南瓜出没",
                                 "message": event_message
                             })
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             if choose_jellyfish in box_data["jellyfish"]:
                                 box_data["jellyfish"][choose_jellyfish]["number"] += number
                             else:
@@ -3439,7 +3411,7 @@ async def plugin_jellyfish_box(
                             "title": event_title,
                             "message": event_message
                         })
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         if choose_jellyfish in box_data["jellyfish"]:
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                         else:
@@ -3456,7 +3428,7 @@ async def plugin_jellyfish_box(
                              "group": jellyfish_datas[choose_jellyfish]["group"],
                              "message": f"抓到了{number}只"}
                         )
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         box_data["jellyfish"][choose_jellyfish] = {"number": number}
                     elif box_data["jellyfish"][choose_jellyfish]["number"] < 7:
                         number = random.randint(1, 2)
@@ -3467,7 +3439,7 @@ async def plugin_jellyfish_box(
                              "group": jellyfish_datas[choose_jellyfish]["group"],
                              "message": f"抓到了{number}只"}
                         )
-                        trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                        
                         box_data["jellyfish"][choose_jellyfish]["number"] += number
                     else:
                         if random.randint(0, 5) == 0:
@@ -3478,7 +3450,7 @@ async def plugin_jellyfish_box(
                                  "group": jellyfish_datas[choose_jellyfish]["group"],
                                  "message": f"抓到了{number}只"}
                             )
-                            trace.append(f"节日抓到水母：{choose_jellyfish}， 数量：{number}")
+                            
                             box_data["jellyfish"][choose_jellyfish]["number"] += number
                 # 写入水母箱数据
                 conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
@@ -3765,18 +3737,6 @@ async def plugin_jellyfish_box(
                     else:
                         drop_list[command] = "无法指定数量-"
                 else:
-                    # 内容合规检测
-                    if "参数输入" in kn_config("content_compliance", "enabled_list"):
-                        content_compliance_data = await content_compliance("text", command, user_id=user_id)
-                        if content_compliance_data["conclusion"] != "Pass":
-                            # 仅阻止审核拒绝内容
-                            if (content_compliance_data.get("review") is not None and
-                                    content_compliance_data["review"] is True):
-                                command = "水母"
-                            # 阻止黑名单用户的输入
-                            elif user_id in kn_config("content_compliance", "input_ban_list"):
-                                command = "水母"
-
                     drop_list[command] = "不在水母箱"
 
             logger.debug(drop_list)
@@ -4037,7 +3997,6 @@ async def plugin_jellyfish_box(
                         feed_message += f"{feed_datas[f]['name']}x{int(food_num * food_weight)}、"
                 feed_message = feed_message.removesuffix("、")
                 news.append({"icon": None, "title": "投喂", "message": feed_message})
-                trace.append(feed_message)
 
                 feed_data = {}
                 for i in range(add_jellyfish_num):
@@ -4243,7 +4202,7 @@ async def plugin_jellyfish_box(
         code = 1
         message = "错误命令"
 
-    return code, message, returnpath, markdown, keyboard, trace, reply_trace
+    return code, message, returnpath
 
 
 async def draw_jellyfish_live(

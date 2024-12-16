@@ -1,7 +1,6 @@
 # coding=utf-8
 import json
 import time
-from nonebot import logger
 from .tools import get_file_path, _config, kn_cache
 
 basepath = _config["basepath"]
@@ -27,7 +26,7 @@ def _config_list(qq: bool = False):
             "state": True, "swift_by_admin": False,
             "message": "emoji合成", "group": "群聊功能", "name": "emoji"},
         "喜报": {
-            "state": False, "swift_by_admin": True,
+            "state": True, "swift_by_admin": False,
             "message": "喜报 (喜报 内容)", "group": "表情功能", "name": "喜报"},
         "一直": {
             "state": True, "swift_by_admin": False,
@@ -71,12 +70,12 @@ def _config_list(qq: bool = False):
         "今日老婆": {
             "state": True, "swift_by_admin": False,
             "message": "今日老婆 (发送：今日老婆)", "group": "群聊功能", "name": "今日老婆"},
-        "图库": {
-            "state": False, "swift_by_admin": True,
-            "message": "来点wlp", "group": "群聊功能", "name": "图库"},
         "问好": {
             "state": True, "swift_by_admin": False,
             "message": "测试功能w", "group": "群聊功能", "name": "问好"},
+        "塔罗牌": {
+            "state": False, "swift_by_admin": False,
+            "message": "t", "group": "群聊功能", "name": "t"},
     }
     configs_qq = {
         "签到": {"state": True, "swift_by_admin": False, "message": "签到", "group": "群聊功能", "name": "签到"},
@@ -93,17 +92,6 @@ def _config_list(qq: bool = False):
         "寄": {"state": True, "swift_by_admin": False, "message": "寄图 (发送：寄)", "group": "表情功能", "name": "寄"},
         "急": {"state": True, "swift_by_admin": False, "message": "急图 (发送：急)", "group": "表情功能", "name": "急"},
         "爬": {"state": True, "swift_by_admin": False, "message": "爬图 (发送：爬)", "group": "表情功能", "name": "爬"},
-    }
-    configs_none = {
-        "塔罗牌": {"state": False, "message": "t", "group": "群聊功能", "name": "t"},
-        "洗了": {"state": False, "message": "洗了 (洗@群友)", "group": "表情功能", "name": "洗了"},
-        "亲亲": {"state": False, "message": "亲亲 (亲亲@群友)", "group": "表情功能", "name": "亲亲"},
-        "贴贴": {"state": False, "message": "贴贴 (贴贴@群友)", "group": "表情功能", "name": "贴贴"},
-        "踢": {"state": False, "message": "啊打 (啊打@群友)", "group": "表情功能", "name": "踢"},
-        "咬咬": {"state": False, "message": "咬咬 (咬咬@群友)", "group": "表情功能", "name": "咬咬"},
-        "指": {"state": False, "message": "指", "group": "表情功能", "name": "指"},
-        "拳拳": {"state": False, "message": "拳拳", "group": "表情功能", "name": "拳拳"},
-        "结婚证": {"state": False, "message": "结婚证 (结婚证@群友)", "group": "表情功能", "name": "结婚证"},
     }
     return configs if qq is False else configs_qq
 
@@ -123,7 +111,6 @@ def command_list():
             "帮助": "config查询",
             "关闭": "config关闭",
             "开启": "config开启",
-            "运行状态": "config状态",
             "喜报": "表情功能-喜报",
             "悲报": "表情功能-喜报",
             "一直": "表情功能-一直",
@@ -163,66 +150,13 @@ def command_list():
             "塔罗牌": "群聊功能-塔罗牌",
             "今日老婆": "群聊功能-今日老婆",
             "jrlp": "群聊功能-今日老婆",
-            "来点": "群聊功能-图库",
-            "多来点": "群聊功能-图库",
-            "wlp是": "群聊功能-图库",
         },
         "开头": {
             "炸": "小游戏-炸飞机",
-            "来点": "群聊功能-图库",
-            "多来点": "群聊功能-图库",
-            "wlp是": "群聊功能-图库",
         },
         "结尾": {
         },
         "模糊": {
-        },
-        "精准2": {
-        },
-    }
-    commands_none = {
-        "精准": {
-            "洗": "表情功能-洗了",
-            "洗了": "表情功能-洗了",
-            "要洗了": "表情功能-洗了",
-            "啊打": "表情功能-ti",
-            "我是谁": "表情功能-woshishei",
-            "我老婆": "表情功能-wolaopo",
-            "结婚证": "表情功能-jiehunzheng",
-            "👊": "表情功能-quanquan",
-            "给你一拳": "表情功能-quanquan",
-            "拳拳": "表情功能-quanquan",
-            "指": "表情功能-zhi",
-            "🫵": "表情功能-zhi",
-            "踢": "表情功能-ti",
-            "打拳": "表情功能-quanquan",
-            "wlp": "表情功能-wolaopo",
-            "😡👊": "表情功能-quanquan",
-            "买薯条": "群聊功能-chickin",
-            "吃薯条": "群聊功能-chickin",
-            "wlp是谁": "图库功能-wlp",
-            "来点wlp": "图库功能-wlp",
-            "多来点wlp": "图库功能-wlp",
-            "成员名单": "图库功能-wlp",
-            "tsugu": "群聊功能-Tsugu",
-            "ycm": "群聊功能-Tsugu",
-            "车来": "群聊功能-Tsugu",
-            "开启个人车牌转发": "群聊功能-Tsugu",
-            "关闭个人车牌转发": "群聊功能-Tsugu",
-        },
-        "开头": {
-            "来点": "wlp",
-            "多来点": "wlp",
-            "wlp是": "wlp",
-            "新lp是": "wlp"
-        },
-        "结尾": {
-        },
-        "模糊": {
-            "亲亲": "qinqin",
-            "咬咬": "yaoyao",
-            "贴贴": "tietie",
-            "逮捕": "daibu"
         },
         "精准2": {
         },
@@ -1347,13 +1281,6 @@ def jellyfish_box_draw_config(
                 draw_config_["jellyfish"]["background"] = "starlight_background_christmas"
 
     return draw_config_
-
-
-def state(name: str):
-    match name:
-        case "time_h":
-            return ""
-    return None
 
 
 def greet_list_():

@@ -2,21 +2,18 @@
 import json
 import random
 import time
-import traceback
-from nonebot import logger, require
+from nonebot import logger
 import os
 import sqlite3
 from .config import _zhanbu_datas, _config_list, greet_list_
 from .tools import (kn_config, connect_api, save_image, image_resize2, draw_text, get_file_path, new_background,
-                    circle_corner, get_command, get_unity_user_data, _config, imgpath_to_url,
+                    circle_corner, get_unity_user_data, _config, imgpath_to_url,
                     get_unity_user_id, get_image_path, load_image, get_file_path_v2, images_to_gif,
-                    kn_cache, read_db, draw_line_chart, draw_pie_chart, save_unity_user_data, content_compliance)
+                    kn_cache, draw_line_chart, draw_pie_chart, save_unity_user_data)
 from PIL import Image, ImageDraw, ImageFont
 
 basepath = _config["basepath"]
 adminqq = _config["superusers"]
-test_id = "KnTest"
-
 run = True  # 代码折叠助手
 
 
@@ -158,7 +155,7 @@ async def plugin_checkin(user_id: str, date: str = None, modified: int = None):
             else:
                 last_data = data[1]
                 point = data[2]
-                if date == last_data and user_id != test_id:
+                if date == last_data:
                     # 已经签到过，不再签到
                     state = 1
                 else:
@@ -397,272 +394,13 @@ async def plugin_config(
     conn.close()
 
     if command == "运行状态":
-        # 查询开启的功能
-        image_path = await get_file_path("plugin-config-state.png")
-        image = await load_image(image_path, (3000, 2250))
-        state_url = kn_config("plugin", "state_url")
-        if state_url is None:
-            logger.debug("未配置查询api地址，将不回复运行状态")
-        else:
-            data = await connect_api("json", state_url, timeout=50)
-
-            # 粘贴24小时数据
-            card_image = Image.new("RGBA", (1400, 550), (0, 0, 0, 0))
-            card_draw = ImageDraw.Draw(card_image)
-            log_data = data["data"]
-            paste_datas = log_data["daily_use"]
-            paste_datas = paste_datas[::-1]
-            color_list = [(0, 0, 0, 255)]
-            color = (12, 136, 218)
-            num = len(paste_datas) - 1
-            for i in range(num):
-                add_color = (color[0], color[1], color[2],
-                             int(255 / (i + 1)))
-                color_list.append(add_color)
-            color_list = color_list[::-1]
-
-            num = -1
-            for paste_data in paste_datas:
-                num += 1
-                paste_data_list = [[int(k), int(v)] for k, v in paste_data.items()]
-                color = color_list[num]
-                paste_image = await draw_line_chart(
-                    datas=paste_data_list,
-                    size=(1270, 310),
-                    enlarge_num=4,
-                    color=color,
-                    mirror_x=True
-                )
-                card_image.paste(paste_image, (50, 123), paste_image)
-
-            card_draw.line(
-                xy=((120 + 1270 - int(1270 / 24 * time_h), 210), (120 + 1270 - int(1270 / 24 * time_h), 210 + 310)),
-                fill=(50, 50, 50, 100),
-                width=7)
-
-            time_h_2 = time_h - 12 if time_h > 12 else time_h + 12
-            card_draw.line(
-                xy=((120 + 1270 - int(1270 / 24 * time_h_2), 210), (120 + 1270 - int(1270 / 24 * time_h_2), 210 + 310)),
-                fill=(200, 200, 200, 50),
-                width=7)
-            image.paste(card_image, (55, 77), card_image)
-
-            # 粘贴7天每天消息数
-            card_image = Image.new("RGBA", (830, 550), (0, 0, 0, 0))
-            data_list = log_data["log_nums"]
-            paste_data_list = []
-            list_x = []
-            list_y = []
-            for x in range(len(data_list)):
-                list_x.append(x)
-                list_y.append(data_list[x])
-                paste_data_list.append([x, data_list[x]])
-
-            color = "#128bd3"
-            paste_image = await draw_line_chart(
-                datas=paste_data_list,
-                size=(690, 300),
-                enlarge_num=4,
-                color=color,
-                mirror_x=True
-            )
-            image.paste(paste_image, (120, 800), paste_image)
-
-            paste_image = await draw_text(
-                str(max(list_y)),
-                size=40,
-                text_color="#A0A0A0",
-                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-            )
-            image.paste(paste_image, (740, 735), paste_image)
-
-            paste_image = await draw_text(
-                str(min(list_y)),
-                size=40,
-                text_color="#A0A0A0",
-                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-            )
-            image.paste(paste_image, (740, 1150), paste_image)
-
-            # 粘贴7天每天用户数
-            data_list = log_data["user_nums"]
-            paste_data_list = []
-            list_x = []
-            list_y = []
-            for x in range(len(data_list)):
-                list_x.append(x)
-                list_y.append(data_list[x])
-                paste_data_list.append([x, data_list[x]])
-
-            color = "#128bd3"
-            paste_image = await draw_line_chart(
-                datas=paste_data_list,
-                size=(690, 300),
-                enlarge_num=4,
-                color=color,
-                mirror_x=True
-            )
-            image.paste(paste_image, (1010, 800), paste_image)
-
-            paste_image = await draw_text(
-                str(max(list_y)),
-                size=40,
-                text_color="#A0A0A0",
-                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-            )
-            image.paste(paste_image, (1620, 735), paste_image)
-
-            paste_image = await draw_text(
-                str(min(list_y)),
-                size=40,
-                text_color="#A0A0A0",
-                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-            )
-            image.paste(paste_image, (1620, 1150), paste_image)
-
-            # 粘贴用户发言数
-            draw_datas = log_data["user_list"]
-
-            num = -1
-            paste_x = 610
-            paste_y = 1300
-            for data in draw_datas:
-                num += 1
-                if num >= 10:
-                    break
-                paste_text = f"{data}: {draw_datas[data]}"
-                paste_image = await draw_text(
-                    paste_text.removeprefix("user_"),
-                    size=57, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-                )
-                image.paste(paste_image, (paste_x, paste_y), paste_image)
-                paste_y += 85
-
-            # 粘贴功能调用数
-            draw_datas: dict = log_data["command_name_list"]
-            num_list = draw_datas.values()
-            all_num = sum(num_list)
-            num_list_2 = []
-            for num in num_list:
-                if num == 0 or (all_num / num) == 0:
-                    num_list_2.append(0)
-                else:
-                    num_list_2.append(1 / (all_num / num))
-            num_list_2 = sorted(num_list_2)
-            is_zero = True
-            for i in num_list_2:
-                if i != 0:
-                    is_zero = False
-            if is_zero is True:
-                num_list_3 = []
-                for i in range(len(num_list_2)):
-                    num_list_3.append(1 / len(num_list_2))
-                num_list_2 = num_list_3
-            paste_image = await draw_pie_chart(datas=num_list_2, size=(380, 380))
-            image.paste(paste_image, (1880, 740), paste_image)
-
-            num = -1
-            paste_x = 2370
-            paste_y = 700
-            for data in draw_datas:
-                num += 1
-                if num >= 5:
-                    break
-                paste_text = f"{data}: {draw_datas[data]}"
-                paste_image = await draw_text(
-                    paste_text, size=72, text_color=(0, 0, 0), fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-                )
-                image.paste(paste_image, (paste_x, paste_y), paste_image)
-                paste_y += 100
-
-            # 粘贴指令运行趋势
-            draw_datas = log_data["command_name_list_daily"]
-            min_num = 99999
-            max_num = -10
-            for command_name in draw_datas.keys():
-                for day in draw_datas[command_name].keys():
-                    min_num = min(min_num, draw_datas[command_name][day])
-                    max_num = max(max_num, draw_datas[command_name][day])
-
-            max_command_name_data = {}
-            for command_name in draw_datas.keys():
-                num = 0
-                for i in draw_datas[command_name].keys():
-                    num += draw_datas[command_name][i]
-                max_command_name_data[command_name] = num
-            max_command_name_data = dict(sorted(max_command_name_data.items(), key=lambda item: item[1], reverse=True))
-            command_name_list = list(max_command_name_data.keys())
-            max_command_name_list = command_name_list[:12]
-
-            colors = ["#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
-                      "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
-                      "#26bad8", "#f49b9d", "#f1c85e", "#f59c40", "#f5d5be", "#7cbe81", "#d3abc5", "#b46698", "#5a94b9",
-                      "#aec64e", "#b9a695", "#000000", "#f15f46", "#5a3f25", "#3f6137", "#a73c3a", "#6f7134", "#c33c85",
-                      ]
-            draw_text_num = -1
-            num = -1
-            for command_name in command_name_list:
-                num += 1
-                paste_data_list = []
-                for x in draw_datas[command_name].keys():
-                    paste_data_list.append([int(x), draw_datas[command_name][x]])
-
-                paste_image = await draw_line_chart(
-                    datas=paste_data_list,
-                    size=(550, 400),
-                    enlarge_num=4,
-                    color=colors[num],
-                    mirror_x=True,
-                    max_min_y=[max_num, min_num]
-                )
-                image.paste(paste_image, (2130, 1380), paste_image)
-
-                if command_name in max_command_name_list:
-                    draw_text_num += 1
-                    paste_image = await draw_text(
-                        "-",
-                        size=40,
-                        text_color=colors[num],
-                        fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-                    )
-                    image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 10), paste_image)
-                    image.paste(paste_image, (2700 + 5, 1270 + int(draw_text_num * 45) + 15), paste_image)
-                    image.paste(paste_image, (2700, 1270 + int(draw_text_num * 45) + 20), paste_image)
-                    paste_image = await draw_text(
-                        command_name,
-                        size=40,
-                        text_color="#000000",
-                        fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-                    )
-                    image.paste(paste_image, (2700 + 20, 1270 + int(draw_text_num * 45)), paste_image)
-
-            # 粘贴服务器状态
-            draw_datas = log_data["state_data"]
-            text = ""
-            for data in draw_datas.keys():
-                text += f"{data}: "
-                if draw_datas[data]["state"] is True:
-                    text += f"✅:{draw_datas[data]['message']}\n"
-                else:
-                    text += f"❌:{draw_datas[data]['message']}\n"
-            text = text.removesuffix("\n")
-
-            paste_image = await draw_text(
-                text, size=55, text_color=(0, 0, 0),
-                fontfile=await get_file_path("SourceHanSansK-Medium.ttf")
-            )
-            image.paste(paste_image, (1270, 1410), paste_image)
-
-            # 返回图片
-            returnpath = save_image(image)
+        pass
     elif command == "关闭md":
         user_data = get_unity_user_data(user_id)
-        user_data["use_markdown"] = False
         save_unity_user_data(user_id, user_data)
         message = "md已关闭"
     elif command == "开启md":
         user_data = get_unity_user_data(user_id)
-        user_data["use_markdown"] = True
         save_unity_user_data(user_id, user_data)
         message = "md已开启"
 
@@ -689,14 +427,6 @@ async def plugin_emoji_emoji(command, user_id: str = None):
         else:
             message = f"{command}不支持合成"
 
-    # 内容合规检测
-    if "参数输入" in kn_config("content_compliance", "enabled_list"):
-        content_compliance_data = await content_compliance("text", command, user_id=user_id)
-        if content_compliance_data["conclusion"] != "Pass":
-            # 仅阻止审核拒绝内容
-            if (content_compliance_data.get("review") is not None and
-                    content_compliance_data["review"] is True):
-                message = "不支持合成"
     if message is not None:
         if user_id in kn_config("content_compliance", "input_ban_list"):
             message = "不支持合成"
@@ -1123,31 +853,11 @@ async def plugin_emoji_wlp(user_avatar: str, user2_avatar: str, user2_name: str 
     return save_image(image)
 
 
-# async def plugin_emoji_qinqin(user_avatar, user_name):
-#     try:
-#         if user_avatar in [None, "None", "none"]:
-#             user_image = await draw_text("图片", 50, 10)
-#         elif user_avatar.startswith("http"):
-#             user_image = await connect_api("image", user_avatar)
-#         else:
-#             user_image = await load_image(user_avatar)
-#     except Exception as e:
-#         user_image = await draw_text("图片", 50, 10)
-#         logger.error(f"获取图片出错:{e}")
-#     user_image = image_resize2(user_image, (640, 640), overturn=False)
-#
-#
-#     pass
-#
-#     return save_image(image)
-
-
 async def plugin_game_cck(
         command: str,
         channel_id: str,
         platform: str,
-        user_id: str,
-        use_markdown: bool = False
+        user_id: str
 ):
     """
     cck插件内容
@@ -1156,6 +866,8 @@ async def plugin_game_cck(
     当code = 1时，回复message消息；
     当code = 2时，回复returnpath目录中的图片
     当code = 3时，回复message消息和returnpath目录中的图片
+    :param user_id:
+    :param platform:
     :param command: 命令
     :param channel_id: 频道号
     :return: code, message, returnpath
@@ -1165,7 +877,6 @@ async def plugin_game_cck(
     code = 0
     message = " "
     returnpath = None
-    markdown = keyboard = None
     if not kn_config("kanon_api-state"):
         logger.error("未开启api，已经退出cck")
         return 0, message, returnpath
@@ -1415,41 +1126,6 @@ async def plugin_game_cck(
             returnpath = save_image(image)
             code = 3
 
-        if (
-                platform == "qq_Official" and
-                kn_config("plugin_cck", "send_markdown") and
-                use_markdown is True):
-            # 去除消息的图片内容
-            if code == 3:
-                code = 1
-            elif code == 2:
-                code = 0
-            # 转换图片为md
-            image_url = await imgpath_to_url(returnpath, host='http://txs.kanon.ink:8991')
-            markdown = {
-                "id": kn_config("plugin", "image_markdown"),
-                "params": [
-                    {"key": "text", "values": ["img"]},
-                    {"key": "imagex", "values": [f"{image.size[0]}"]},
-                    {"key": "imagey", "values": [f"{image.size[1]}"]},
-                    {"key": "image", "values": [image_url]},
-                ]
-            }
-        if (
-                platform == "qq_Official" and
-                kn_config("plugin_cck", "send_button") and
-                use_markdown is True):
-            if 1 <= int(member_id) <= 15 or 21 <= int(member_id) <= 25:
-                button_id = "button_1_id"
-            elif 16 <= int(member_id) <= 20 or 26 <= int(member_id) <= 25:
-                button_id = "button_2_id"
-            else:
-                button_id = None
-
-            if button_id is not None:
-                keyboard = {"id": kn_config("plugin_cck", button_id)}
-                if platform != "qq_Official" or kn_config("plugin_cck", "send_markdown") is False:
-                    markdown = {"id": kn_config("plugin", "none_markdown")}
     elif game_state == "gameing":
         # 正在游戏中，判断不是”不知道“，否则为判断角色名是否符合
         if command == "不知道":
@@ -1584,7 +1260,7 @@ async def plugin_game_cck(
     if message == " " and code == 1:
         code = 0
         message = None
-    return code, message, returnpath, markdown, keyboard
+    return code, message, returnpath
 
 
 async def plugin_game_blowplane(command: str, channel_id: str):
@@ -2406,7 +2082,6 @@ async def plugin_game_different(command: str, channel_id: str):
     returnpath = ""
     returnpath2 = ""
     time_now = str(int(time.time()))
-    trace = []
 
     # 获取游戏基本数据（卡牌列表）
     filepath = await get_file_path("plugin-different_data.json")
@@ -2499,7 +2174,6 @@ async def plugin_game_different(command: str, channel_id: str):
             code = 1
             message = "没有在找不同哦。"
 
-    trace.append(f"game_state: {game_state}")
     if game_state == "new":
         # 生成游戏数据
         card_id = random.choice(list(different_game_data['data']))
@@ -2516,8 +2190,6 @@ async def plugin_game_different(command: str, channel_id: str):
             if choose_id not in choose_list:
                 choose_list.append(choose_id)
 
-        trace.append(f"card_id={card_id}")
-        trace.append(f"choose_list={choose_list}")
         # 绘制图片
         path = await get_image_path("different-shade.png")
         shade_image = await load_image(path)
@@ -2680,8 +2352,7 @@ async def plugin_game_different(command: str, channel_id: str):
         "code": code,
         "message": message,
         "returnpath": returnpath,
-        "returnpath2": returnpath2,
-        "trace": trace
+        "returnpath2": returnpath2
     }
 
 
@@ -2697,8 +2368,7 @@ async def plugin_function_jrlp(
     return_data = {
         "code": 0,
         "message": None,
-        "returnpath": None,
-        "trace": [],
+        "returnpath": None
     }
 
     conn = sqlite3.connect(f"{cachepath}jrlp.db")
@@ -2792,226 +2462,3 @@ async def plugin_function_jrlp(
 
     return return_data
 
-
-async def plugin_function_pic(
-        msg: str,
-        user_id: str
-):
-    message = None
-    images = None
-    trace = []
-
-    eagle_path = kn_config("pic", "eagle-path")
-    eagle_url = kn_config("pic", "eagle-url")
-    if eagle_path is None or eagle_url is None:
-        logger.warning("未配置图库路径或url，将不返回消息")
-        return message, images, trace
-
-    # 替换同义词
-    msg = msg.replace("老婆", "lp").replace("我lp", "wlp")
-    msg = msg.replace("你wlp是", "wlp是你")
-    msg = msg.replace("花音kanon", "花音").replace("花音Kanon", "花音")
-
-    # 解析指令
-    if msg.startswith("来点") and msg[2:3] != " ":
-        msg = f"{msg[:3]} {msg[2:]}"
-    elif msg.startswith("多来点") and msg[3:4] != " ":
-        msg = f"{msg[:4]} {msg[3:]}"
-    elif msg.startswith("wlp是") and msg[4:5] != " ":
-        msg = f"{msg[:5]} {msg[4:]}"
-
-    commands = get_command(msg)
-    command = commands[0]
-    command2 = None if len(commands) == 1 else commands[1]
-    if command2 == "你":
-        command2 = "花音"
-
-    filepath = await get_file_path("plugin-pic-member_list.json")
-    file = open(filepath, 'r', encoding='utf8')
-    member_data: dict = json.load(file)
-    file.close()
-
-    def find_member_id(member_name: str) -> str | None:
-        for member_id in member_data.keys():
-            if member_name in member_data[member_id]["alias"]:
-                return member_id
-        return None
-
-    # 执行指令
-    if command == "来点":
-        if command2 in ["wlp", "我老婆", "w老婆", "我lp"]:
-            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-            cursor = conn.cursor()
-            if not os.path.exists(f"{basepath}db/"):
-                # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                os.makedirs(f"{basepath}db/")
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-            datas = cursor.fetchall()
-            tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
-            if "wlp" not in tables:
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            try:
-                cursor.execute(f'select * from wlp where user_id = "{user_id}"')
-                data = cursor.fetchone()
-            except Exception as e:
-                logger.error(e)
-                raise "获取lp数据错误"
-            finally:
-                cursor.close()
-                conn.close()
-
-            if data is None:
-                member_id = None
-            else:
-                member_id = data[1]
-        else:
-            member_id = find_member_id(command2)
-
-        if member_id is None and command2 in ["wlp", "我老婆", "w老婆", "我lp"]:
-            message = "你还没有lp哦，\n请发送wlp是+lp名称来添加lp。\n例：wlp是爱美"
-        elif member_id is None:
-            message = "找不到相关成员"
-        else:
-            # 检查库名称
-            url = f"{eagle_url}api/library/info"
-            data = await connect_api("json", url)
-            lib_name = data["data"]["library"]["name"]
-            eagle_name = kn_config("pic", "eagle-name")
-            if eagle_name is not None and lib_name != eagle_name:
-                message = "管理员忘记切换库啦，没有lp看啦"
-            else:
-                # 获取成员图片列表
-                url = f"{eagle_url}api/item/list?folders={member_data[member_id]['id']}"
-                data = await connect_api("json", url)
-                image_data = random.choice(data['data'])
-                images = [f"{eagle_path}images/{image_data['id']}.info/{image_data['name']}.{image_data['ext']}"]
-
-    elif command == "多来点":
-        if command2 in ["wlp", "我老婆", "w老婆", "我lp"]:
-            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-            cursor = conn.cursor()
-            if not os.path.exists(f"{basepath}db/"):
-                # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                os.makedirs(f"{basepath}db/")
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-            datas = cursor.fetchall()
-            tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
-            if "wlp" not in tables:
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            try:
-                cursor.execute(f'select * from wlp where user_id = "{user_id}"')
-                data = cursor.fetchone()
-            except Exception as e:
-                logger.error(e)
-                raise "获取lp数据错误"
-            finally:
-                cursor.close()
-                conn.close()
-
-            if data is None:
-                member_id = None
-            else:
-                member_id = data[1]
-        else:
-            member_id = find_member_id(command2)
-
-        # 获取成员图片
-        if member_id is None and command2 in ["wlp", "我老婆", "w老婆", "我lp"]:
-            message = "你还没有lp哦，\n请发送wlp是+lp名称来添加lp。\n例：wlp是爱美"
-        elif member_id is None:
-            message = "找不到相关成员"
-        else:
-            # 获取成员图片列表
-            url = f"{eagle_url}api/item/list?folders={member_data[member_id]['id']}"
-            data = await connect_api("json", url)
-            num = random.randint(2, 3)
-            images = []
-            while num >= 1:
-                num -= 1
-                image_data = random.choice(data['data'])
-                image_path = f"{eagle_path}images/{image_data['id']}.info/{image_data['name']}.{image_data['ext']}"
-                images.append(image_path)
-            point = random.randint(2, 3)
-            state, message, _none_ = await plugin_checkin(user_id=user_id, modified=-point)
-            if state == 0:
-                message = f"吃了{point}根薯条，还剩{message.split('-')[1]}根薯条"
-            else:
-                message = f"没有薯条啦。。QaQ。"
-                images = [images[0]]
-
-    elif command == "wlp是":
-        member_id = find_member_id(command2)
-        if command2 == "谁":
-            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-            cursor = conn.cursor()
-            if not os.path.exists(f"{basepath}db/"):
-                # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                os.makedirs(f"{basepath}db/")
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-            datas = cursor.fetchall()
-            tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
-            if "wlp" not in tables:
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            try:
-                cursor.execute(f"SELECT * FROM wlp WHERE user_id='{user_id}'")
-                data = cursor.fetchone()
-                if data is None:
-                    message = f"你还没有lp哦"
-                else:
-                    message = f"你lp是{member_data[str(data[1])]['name']}"
-
-            except Exception as e:
-                logger.error(e)
-                message = "读取lp数据错误"
-            finally:
-                cursor.close()
-                conn.close()
-        elif member_id is None:
-            message = "找不到该lp哦"
-        else:
-            conn = sqlite3.connect(f"{basepath}db/plugin_data.db")
-            cursor = conn.cursor()
-            if not os.path.exists(f"{basepath}db/"):
-                # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                os.makedirs(f"{basepath}db/")
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-            datas = cursor.fetchall()
-            tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
-            if "wlp" not in tables:
-                cursor.execute(
-                    f"CREATE TABLE wlp(user_id VARCHAR(10) primary key, member_id VARCHAR(10), times INT(10))")
-            try:
-                cursor.execute(f"SELECT * FROM wlp WHERE user_id='{user_id}'")
-                data = cursor.fetchone()
-                if data is None:
-                    cursor.execute(
-                        f'replace into wlp ("user_id","member_id","times") values("{user_id}",{member_id},0)')
-                    conn.commit()
-                    message = f"你lp就是{command2}"
-                elif member_id == data[1]:
-                    message = f"你lp已经是{command2}啦"
-                else:
-                    cursor.execute(
-                        f'replace into wlp ("user_id","member_id","times") values("{user_id}",{member_id},{data[2] + 1})')
-                    conn.commit()
-                    message = f"你的新lp就是{command2}， 已经换了{data[2] + 1}次lp"
-
-            except Exception as e:
-                logger.error(e)
-                message = "写入lp数据错误"
-            finally:
-                cursor.close()
-                conn.close()
-
-    return message, images, trace

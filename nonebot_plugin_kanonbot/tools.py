@@ -18,10 +18,6 @@ import os
 import shutil
 import asyncio
 import time
-from tencentcloud.common import credential
-from tencentcloud.common.profile.client_profile import ClientProfile
-from tencentcloud.common.profile.http_profile import HttpProfile
-from tencentcloud.tms.v20201229 import tms_client, models
 from scipy.interpolate import interp1d
 import numpy
 
@@ -351,7 +347,7 @@ async def connect_api(
         post_json=None,
         file_path: str = None,
         timeout: int = 10
-):
+) -> dict | Image.Image | str:
     logger.debug(f"connect_api请求URL：{url}")
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
@@ -389,7 +385,8 @@ async def connect_api(
             f.close()
         shutil.copyfile(cache_file_path, file_path)
         os.remove(cache_file_path)
-    return
+    logger.error(f"type={type}")
+    raise "connect_api 意外情况"
 
 
 async def get_file_path(file_name, relative_path: bool = False) -> str:
@@ -1013,7 +1010,7 @@ async def imgpath_to_url(imgpath: str | bytes, host: str = "https://cdn.kanon.in
     return imgurl
 
 
-def mix_image(image_1, image_2, mix_type=1):
+async def mix_image(image_1, image_2, mix_type=1):
     """
     将两张图合并为1张
     :param image_1: 要合并的图像1
@@ -1021,7 +1018,11 @@ def mix_image(image_1, image_2, mix_type=1):
     :param mix_type: 合成方式。1：竖向
     :return:
     """
-    images = Image.new("RGB", (10, 10), "#FFFFFF")
+    if type(image_1) is str:
+        image_1 = await load_image(image_1)
+    if type(image_2) is str:
+        image_2 = await load_image(image_2)
+    images = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
     if mix_type == 1:
         x1, y1 = image_1.size
         x2, y2 = image_2.size
@@ -1033,18 +1034,20 @@ def mix_image(image_1, image_2, mix_type=1):
         if x1 > x2:
             x2_m = x1
             y2_m = int(x2_m * x1 / y1)
-            images = Image.new("RGB", (x2_m, y2_m + y1), "#EEEEEE")
+            images = Image.new("RGBA", (x2_m, y2_m + y1), (0, 0, 0, 0))
             image_2_m = image_2.resize((x2_m, y2_m))
-            images.paste(image_1, (0, 0), mask=image_1)
-            images.paste(image_2_m, (0, y1), mask=image_2_m)
+            images.alpha_composite(image_1, (0, 0))
+            images.alpha_composite(image_2_m, (0, y1))
+            return images
         else:  # x1 < x2
             x1_m = x2
             y1_m = int(x1_m * x2 / y2)
-            images = Image.new("RGB", (x1_m, y1_m + y2), "#EEEEEE")
+            images = Image.new("RGBA", (x1_m, y1_m + y2), (0, 0, 0, 0))
             image_1_m = image_1.resize((x1_m, y1_m))
-            images.paste(image_1_m, (0, 0), mask=image_1_m)
-            images.paste(image_2, (0, y1_m), mask=image_2)
-    return images
+            images.alpha_composite(image_1_m, (0, 0))
+            images.alpha_composite(image_2, (0, y1_m))
+            return images
+    raise "未知的合并图像方式"
 
 
 def image_resize2(image, size: [int, int], overturn=False):
@@ -1364,150 +1367,6 @@ def statistics_list(input: list) -> dict:
     return data
 
 
-async def content_compliance_(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
-    """
-    内容合规检测（腾讯云api）
-    :param type_: 类型： "text", "image"
-    :param text_data: 检测的内容。text: str, image: str = url
-    :param user_id: 被检测的用户id
-    :return: {"conclusion": "Block"}{"conclusion": "Review"}{"conclusion": "Pass"}
-    """
-    if text_data is None or text_data == "" or len(text_data) < 1:
-        return {"conclusion": "Pass", "review": True, "message": "Pass None"}
-    logger.debug(f"content_compliance, typr={type_}")
-    data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
-    try:
-        if type_ == "text":
-            if text_data in kn_cache["content_compliance_list"]["full"]:
-                logger.debug({"conclusion": "Block", "word": text_data, "message": "数据库黑名单句子"})
-                return {"conclusion": "Block", "message": "数据库黑名单句子"}
-
-            for item in kn_cache["content_compliance_list"]["part"]:
-                if item in text_data:
-                    logger.debug({"conclusion": "Block", "word": item, "message": "数据库黑名单词汇"})
-                    return {"conclusion": "Block", "review": True, "message": "数据库黑名单词汇"}
-
-            data = read_db(
-                db_path="{basepath}db/content_compliance.db",
-                sql_text=f"SELECT * FROM content_compliance WHERE text='{data_b64}'",
-                table_name="content_compliance",
-                select_all=False
-            )
-
-            if data is not None:
-                if data[2] == "Pass":
-                    logger.debug({"conclusion": "Pass", "message": "Pass by database"})
-                    return {"conclusion": "Pass", "review": True, "message": "Pass by database"}
-                elif data[3] is not None or data[3] != 1:
-                    logger.debug({"conclusion": "Pass", "message": f"{data[2]} by database without Review"})
-                    return {"conclusion": "Pass", "review": False, "message": f"{data[2]} by database without Review"}
-                elif data[2] == "Review":
-                    logger.debug({"conclusion": "Review", "message": "Review by database"})
-                    return {"conclusion": "Review", "review": True, "message": "Review by database"}
-                else:
-                    logger.debug({"conclusion": "Block", "message": "Block by database"})
-                    return {"conclusion": "Block", "review": True, "message": "Block by database"}
-            else:
-                # 插件自带白名单，防止内容合规检测误判
-                whitelist_term = ["尼格"]
-                for whitelist in whitelist_term:
-                    text_data = text_data.replace(whitelist, "")
-                if text_data == "":
-                    logger.debug({"conclusion": "Pass", "review": True, "message": f"空白内容"})
-                    return {"conclusion": "Pass", "review": True, "message": f"空白内容"}
-                data_b64 = str(base64.b64encode(text_data.encode('UTF-8')), encoding='UTF-8')
-
-                secret_id = kn_config("content_compliance", "secret_id")
-                secret_key = kn_config("content_compliance", "secret_key")
-                if secret_id is None or secret_key is None:
-                    raise "未配置内容合规id、key，无法使用内容合规功能。请配置后再开启内容合规审核"
-
-                cred = credential.Credential(secret_id, secret_key)
-                httpProfile = HttpProfile()
-                httpProfile.endpoint = "tms.tencentcloudapi.com"
-                clientProfile = ClientProfile()
-                clientProfile.httpProfile = httpProfile
-                client = tms_client.TmsClient(cred, "ap-guangzhou", clientProfile)
-                req = models.TextModerationRequest()
-                encoded_content = base64.b64encode(text_data.encode('utf-8')).decode('utf-8')
-                params = {
-                    "Content": encoded_content,
-                    "User": {
-                        "UserId": user_id
-                    },
-                }
-                req.from_json_string(json.dumps(params))
-                resp = client.TextModeration(req)
-                return_data: dict = json.loads(resp.to_json_string())
-
-                conn = sqlite3.connect(f"{basepath}db/content_compliance.db")
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-                datas = cursor.fetchall()
-                tables = [data[1] for data in datas if data[1] != "sqlite_sequence"]
-                # 检查是否创建数据库
-                if "content_compliance" not in tables:
-                    cursor.execute(
-                        f"create table content_compliance(id_ INTEGER primary key AUTOINCREMENT, "
-                        f"text VARCHAR(10), state VARCHAR(10), request_id VARCHAR(10), audit VARCHAR(10))")
-
-                cursor.execute(
-                    f"replace into content_compliance ('text','state','request_id','audit') "
-                    f"values('{data_b64}','{return_data['Suggestion']}','{return_data['RequestId']}',0)")
-                conn.commit()
-                cursor.close()
-                conn.close()
-
-                if "Suggestion" not in return_data.keys() or return_data["BizType"] != "0":
-                    logger.error("内容合规错误")
-                    logger.error(return_data)
-                    return {"conclusion": "Pass", "data": return_data}
-                # return_data["conclusion"] = "Pass""Review""Block"
-                # return_data["data"] = {} if return_data["conclusion"] == "合规" else text_data
-                logger.debug(f"内容合规检测： {return_data}")
-                return {"conclusion": return_data["Suggestion"], "data": return_data}
-        elif type_ == "image":
-            return {"conclusion": "Pass", "message": "图片检测未完成"}
-        return {"conclusion": "error", "message": "检测类型不存在"}
-    except Exception as e:
-        logger.error(e)
-        logger.error(text_data)
-        logger.error(traceback.format_exc())
-        logger.error("内容合规检测出错")
-        return {
-            "conclusion": "error",
-            "message": "运行错误",
-            "error_message": str(e).replace("'", '"'),
-            "error_traceback": str(traceback.format_exc()).replace("'", '"'),
-        }
-
-
-async def content_compliance(type_: str = "text", text_data: str = None, user_id: str = "user_id"):
-    if user_id in kn_config("content_compliance", "white_list"):
-        return {"conclusion": "Pass", "message": "内容审核用户白名单"}
-    data = await content_compliance_(type_=type_, text_data=text_data, user_id=user_id)
-    if data["conclusion"] != "Pass":
-        if "message" in data.keys() and data["message"] != "Review by database without Review":
-            sql_text = (f"replace into log ('time','text','state','user_id','message') values("
-                        f"'{int(time.time())}','{text_data}','{data['conclusion']}','{user_id}','{data['message']}')")
-            read_db(
-                db_path="{basepath}db/content_compliance.db",
-                sql_text=sql_text,
-                table_name="log",
-                select_all=False
-            )
-        elif "message" not in data.keys():
-            sql_text = (f"replace into log ('time','text','state','user_id','message') "
-                        f"values('{int(time.time())}','{text_data}','{data['conclusion']}','{user_id}','None')")
-            read_db(
-                db_path="{basepath}db/content_compliance.db",
-                sql_text=sql_text,
-                table_name="log",
-                select_all=False
-            )
-    return data
-
-
 def create_table_data_():
     # date_year: int = time.localtime().tm_year
     # date_month: int = time.localtime().tm_mon
@@ -1776,7 +1635,7 @@ async def get_weather_state(city_id: str):
     url = f"https://restapi.amap.com/v3/weather/weatherInfo"
     url += f"?key={kn_config('weather', 'key')}&city={city_id}"
     try:
-        data = await connect_api("json", url)
+        data: dict[str, dict] = await connect_api("json", url)
         if data["status"] != "1":
             raise "天气api返回错误"
         logger.success("请求天气api成功")

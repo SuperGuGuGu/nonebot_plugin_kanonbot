@@ -5,7 +5,7 @@ import traceback
 from .config import _config_list
 from .plugins_adventure_code import plugin_adventure
 from .plugins_jellyfish_box_code import plugin_jellyfish_box
-from .tools import kn_config, command_cd, _config, del_files2, get_command, content_compliance, text_to_b64, read_db
+from .tools import kn_config, command_cd, _config, del_files2, get_command, text_to_b64, read_db
 from .plugins import (
     plugin_zhanbu, plugin_config, plugin_emoji_xibao, plugin_emoji_yizhi, plugin_game_cck, plugin_game_blowplane,
     plugin_checkin, plugin_emoji_keai, plugin_emoji_jiehun, plugin_emoji_momo,
@@ -24,7 +24,7 @@ adminqq = _config["superusers"]
 
 
 async def botrun(msg_info: dict):
-    logger.info("KanonBot-0.4.3")
+    logger.info("KanonBot-3.1.0")
     log_msg_info = msg_info.copy()
     try:
         log_msg_info["channel_member_len"] = len(list(msg_info.get("channel_member_datas")))
@@ -34,7 +34,6 @@ async def botrun(msg_info: dict):
         logger.error(e)
         logger.debug(msg_info)
     return_json = {"code": -1}
-    trace_data = {"plugin": [], "content_compliance": []}
     date: str = time.strftime("%Y-%m-%d", time.localtime())
     local_time = time.localtime()
     date_year: int = local_time.tm_year
@@ -69,10 +68,6 @@ async def botrun(msg_info: dict):
     user_id: str = msg_info["user"]["user_id"] if "user_id" in msg_info["user"] else ""
     user_permission: int = msg_info["user"]["permission"] if "permission" in msg_info["user"] else 5
     user_avatar: str = msg_info["user"]["avatar"] if "avatar" in msg_info["user"] else None
-    use_markdown: bool = msg_info["user"]["use_markdown"] if "use_markdown" in msg_info["user"] else False
-
-    if chat_type != "private":
-        use_markdown = False
 
     if "username" in msg_info["user"]:  # 兼容性转换
         msg_info["user"]["name"] = msg_info["user"]["username"]
@@ -126,10 +121,6 @@ async def botrun(msg_info: dict):
         else:
             reply_data["plugin_data"] = None
 
-    reply_trace = None
-    keyboard = None  # 按钮
-    markdown = None  # markdown
-
     # ## 初始化回复内容 ##
     returnpath = None
     returnpath2 = None
@@ -144,7 +135,6 @@ async def botrun(msg_info: dict):
 
     try:
         # ## 初始化 ##
-
         # 黑白名单
         if (kn_config("plugin", "black_white_list_platform") is not None and
                 platform in kn_config("plugin", "black_white_list_platform")):
@@ -154,7 +144,7 @@ async def botrun(msg_info: dict):
             elif channel_id in kn_config("plugin-channel_white_list"):
                 pass
             else:
-                pass  # 结束运行
+                pass
 
             # 用户黑白名单
             if user_id in kn_config("plugin-user_black_list"):
@@ -163,24 +153,6 @@ async def botrun(msg_info: dict):
                 pass
             else:
                 pass
-
-        # 输入参数合规检测
-        if command2 is not None and "参数输入" in kn_config("content_compliance", "enabled_list"):
-            content_compliance_data = await content_compliance("text", command2, user_id=user_id)
-            if content_compliance_data["conclusion"] != "Pass":
-                # 输入仅阻止审核拒绝内容
-                if "review" in content_compliance_data.keys() and content_compliance_data["review"] is True:
-                    msg = msg.replace(command2, "None")
-                    command2 = "None"
-                # 阻止黑名单用户的输入
-                elif user_id in kn_config("content_compliance", "input_ban_list"):
-                    logger.warning("")
-                    command2 = "None"
-                trace_data["content_compliance"].append(content_compliance_data)
-
-        # 阻止黑名单用户的图片输入
-        if user_id in kn_config("content_compliance", "input_ban_list"):
-            imgmsgs = []
 
         # 跳过at其他bot的消息
         for at_data in at_datas:
@@ -257,110 +229,6 @@ async def botrun(msg_info: dict):
             logger.debug(f"commandname:{commandname}, state:{state}")
             return state
 
-        # ## 心跳服务相关 ##
-        # 查询bot是否需要运行
-        if (kn_config("botswift", "state") and
-                channel_id not in kn_config("botswift", "ignore_list") and
-                platform in kn_config("botswift", "platform_list") and
-                not to_me
-        ):
-            logger.debug("心跳服务")
-            botswitch = False
-            # 读取忽略该功能的群聊
-            if channel_id in kn_config("botswift", "ignore_list") or channel_id.startswith("private"):
-                botswitch = True
-            else:
-                conn = sqlite3.connect(f"{basepath}db/botswift.db")
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
-                datas = cursor.fetchall()
-                tables = []
-                for data in datas:
-                    if data[1] != "sqlite_sequence":
-                        tables.append(data[1])
-                if "heart" not in tables:
-                    cursor.execute(f'create table "heart"'
-                                   f'("botid" VARCHAR(10) primary key, times VARCHAR(10), hearttime VARCHAR(10))')
-                if "channel" not in tables:
-                    cursor.execute(f'create table "channel"(id INTEGER primary key AUTOINCREMENT, '
-                                   f'channel VARCHAR(10), botid VARCHAR(10), priority VARCHAR(10))')
-
-                # 读取群bot设置
-                cursor.execute(f'select * from "channel" WHERE channel = "{channel_id}"')
-                datas = cursor.fetchall()
-                if not datas:
-                    # 没有数据，将本bot记为第一个bot
-                    cursor.execute(
-                        f'replace into "channel" ("channel","botid","priority") '
-                        f'values("{channel_id}","{botid}",1)')
-                    botswitch = True
-                else:
-                    # 提取优先级列表
-                    priority_list = []
-                    for data in datas:
-                        priority_list.append(int(data[3]))
-                    # 排序bot列表
-                    channel_bots_list = []
-                    num = len(datas)
-                    cache_priority_list = priority_list.copy()
-                    while num >= 1:
-                        num -= 1
-                        min_bot = min(cache_priority_list)
-                        for data in datas:
-                            priority = int(data[3])
-                            if min_bot == priority:
-                                data_botid = data[2]
-                                channel_bots_list.append(data_botid)
-                                cache_priority_list.remove(min_bot)
-                                break
-                    # 检测本bot是否在群内bot列表内
-                    if botid not in channel_bots_list:
-                        channel_bots_list.append(botid)
-                        cursor.execute(
-                            f'replace into channel ("channel","botid","priority") '
-                            f'values("{channel_id}",{botid},{int(max(priority_list)) + 1})')
-                    # 顺序检查bot列表
-                    for channel_botid in channel_bots_list:
-                        if channel_botid == botid:
-                            botswitch = True
-                            cursor.execute(f'select * from "heart" WHERE botid = "{channel_botid}"')
-                            data = cursor.fetchone()
-                            if data is None:
-                                cursor.execute(
-                                    f'replace into heart ("botid","times","hearttime") values("{channel_botid}",0,0)')
-                            break
-                        else:
-                            cursor.execute(f'select * from "heart" WHERE botid = "{channel_botid}"')
-                            data = cursor.fetchone()
-                            if data is None:
-                                continue
-                            else:
-                                times = int(data[1])  # 未检测到bot发消息的次数
-                                hearttime = int(data[2])
-                                cache = commandname
-                                config_gruop_list = []
-                                for config_id in config_list:
-                                    if config_list[config_id]["group"] not in config_gruop_list:
-                                        config_gruop_list.append(config_list[config_id]["group"])
-                                for config_group in config_gruop_list:
-                                    commandname = commandname.removeprefix(f"{config_group}-")
-                                if getconfig(cache) and commandname not in ["小游戏-猜猜看"]:
-                                    # cck功能会有大量不回复消息，进行排除
-                                    cursor.execute(
-                                        f'replace into heart ("botid","times","hearttime") '
-                                        f'values("{channel_botid}",{times + 1},{hearttime})')
-                                if (time_now - hearttime) >= 900 and times >= 20:
-                                    # 15分钟内连续20次没有相应，
-                                    continue
-                                else:
-                                    break
-
-                conn.commit()
-                cursor.close()
-                conn.close()
-        else:
-            botswitch = True
-
         # 指令冷却
         def _command_cd():
             if getconfig("commandcd") and user_permission < 7 and user_id not in adminqq:
@@ -416,7 +284,7 @@ async def botrun(msg_info: dict):
                 code = 1
                 message = "权限不足"
 
-        elif commandname.startswith("群聊功能-") and botswitch is True:
+        elif commandname.startswith("群聊功能-"):
             commandname = commandname.removeprefix("群聊功能-")
             if "塔罗牌" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
@@ -469,11 +337,7 @@ async def botrun(msg_info: dict):
                     logger.info(f"run-{commandname}")
                     (code,
                      message,
-                     returnpath,
-                     markdown,
-                     keyboard,
-                     trace,
-                     reply_trace
+                     returnpath
                      ) = await plugin_jellyfish_box(
                         user_id=user_id,
                         user_name=user_name,
@@ -483,10 +347,8 @@ async def botrun(msg_info: dict):
                         platform=platform,
                         reply_data=reply_data["plugin_data"] if reply_data is not None else None,
                         channel_member_datas=channel_member_datas,
-                        at_datas=at_datas,
-                        use_markdown=use_markdown
+                        at_datas=at_datas
                     )
-                    trace_data["plugin"].extend(trace)
             elif "水母探险" == commandname and getconfig(commandname):
                 if command2 is not None:
                     if command == "水母探险":
@@ -514,9 +376,6 @@ async def botrun(msg_info: dict):
                     code = return_data["code"]
                     message = return_data["message"]
                     returnpath = return_data["returnpath"]
-                    markdown = return_data["markdown"]
-                    keyboard = return_data["keyboard"]
-                    trace_data["plugin"].extend(return_data["trace"])
             elif "今日老婆" == commandname and getconfig(commandname):
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -536,7 +395,6 @@ async def botrun(msg_info: dict):
                     code = data["code"]
                     message = data["message"]
                     returnpath = data["returnpath"]
-                    trace_data["plugin"].extend(data["trace"])
             elif "问好" == commandname:
                 commandcd = _command_cd()
                 if commandcd is not False:
@@ -548,49 +406,8 @@ async def botrun(msg_info: dict):
                     message = await plugin_function_greet(command=command, time_h=time_h, user_name=user_name)
                     if message is not None:
                         code = 1
-            elif "图库" == commandname and getconfig(commandname):
-                commandcd = _command_cd()
-                if commandcd is not False:
-                    code = 1
-                    message = f"指令冷却中（{commandcd}s)"
-                    logger.info("指令冷却中")
-                else:
-                    logger.info(f"run-{commandname}")
-                    message, images, trace = await plugin_function_pic(
-                        msg=msg,
-                        user_id=user_id,
-                    )
-
-                    if message is None and images is None:
-                        code = 0
-                    elif images is None:
-                        code = 1
-                    elif message is None:
-                        code = 2
-                        returnpath = images[0]
-                    elif len(images) == 1:
-                        code = 3
-                        returnpath = images[0]
-                    elif len(images) == 2:
-                        code = 4
-                        returnpath = images[0]
-                        returnpath2 = images[1]
-                    elif len(images) == 3:
-                        code = 5
-                        returnpath = images[0]
-                        returnpath2 = images[1]
-                        returnpath3 = images[2]
-
-                    trace = []
-                    trace_data["plugin"].extend(trace)
-
-        elif commandname.startswith("表情功能-") and botswitch is True:
+        elif commandname.startswith("表情功能-"):
             commandname = commandname.removeprefix("表情功能-")
-
-            # 阻止黑名单用户的输入
-            if commandname not in ["emoji"]:
-                if user_id in kn_config("content_compliance", "input_ban_list"):
-                    command2 = None
 
             if "emoji" == commandname and getconfig(commandname) and to_me:
                 if command == "合成":
@@ -615,11 +432,6 @@ async def botrun(msg_info: dict):
                     logger.info("指令冷却中")
                 else:
                     logger.info(f"run-{commandname}")
-                    if commandname in kn_config("content_compliance", "enabled_list"):
-                        content_compliance_data = await content_compliance("text", command2, user_id=user_id)
-                        if content_compliance_data["conclusion"] != "Pass":
-                            command2 = "message"
-                            trace_data["content_compliance"].append(content_compliance_data)
                     if command2 is not None or imgmsgs:
                         returnpath = await plugin_emoji_xibao(command, command2, imgmsgs)
                         code = 2
@@ -893,7 +705,7 @@ async def botrun(msg_info: dict):
                         returnpath = await plugin_emoji_wlp(image, image2, name2)
                         code = 2
 
-        elif commandname.startswith("小游戏") and botswitch is True:
+        elif commandname.startswith("小游戏"):
             commandname = commandname.removeprefix("小游戏-")
             if "猜猜看" == commandname and getconfig(commandname):
                 # 转换命令名
@@ -915,13 +727,13 @@ async def botrun(msg_info: dict):
                     pass
                 else:
                     logger.info(f"run-{commandname}")
-                    code, message, returnpath, markdown, keyboard = await plugin_game_cck(
+                    code, message, returnpath = await plugin_game_cck(
                         command=command,
                         channel_id=channel_id,
                         platform=platform,
                         user_id=user_id,
-                        use_markdown=use_markdown
                     )
+
             elif "炸飞机" == commandname and getconfig(commandname):
                 # 转换命令名
                 if command.startswith("炸") and not command.startswith("炸飞机"):
@@ -960,7 +772,6 @@ async def botrun(msg_info: dict):
                     message = data["message"]
                     returnpath = data["returnpath"]
                     returnpath2 = data["returnpath2"]
-                    trace_data["plugin"].extend(data["trace"])
 
         elif "###" == commandname:
             pass
@@ -981,40 +792,9 @@ async def botrun(msg_info: dict):
         "returnpath2": returnpath2,
         "returnpath3": returnpath3,
         "at": False,
-        "keyboard": keyboard,
-        "markdown": markdown,
-        "trace": trace_data,
-        "reply_trace": reply_trace,
         "error_message": error_message,
         "error_traceback": error_traceback
     }
-
-    # 合规检测
-    if return_json["code"] in [1, 3, 4, 5]:
-        test_message: str = return_json["message"]
-        startswith_text = [
-            "别抓啦，过", "恭喜猜中，她就是", "成功放生", "成功丢弃", "游戏已生成，发送", "引爆成功", "成功炸伤",
-            "今天签到过啦",
-            "指令冷却中"
-        ]
-        run = any(test_message.startswith(text) for text in startswith_text)
-        if commandname == "炸飞机" and True:
-            test_message = test_message.replace("炸弹", "").replace("炸", "")
-            test_message = test_message.replace("引爆", "")
-        if run is True:
-            pass
-        elif commandname in ["签到"]:
-            pass
-        elif commandname == "猜猜看" and test_message.startswith("是") and "哦" in test_message:
-            pass
-        else:
-            if "全局输出" in kn_config("content_compliance", "enabled_list"):
-                content_compliance_data = await content_compliance("text", test_message, user_id=user_id)
-                if content_compliance_data["conclusion"] != "Pass":
-                    # 全局输出仅阻止审核拒绝内容
-                    if content_compliance_data.get("review") is not None and content_compliance_data["review"] is True:
-                        return_json["message"] = "message"
-                    trace_data["content_compliance"].append(content_compliance_data)
 
     # 日志记录
     if kn_config("plugin", "log") is True:
@@ -1029,31 +809,29 @@ async def botrun(msg_info: dict):
         if "log" not in tables:
             cursor.execute(
                 f'create table "log"(id INTEGER primary key AUTOINCREMENT, '
-                f'time VARCHAR, input VARCHAR, output VARCHAR, trace_data VARCHAR)')
+                f'time VARCHAR, input VARCHAR, output VARCHAR)')
         if "log2" not in tables:
             cursor.execute(
                 f'create table "log2"(id INTEGER primary key AUTOINCREMENT, time DATETIME, message VARCHAR, '
                 f'commandname VARCHAR, channel_id VARCHAR, user_id VARCHAR, face_image VARCHAR, avatar VARCHAR, '
                 f'imgmsggs VARCHAR, platform VARCHAR, output_code INT(10), output_message VARCHAR, '
-                f'image_path VARCHAR, image_path2 VARCHAR, image_path3 VARCHAR, use_time DOUBLE, trace VARCHAR, reply_trace VARCHAR, '
+                f'image_path VARCHAR, image_path2 VARCHAR, image_path3 VARCHAR, use_time DOUBLE, '
                 f'input_real VARCHAR, output_real VARCHAR)')
 
         msg_info["friend_datas"] = {}
         msg_info["channel_member_datas"] = {}
         log_input = json.dumps(log_msg_info)
         log_output = json.dumps(return_json)
-        log_trace = json.dumps(trace_data)
-        reply_trace = json.dumps(reply_trace)
         use_time = time.time() - msg_time
         try:
             imgmsgs_str = str(imgmsgs).replace("'", '"')
             sql_text2 = (
                 f"replace into 'log2' ('time','message','commandname','channel_id','user_id','face_image','avatar',"
                 f"'imgmsggs','platform','output_code','output_message','image_path','image_path2','image_path3',"
-                f"'use_time','trace','reply_trace','input_real','output_real') values('{time_now}','{text_to_b64(msg)}',"
+                f"'use_time','input_real','output_real') values('{time_now}','{text_to_b64(msg)}',"
                 f"'{commandname}','{channel_id}','{user_id}','{user_face_image}','{user_avatar}','{imgmsgs_str}',"
                 f"'{platform}','{code}','{message}','{returnpath}','{returnpath2}','{returnpath3}',{use_time},"
-                f"'{text_to_b64(log_trace)}','{text_to_b64(reply_trace)}','None','None')")
+                f"'None','None')")
 
             try:
                 cursor.execute(sql_text2)
@@ -1065,11 +843,10 @@ async def botrun(msg_info: dict):
                     cursor.execute(sql_text2)
                     conn.commit()
                 except Exception as e:
-                    sql_text = f'replace into "log" ("time","input","output","trace_data") '
+                    sql_text = f'replace into "log" ("time","input","output") '
                     sql_text += f"values('{time_now}',"
                     sql_text += f"'{log_input}'," if log_input.startswith("{") else f'"{log_input}",'
-                    sql_text += f"'{log_output}'," if log_output.startswith("{") else f'"{log_output}",'
-                    sql_text += f"'{log_trace}')"
+                    sql_text += f"'{log_output}'," if log_output.startswith("{") else f'"{log_output}")'
                     logger.error(e)
                     logger.error(traceback.format_exc())
                     cursor.execute(sql_text)
@@ -1079,8 +856,8 @@ async def botrun(msg_info: dict):
             logger.error(e)
             try:
                 cursor.execute(
-                    f"replace into 'log' ('time','input','output','trace_data') values("
-                    f"'{time_now}','{text_to_b64(log_input)}','{text_to_b64(log_output)}','{text_to_b64(log_trace)}')")
+                    f"replace into 'log' ('time','input','output') values("
+                    f"'{time_now}','{text_to_b64(log_input)}','{text_to_b64(log_output)}')")
                 conn.commit()
             except Exception as e:
                 logger.error("写入日志失败（2/3）")
@@ -1091,7 +868,7 @@ async def botrun(msg_info: dict):
                 path += f"{time_now}.log"
                 file = open(path, "w", encoding="UTF-8")
                 file.write(
-                    json.dumps({"time": time_now, "input": msg_info, "output": return_json, "trace": trace_data}))
+                    json.dumps({"time": time_now, "input": msg_info, "output": return_json}))
                 file.close()
         cursor.close()
         conn.close()
